@@ -1,0 +1,103 @@
+{
+  "edges": [
+    {
+      "from_file": "file:src/golden_app/app.py",
+      "kind": "import_from",
+      "level": 0,
+      "line": 3,
+      "module": "fastapi",
+      "names": [
+        "FastAPI"
+      ]
+    },
+    {
+      "from_file": "file:src/golden_app/app.py",
+      "kind": "import_from",
+      "level": 0,
+      "line": 5,
+      "module": "golden_app.core",
+      "names": [
+        "greeting_for"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "analysis": {
+        "completeness": "complete",
+        "parse_ok": true
+      },
+      "id": "file:src/golden_app/__init__.py",
+      "path": "src/golden_app/__init__.py",
+      "sha256": "6e35bc8342faad31f0c50254dda5a801af12001445f7d9d6e65bc50ce97d3ac6"
+    },
+    {
+      "analysis": {
+        "completeness": "complete",
+        "parse_ok": true
+      },
+      "id": "file:src/golden_app/app.py",
+      "path": "src/golden_app/app.py",
+      "sha256": "c4759dfc372516da66ee7391fcd3600588e0c91c2e841b00aca3e64f05933b37"
+    },
+    {
+      "analysis": {
+        "completeness": "complete",
+        "parse_ok": true
+      },
+      "id": "file:src/golden_app/core.py",
+      "path": "src/golden_app/core.py",
+      "sha256": "8f3de1462061a08e095d64b39f1b48e6928a199cbb4993a9ccbccdec2e72523e"
+    }
+  ],
+  "index_meta": {
+    "completeness": "partial",
+    "engine": "ast",
+    "known_limits": [
+      "Structural AST only \u2014 no type-aware call graph.",
+      "Import edges record static import / import-from statements only.",
+      "Dynamic imports, reflection, and string-based imports are invisible."
+    ]
+  },
+  "indexer": "raw_indexer.ast_v0",
+  "root": "/home/dlybeck/Projects/Modular Code/fixtures/golden-fastapi",
+  "schema_version": 0,
+  "symbols": [
+    {
+      "end_line": 19,
+      "file_id": "file:src/golden_app/app.py",
+      "id": "sym:src/golden_app/app.py:golden_app.app.create_app",
+      "kind": "function",
+      "line": 8,
+      "name": "create_app",
+      "qualified_name": "golden_app.app.create_app"
+    },
+    {
+      "end_line": 13,
+      "file_id": "file:src/golden_app/app.py",
+      "id": "sym:src/golden_app/app.py:golden_app.app.create_app.health",
+      "kind": "function",
+      "line": 12,
+      "name": "health",
+      "qualified_name": "golden_app.app.create_app.health"
+    },
+    {
+      "end_line": 17,
+      "file_id": "file:src/golden_app/app.py",
+      "id": "sym:src/golden_app/app.py:golden_app.app.create_app.greet",
+      "kind": "function",
+      "line": 16,
+      "name": "greet",
+      "qualified_name": "golden_app.app.create_app.greet"
+    },
+    {
+      "end_line": 7,
+      "file_id": "file:src/golden_app/core.py",
+      "id": "sym:src/golden_app/core.py:golden_app.core.greeting_for",
+      "kind": "function",
+      "line": 4,
+      "name": "greeting_for",
+      "qualified_name": "golden_app.core.greeting_for"
+    }
+  ]
+}

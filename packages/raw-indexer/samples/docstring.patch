@@ -1,0 +1,8 @@
+--- a/src/golden_app/core.py
++++ b/src/golden_app/core.py
+@@ -1,4 +1,4 @@
+-"""Pure logic tested without HTTP."""
++"""Pure logic tested without HTTP (patched)."""
+ 
+ 
+ def greeting_for(name: str) -> str:

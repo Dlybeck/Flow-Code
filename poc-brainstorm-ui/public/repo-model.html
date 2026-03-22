@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Disk + graph — how code lives</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --border: #30363d;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --green: #3fb950;
+        --blue: #58a6ff;
+        --purple: #a371f7;
+        --orange: #d29922;
+        --red: #f85149;
+        --mono: 'JetBrains Mono', ui-monospace, monospace;
+        --sans: 'DM Sans', system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.55;
+        font-size: 15px;
+      }
+      a {
+        color: var(--blue);
+      }
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      h1 {
+        font-size: 1.65rem;
+        font-weight: 600;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 1rem;
+        max-width: 62ch;
+        margin-bottom: 36px;
+      }
+      h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin: 40px 0 16px;
+        font-weight: 600;
+      }
+      .big-idea {
+        background: linear-gradient(135deg, #1a2332 0%, var(--panel) 100%);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px 22px;
+        margin: 28px 0;
+        font-size: 1.05rem;
+      }
+      .big-idea strong {
+        color: var(--green);
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 24px 0;
+      }
+      @media (max-width: 720px) {
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px 18px;
+        overflow: auto;
+      }
+      .panel h3 {
+        margin: 0 0 12px;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 3px 8px;
+        border-radius: 4px;
+      }
+      .badge-disk {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--green);
+      }
+      .badge-graph {
+        background: rgba(163, 113, 247, 0.2);
+        color: var(--purple);
+      }
+      pre.tree {
+        margin: 0;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--muted);
+      }
+      .tree .dir {
+        color: var(--blue);
+      }
+      .tree .file {
+        color: var(--text);
+      }
+      .tree .shared {
+        color: var(--orange);
+        font-weight: 500;
+      }
+      .tree .meta {
+        color: var(--purple);
+      }
+      .graph-mini {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .g-node {
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+        border: 2px solid var(--border);
+        position: relative;
+      }
+      .g-node.inner {
+        border-color: var(--purple);
+        background: rgba(163, 113, 247, 0.08);
+      }
+      .g-node.leaf {
+        border-color: var(--green);
+        background: rgba(63, 185, 80, 0.06);
+        margin-left: 16px;
+      }
+      .g-node.linked {
+        border-style: dashed;
+        border-color: var(--orange);
+        background: rgba(210, 153, 34, 0.08);
+      }
+      .g-node .tag {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 4px;
+        font-family: var(--mono);
+      }
+      .diagram {
+        margin: 32px 0;
+        padding: 24px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      .diagram-title {
+        text-align: center;
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 20px;
+      }
+      .flow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .box {
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 14px 20px;
+        border-radius: 10px;
+        text-align: center;
+        max-width: 280px;
+      }
+      .box-one-file {
+        background: rgba(210, 153, 34, 0.15);
+        border: 2px dashed var(--orange);
+        color: var(--text);
+      }
+      .box-leaf {
+        background: rgba(63, 185, 80, 0.1);
+        border: 2px solid var(--green);
+      }
+      .arrow {
+        color: var(--muted);
+        font-size: 22px;
+        line-height: 1;
+        padding: 6px 0;
+      }
+      .split-arrows {
+        display: flex;
+        justify-content: center;
+        gap: 80px;
+        width: 100%;
+        max-width: 420px;
+        margin: 4px 0;
+      }
+      .split-arrows .arm {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .yaml-hint {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-top: 20px;
+        white-space: pre-wrap;
+        line-height: 1.5;
+      }
+      .back {
+        margin-bottom: 24px;
+      }
+      ul.simple {
+        color: var(--muted);
+        padding-left: 1.2em;
+      }
+      ul.simple li {
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p class="back"><a href="/">← Back to graph POC</a></p>
+
+      <h1>Where does the code actually live?</h1>
+      <p class="sub">
+        Your product uses a <strong style="color: var(--text)">graph</strong> for
+        navigation and structure. The <strong style="color: var(--text)">code</strong>
+        still lives in <strong style="color: var(--text)">normal files</strong> on
+        disk — like any Git repo. The graph <em>points</em> at those files; it does
+        not replace them.
+      </p>
+
+      <div class="big-idea">
+        <strong>One sentence:</strong> Disk = the real source text. Graph = an index
+        (metadata) that says which files belong to which “node” and how capsules
+        connect.
+      </div>
+
+      <h2>Side by side</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <h3>
+            <span class="badge badge-disk">Disk</span>
+            Normal folder tree
+          </h3>
+          <pre class="tree"><span class="dir">my-app/</span>
+├── <span class="meta">.yourtool/</span>
+│   └── <span class="meta">graph.yaml</span>   <span style="opacity:.7">← metadata only</span>
+├── <span class="dir">src/ui/</span>
+│   ├── <span class="dir">components/</span>
+│   │   └── <span class="file shared">SharedTextField.tsx</span>  <span style="opacity:.7">← ONE shared file</span>
+│   └── <span class="dir">features/</span>
+│       ├── <span class="dir">account/</span>
+│       │   └── <span class="file">AccountForm.tsx</span>
+│       └── <span class="dir">settings/</span>
+│           └── <span class="file">SettingsPanel.tsx</span>
+└── <span class="file">package.json</span></pre>
+        </div>
+        <div class="panel">
+          <h3>
+            <span class="badge badge-graph">Graph</span>
+            Product map (in app)
+          </h3>
+          <div class="graph-mini">
+            <div class="g-node inner">
+              <strong>UI</strong> (grouping — no code file)
+              <div class="tag">inner node</div>
+            </div>
+            <div class="g-node leaf">
+              <strong>Account → form</strong>
+              <div class="tag">leaf → AccountForm.tsx</div>
+            </div>
+            <div class="g-node leaf linked">
+              <strong>Settings → panel</strong>
+              <div class="tag">leaf → SettingsPanel.tsx · linked</div>
+            </div>
+            <div class="g-node leaf linked" style="margin-left: 16px">
+              <strong>Shared text field</strong>
+              <div class="tag">definition leaf → SharedTextField.tsx</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Shared code (the confusing part)</h2>
+      <p style="color: var(--muted); max-width: 65ch">
+        The <strong style="color: var(--orange)">orange</strong> file exists
+        <strong>once</strong>. Both Account and Settings import it. In the
+        <strong>graph</strong>, you might show <em>several leaves</em> that all
+        “point at” that same file (or one <em>definition</em> leaf + use-sites).
+        That’s the “linked leaf” idea — <strong>not</strong> three copies of the
+        source on disk.
+      </p>
+
+      <div class="diagram">
+        <div class="diagram-title">Shared implementation</div>
+        <div class="flow">
+          <div class="box box-one-file">
+            <strong style="color: var(--orange)">ONE file on disk</strong><br />
+            src/ui/components/SharedTextField.tsx
+          </div>
+          <div class="arrow">↓</div>
+          <div class="split-arrows">
+            <div class="arm">
+              <div class="arrow">↙</div>
+              <div class="box box-leaf">
+                Leaf: Account form<br />
+                <span style="opacity: 0.85">imports shared component</span>
+              </div>
+            </div>
+            <div class="arm">
+              <div class="arrow">↘</div>
+              <div class="box box-leaf">
+                Leaf: Settings panel<br />
+                <span style="opacity: 0.85">imports same file</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>What is graph.yaml?</h2>
+      <p style="color: var(--muted); max-width: 65ch">
+        A small file (name is an example) that lists nodes, parent/child, optional
+        conceptual edges, and <strong>anchor paths</strong> — the strings that tie
+        each leaf to real paths under <code>src/</code>. It is not where you paste
+        your React components.
+      </p>
+      <div class="yaml-hint"># conceptual example — not exact syntax
+nodes:
+  ui:        { kind: inner, children: [account-form, settings-panel, shared-field] }
+  account-form:  { kind: leaf, anchor: "src/ui/features/account/AccountForm.tsx" }
+  settings-panel:{ kind: leaf, anchor: "src/ui/features/settings/SettingsPanel.tsx", sharedGroup: "text-1" }
+  shared-field:  { kind: leaf, anchor: "src/ui/components/SharedTextField.tsx", sharedGroup: "text-1" }</div>
+
+      <h2>Remember</h2>
+      <ul class="simple">
+        <li><strong style="color: var(--text)">npm test, TypeScript, ESLint</strong> see normal files — they don’t need the graph.</li>
+        <li>The <strong style="color: var(--text)">graph</strong> is for <em>your</em> product UI, agents, and “where does this feature live?”</li>
+        <li><strong style="color: var(--text)">Shared code</strong> = one file, many importers; the graph shows the relationship so you don’t think they’re unrelated.</li>
+      </ul>
+    </div>
+  </body>
+</html>

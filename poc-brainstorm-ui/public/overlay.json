@@ -1,0 +1,19 @@
+{
+  "schema_version": 0,
+  "by_file_id": {
+    "file:src/golden_app/app.py": {
+      "displayName": "HTTP API surface",
+      "userDescription": "FastAPI routes and app factory."
+    },
+    "file:src/golden_app/core.py": {
+      "displayName": "Shared greeting logic",
+      "userDescription": "Pure functions used by the API."
+    }
+  },
+  "by_symbol_id": {
+    "sym:src/golden_app/core.py:golden_app.core.greeting_for": {
+      "displayName": "User-facing greeting",
+      "userDescription": "Builds the Hello string from a trimmed name."
+    }
+  }
+}

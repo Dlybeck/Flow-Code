@@ -1,0 +1,16 @@
+{
+  "schema_version": 0,
+  "by_symbol_id": {
+    "sym:src/golden_app/core.py:golden_app.core.greeting_for": {
+      "displayName": "Greeting helper"
+    },
+    "sym:ghost:missing.symbol": {
+      "displayName": "Should report as orphan"
+    }
+  },
+  "by_file_id": {
+    "file:ghost:missing.py": {
+      "displayName": "Orphan file overlay"
+    }
+  }
+}

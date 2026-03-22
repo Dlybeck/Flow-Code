@@ -1,0 +1,23 @@
+{
+  "version": "1.1.0",
+  "time": "2026-03-22T00:00:00Z",
+  "generalDiagnostics": [
+    {
+      "file": "/abs/repo/src/pkg/mod.py",
+      "severity": "error",
+      "message": "Undefined name",
+      "rule": "reportUndefinedVariable",
+      "range": {
+        "start": { "line": 2, "character": 4 },
+        "end": { "line": 2, "character": 10 }
+      }
+    }
+  ],
+  "summary": {
+    "filesAnalyzed": 3,
+    "errorCount": 1,
+    "warningCount": 0,
+    "informationCount": 0,
+    "timeInSec": 0.1
+  }
+}

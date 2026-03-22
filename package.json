@@ -1,0 +1,15 @@
+{
+  "name": "modular-code",
+  "private": true,
+  "description": "Monorepo root — npm scripts delegate to poc-brainstorm-ui",
+  "scripts": {
+    "dev": "npm run dev --prefix poc-brainstorm-ui",
+    "dev:api": "npm run dev:api --prefix poc-brainstorm-ui",
+    "api": "bash scripts/brainstorm-api.sh",
+    "build": "npm run build --prefix poc-brainstorm-ui",
+    "lint": "npm run lint --prefix poc-brainstorm-ui",
+    "preview": "npm run preview --prefix poc-brainstorm-ui",
+    "index:golden": "npm run index:golden --prefix poc-brainstorm-ui",
+    "check:orphans": "npm run check:orphans --prefix poc-brainstorm-ui"
+  }
+}
