@@ -79,6 +79,30 @@ def validate_execution_ir(doc: Any) -> list[str]:
                     errs.append(f"edges[{i}].from unknown node: {e.get('from')!r}")
                 if e.get("to") not in node_ids:
                     errs.append(f"edges[{i}].to unknown node: {e.get('to')!r}")
+            cs = e.get("callsite")
+            if cs is not None:
+                if not isinstance(cs, dict):
+                    errs.append(f"edges[{i}].callsite must be an object when present")
+                else:
+                    if "callee" in cs and cs["callee"] is not None and not isinstance(cs["callee"], str):
+                        errs.append(f"edges[{i}].callsite.callee must be a string")
+                    if "import_ref" in cs and cs["import_ref"] is not None and not isinstance(
+                        cs["import_ref"],
+                        str,
+                    ):
+                        errs.append(f"edges[{i}].callsite.import_ref must be a string")
+                    if "snippet" in cs and cs["snippet"] is not None and not isinstance(
+                        cs["snippet"],
+                        str,
+                    ):
+                        errs.append(f"edges[{i}].callsite.snippet must be a string")
+                    if "callee_expression" in cs and cs["callee_expression"] is not None and not isinstance(
+                        cs["callee_expression"],
+                        str,
+                    ):
+                        errs.append(f"edges[{i}].callsite.callee_expression must be a string")
+                    if "line" in cs and cs["line"] is not None and not isinstance(cs["line"], int):
+                        errs.append(f"edges[{i}].callsite.line must be an integer")
     if isinstance(doc.get("entrypoints"), list) and isinstance(nodes, list):
         node_ids_ep = {n["id"] for n in nodes if isinstance(n, dict) and isinstance(n.get("id"), str)}
         for i, ep in enumerate(doc["entrypoints"]):

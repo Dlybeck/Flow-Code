@@ -78,7 +78,7 @@
   max-width: 200px;
 }
 
-.raw-err {
+.panel-err {
   font-size: 11px;
   color: #f85149;
   margin: 4px 0 0;
@@ -128,7 +128,58 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  min-height: 0;
+}
+
+.side-chat-slot {
+  flex: 1;
+  min-height: 100px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-deep);
+}
+
+.side-chat-placeholder {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.side-reload-btn {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-node);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.side-reload-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.side-reload-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.reload-notice {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--accent);
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
 .side-panel h2 {
@@ -310,6 +361,13 @@
   word-break: break-word;
 }
 
+.apply-bundle-err {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--danger, #f85149);
+}
+
 .mock-card {
   background: var(--bg-node);
   border: 1px solid var(--border);
@@ -400,6 +458,21 @@
   border-top-style: dashed;
 }
 
+.legend-hidden-uncertain-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d29922;
+  vertical-align: middle;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #d29922 35%, #000);
+}
+
+.legend-muted {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 .swatch.boundary {
   border: 2px dashed #d29922;
   background: color-mix(in srgb, #d29922 12%, transparent);
@@ -416,6 +489,36 @@
 .node-row .node-label {
   flex: 1;
   min-width: 0;
+}
+
+.flow-hidden-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: help;
+}
+
+.flow-hidden-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d29922;
+  box-shadow: 0 0 0 1px color-mix(in srgb, #d29922 35%, #000);
+}
+
+.flow-uncertain-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.flow-uncertain-toggle input {
+  accent-color: #d29922;
 }
 
 .node-test {

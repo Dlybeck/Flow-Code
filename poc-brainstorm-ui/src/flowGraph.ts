@@ -5,9 +5,122 @@ import type { Edge, Node } from '@xyflow/react'
 
 import type { FlowDoc, FlowNode } from './flowTypes'
 
-const BOUNDARY_PREFIX = 'py:boundary:'
+export const FLOW_BOUNDARY_PREFIX = 'py:boundary:'
 const UNKNOWN_CALL_STROKE = '#d29922'
 const RESOLVED_CALL_STROKE = '#58a6ff'
+
+function isBoundaryFlowNode(n: FlowNode): boolean {
+  return n.kind === 'dynamic_callsite' || n.id.startsWith(FLOW_BOUNDARY_PREFIX)
+}
+
+function isUncertainFlowCall(e: { kind: string; confidence: string }): boolean {
+  return e.kind === 'calls' && e.confidence !== 'resolved'
+}
+
+/** Count uncertain call edges per source node (full doc, before hiding). */
+export function flowHiddenUncertainCounts(doc: FlowDoc): Map<string, number> {
+  const m = new Map<string, number>()
+  for (const e of doc.edges) {
+    if (!isUncertainFlowCall(e)) continue
+    m.set(e.from, (m.get(e.from) ?? 0) + 1)
+  }
+  return m
+}
+
+/**
+ * Drop boundary nodes and uncertain call edges for a simpler default map.
+ * Use with {@link flowHiddenUncertainCounts} on the original doc for per-node badges.
+ */
+export function filterFlowDocUncertainty(
+  doc: FlowDoc,
+  showUncertainDetail: boolean,
+): FlowDoc {
+  if (showUncertainDetail) return doc
+  const boundaryIds = new Set(
+    doc.nodes.filter(isBoundaryFlowNode).map((n) => n.id),
+  )
+  return {
+    ...doc,
+    nodes: doc.nodes.filter((n) => !boundaryIds.has(n.id)),
+    edges: doc.edges.filter(
+      (e) =>
+        !boundaryIds.has(e.to) && !isUncertainFlowCall(e),
+    ),
+  }
+}
+
+/**
+ * Stable fingerprint of the visible execution graph (same filter as the canvas).
+ * When unchanged, the UI may keep user-dragged node positions across overlay/poll refreshes.
+ */
+/** Stable fingerprint of an already-filtered visible doc (nodes + edges). */
+export function flowVisibleDocSignature(doc: FlowDoc): string {
+  const nids = [...doc.nodes.map((x) => x.id)].sort().join('\0')
+  const eparts = doc.edges.map((e) => {
+    const id = e.id ?? `${e.from}->${e.to}`
+    return `${id}|${e.from}|${e.to}|${e.kind}|${e.confidence}`
+  })
+  eparts.sort()
+  return `${nids}\n${eparts.join('\n')}`
+}
+
+export function flowStructureSignature(
+  doc: FlowDoc | null,
+  showUncertainDetail: boolean,
+): string {
+  if (!doc?.nodes?.length) return ''
+  const v = filterFlowDocUncertainty(doc, showUncertainDetail)
+  return flowVisibleDocSignature(v)
+}
+
+/** Node ids that have at least one outgoing `contains` edge (in this doc). */
+export function flowIdsWithContainsChildren(doc: FlowDoc): Set<string> {
+  const s = new Set<string>()
+  for (const e of doc.edges) {
+    if (e.kind === 'contains') s.add(e.from)
+  }
+  return s
+}
+
+/**
+ * Descendants reachable via `contains` edges only (does not include the
+ * collapsed nodes themselves).
+ */
+export function flowHiddenDescendants(
+  doc: FlowDoc,
+  collapsed: Set<string>,
+): Set<string> {
+  const children = new Map<string, string[]>()
+  for (const e of doc.edges) {
+    if (e.kind !== 'contains') continue
+    const list = children.get(e.from) ?? []
+    list.push(e.to)
+    children.set(e.from, list)
+  }
+  const hidden = new Set<string>()
+  const stack = [...collapsed]
+  while (stack.length) {
+    const u = stack.pop()!
+    for (const v of children.get(u) ?? []) {
+      if (hidden.has(v)) continue
+      hidden.add(v)
+      stack.push(v)
+    }
+  }
+  return hidden
+}
+
+/** Drop nodes hidden under collapsed parents and any edges touching them. */
+export function applyFlowCollapse(doc: FlowDoc, collapsed: Set<string>): FlowDoc {
+  const hidden = flowHiddenDescendants(doc, collapsed)
+  return {
+    ...doc,
+    nodes: doc.nodes.filter((n) => !hidden.has(n.id)),
+    edges: doc.edges.filter(
+      (e) => !hidden.has(e.from) && !hidden.has(e.to),
+    ),
+  }
+}
 
 function shortLabel(qname: string): string {
   const i = qname.lastIndexOf('.')
@@ -23,7 +136,7 @@ function locSubtitle(n: FlowNode): string {
 }
 
 function flowNodeReactType(n: FlowNode, entryIds: Set<string>): string {
-  if (n.kind === 'dynamic_callsite' || n.id.startsWith(BOUNDARY_PREFIX)) {
+  if (isBoundaryFlowNode(n)) {
     return 'boundary'
   }
   if (entryIds.has(n.id)) return 'surface'
@@ -51,7 +164,7 @@ export function buildFlowGraph(doc: FlowDoc): { nodes: Node[]; edges: Edge[] } {
       data: {
         label: shortLabel(n.label),
         subtitle: isBoundary
-          ? 'Static analysis did not resolve a target'
+          ? 'Groups calls to targets not shown as their own boxes (e.g. libraries, decorators)'
           : isEp
             ? `entry · ${locSubtitle(n)}`
             : locSubtitle(n),
@@ -82,6 +195,7 @@ export function buildFlowGraph(doc: FlowDoc): { nodes: Node[]; edges: Edge[] } {
         id: `t-fk-${idStr}-${hi++}`,
         source: e.from,
         target: e.to,
+        data: { flowUncertain: uncertain },
         style: {
           stroke: uncertain ? UNKNOWN_CALL_STROKE : RESOLVED_CALL_STROKE,
           strokeWidth: uncertain ? 1.75 : 1.5,

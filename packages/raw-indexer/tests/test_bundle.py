@@ -33,6 +33,9 @@ def test_parse_bundle_overlay_types() -> None:
     with pytest.raises(ValueError, match="by_root_id"):
         parse_bundle({"schema_version": 0, "unified_diff": "x", "overlay": {"by_root_id": []}})
 
+    with pytest.raises(ValueError, match="by_flow_node_id"):
+        parse_bundle({"schema_version": 0, "unified_diff": "x", "overlay": {"by_flow_node_id": []}})
+
 
 def test_merge_overlay_delta_merges_symbol_entry() -> None:
     base = {
@@ -72,6 +75,29 @@ def test_merge_overlay_delta_merges_directory_entry() -> None:
     m = merge_overlay_delta(base, delta)
     assert m["by_directory_id"]["dir:a"] == {"displayName": "A", "userDescription": "note"}
     assert m["by_directory_id"]["dir:b"] == {"displayName": "B"}
+
+
+def test_merge_overlay_delta_merges_flow_entry() -> None:
+    base = {
+        "schema_version": 0,
+        "by_symbol_id": {},
+        "by_file_id": {},
+        "by_directory_id": {},
+        "by_root_id": {},
+        "by_flow_node_id": {"py:boundary:unresolved": {"displayName": "Unresolved"}},
+    }
+    delta = {
+        "by_flow_node_id": {
+            "py:boundary:unresolved": {"userDescription": "Third-party calls land here."},
+            "py:fn:other": {"displayName": "Other"},
+        },
+    }
+    m = merge_overlay_delta(base, delta)
+    assert m["by_flow_node_id"]["py:boundary:unresolved"] == {
+        "displayName": "Unresolved",
+        "userDescription": "Third-party calls land here.",
+    }
+    assert m["by_flow_node_id"]["py:fn:other"] == {"displayName": "Other"}
 
 
 def test_apply_bundle_patch_skip_validate(

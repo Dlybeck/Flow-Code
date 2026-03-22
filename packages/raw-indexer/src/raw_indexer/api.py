@@ -17,6 +17,7 @@ from raw_indexer.index import index_repo, write_index
 from raw_indexer.overlay import (
     overlay_orphan_directory_keys,
     overlay_orphan_file_keys,
+    overlay_orphan_flow_keys,
     overlay_orphan_keys,
     overlay_orphan_root_keys,
 )
@@ -125,6 +126,7 @@ def _normalize_overlay(body: dict[str, Any]) -> dict[str, Any]:
     by_file = body.get("by_file_id")
     by_dir = body.get("by_directory_id")
     by_root = body.get("by_root_id")
+    by_flow = body.get("by_flow_node_id")
     if by_sym is not None and not isinstance(by_sym, dict):
         raise HTTPException(status_code=422, detail="by_symbol_id must be an object")
     if by_file is not None and not isinstance(by_file, dict):
@@ -133,6 +135,8 @@ def _normalize_overlay(body: dict[str, Any]) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail="by_directory_id must be an object")
     if by_root is not None and not isinstance(by_root, dict):
         raise HTTPException(status_code=422, detail="by_root_id must be an object")
+    if by_flow is not None and not isinstance(by_flow, dict):
+        raise HTTPException(status_code=422, detail="by_flow_node_id must be an object")
     sv = body.get("schema_version")
     if sv is not None and not isinstance(sv, int):
         raise HTTPException(status_code=422, detail="schema_version must be an integer")
@@ -142,6 +146,7 @@ def _normalize_overlay(body: dict[str, Any]) -> dict[str, Any]:
         "by_file_id": dict(by_file) if isinstance(by_file, dict) else {},
         "by_directory_id": dict(by_dir) if isinstance(by_dir, dict) else {},
         "by_root_id": dict(by_root) if isinstance(by_root, dict) else {},
+        "by_flow_node_id": dict(by_flow) if isinstance(by_flow, dict) else {},
     }
 
 
@@ -175,21 +180,26 @@ def get_flow() -> JSONResponse:
     return JSONResponse(content=data)
 
 
+def _no_store_json(data: dict[str, Any]) -> JSONResponse:
+    return JSONResponse(content=data, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/overlay")
 def get_overlay() -> JSONResponse:
     path = _overlay_path()
     if not path.is_file():
-        return JSONResponse(
-            content={
+        return _no_store_json(
+            {
                 "schema_version": 0,
                 "by_symbol_id": {},
                 "by_file_id": {},
                 "by_directory_id": {},
                 "by_root_id": {},
+                "by_flow_node_id": {},
             },
         )
     data = json.loads(path.read_text(encoding="utf-8"))
-    return JSONResponse(content=data)
+    return _no_store_json(data)
 
 
 @app.patch("/overlay")
@@ -203,15 +213,17 @@ def patch_overlay(body: dict[str, Any]) -> JSONResponse:
     file_orphans = overlay_orphan_file_keys(overlay, raw_doc)
     dir_orphans = overlay_orphan_directory_keys(overlay, raw_doc)
     root_orphans = overlay_orphan_root_keys(overlay)
-    if sym_orphans or file_orphans or dir_orphans or root_orphans:
+    flow_orphans = overlay_orphan_flow_keys(overlay, raw_doc)
+    if sym_orphans or file_orphans or dir_orphans or root_orphans or flow_orphans:
         raise HTTPException(
             status_code=422,
             detail={
-                "message": "Overlay contains keys not present in RAW",
+                "message": "Overlay contains keys not present in RAW / flow IR",
                 "orphan_symbol_ids": sym_orphans,
                 "orphan_file_ids": file_orphans,
                 "orphan_directory_ids": dir_orphans,
                 "orphan_root_ids": root_orphans,
+                "orphan_flow_node_ids": flow_orphans,
             },
         )
     out = _overlay_path()

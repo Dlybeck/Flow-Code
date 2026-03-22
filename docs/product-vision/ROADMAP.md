@@ -39,7 +39,7 @@
 | Phase | Status |
 |-------|--------|
 | **Phase 0** | **Done** — [`packages/raw-indexer`](../../packages/raw-indexer): AST **RAW** JSON, `diff`, `orphans`, `validate`, `apply-verify`; golden fixture in [`fixtures/golden-fastapi`](../../fixtures/golden-fastapi). |
-| **Phase 1** | **Done** — [poc-brainstorm-ui](../../poc-brainstorm-ui): loads **`public/raw.json`**, **`src/rawGraph.ts`** maps dirs/files/symbols + import edges; **`npm run index:golden`** refreshes from the fixture. |
+| **Phase 1** | **Done** — [poc-brainstorm-ui](../../poc-brainstorm-ui): **`public/flow.json`** execution map + overlay; optional **`raw.json`** for side-panel diagnostics; **`npm run index:golden`** refreshes from the fixture. |
 | **Phase 2** | **Done** — **`public/overlay.json`**, **`mergeOverlay`**, **`npm run check:orphans`**; `raw-indexer orphans` checks **`by_symbol_id`** + **`by_file_id`** (exit **1** if stale keys). |
 | **Phase 3** | **Done (baseline)** — FastAPI in **`raw_indexer.api`**: **`GET /raw`**, **`GET /overlay`**, **`PATCH /overlay`** (reject orphans), **`POST /reindex`**; POC **`npm run dev:api`** + Vite proxy + **`scripts/brainstorm-api.sh`**. Default dev still uses static **`public/*.json`**; API path is opt-in. |
 | **Phase 4** | **Done** — **`index_meta`**, per-file **`analysis`**, **`diff.remap`**, **`overlay-migrate`** CLI, optional **`index --diagnostics`** (Pyright JSON) + **`language_adapter`** boundary; POC **Index coverage** + **Type checker** panel when diagnostics present. |

@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from raw_indexer.api import app
+from raw_indexer.index import index_repo
 
 
 @pytest.fixture
@@ -28,6 +29,9 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
                 "schema_version": 0,
                 "by_symbol_id": {"sym:a:f": {"displayName": "f"}},
                 "by_file_id": {},
+                "by_directory_id": {},
+                "by_root_id": {},
+                "by_flow_node_id": {},
             },
         ),
         encoding="utf-8",
@@ -86,6 +90,68 @@ def test_patch_overlay_rejects_orphan(client: TestClient) -> None:
         },
     )
     assert r.status_code == 422
+
+
+def test_patch_overlay_rejects_orphan_flow(
+    golden_repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_doc = index_repo(golden_repo)
+    (tmp_path / "raw.json").write_text(json.dumps(raw_doc), encoding="utf-8")
+    (tmp_path / "overlay.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "flow.json").write_text(
+        json.dumps({"schema_version": 0, "languages": ["python"], "entrypoints": [], "nodes": [], "edges": []}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(tmp_path))
+    monkeypatch.delenv("BRAINSTORM_GOLDEN_REPO", raising=False)
+    with TestClient(app) as c:
+        r = c.patch(
+            "/overlay",
+            json={
+                "schema_version": 0,
+                "by_symbol_id": {},
+                "by_file_id": {},
+                "by_directory_id": {},
+                "by_root_id": {},
+                "by_flow_node_id": {"py:flow:does-not-exist": {"displayName": "ghost"}},
+            },
+        )
+    assert r.status_code == 422
+
+
+def test_patch_overlay_accepts_valid_flow_node(
+    golden_repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_doc = index_repo(golden_repo)
+    (tmp_path / "raw.json").write_text(json.dumps(raw_doc), encoding="utf-8")
+    (tmp_path / "overlay.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "flow.json").write_text(
+        json.dumps({"schema_version": 0, "languages": ["python"], "entrypoints": [], "nodes": [], "edges": []}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(tmp_path))
+    monkeypatch.delenv("BRAINSTORM_GOLDEN_REPO", raising=False)
+    with TestClient(app) as c:
+        r = c.patch(
+            "/overlay",
+            json={
+                "schema_version": 0,
+                "by_symbol_id": {},
+                "by_file_id": {},
+                "by_directory_id": {},
+                "by_root_id": {},
+                "by_flow_node_id": {
+                    "py:boundary:unresolved": {"displayName": "External / unknown calls"},
+                },
+            },
+        )
+    assert r.status_code == 200
+    data = json.loads((tmp_path / "overlay.json").read_text(encoding="utf-8"))
+    assert data["by_flow_node_id"]["py:boundary:unresolved"]["displayName"] == "External / unknown calls"
 
 
 def test_patch_overlay_rejects_orphan_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

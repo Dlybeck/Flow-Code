@@ -11,8 +11,10 @@ from raw_indexer.overlay import ROOT_OVERLAY_ID, valid_directory_ids
 from raw_indexer.update_map import (
     DIR_SYSTEM,
     FILE_SYSTEM,
+    FLOW_SYSTEM,
     ROOT_SYSTEM,
     SYM_SYSTEM,
+    _build_flow_overlay_user_message,
     run_update_map,
 )
 
@@ -39,6 +41,22 @@ def test_update_map_dry_run_writes_overlay(
     assert data.get("by_symbol_id")
     assert data.get("by_directory_id")
     assert data.get("by_root_id", {}).get(ROOT_OVERLAY_ID)
+    assert data.get("by_flow_node_id", {}).get("py:boundary:unresolved")
+
+
+def test_flow_overlay_prompt_lists_callers(golden_repo: Path) -> None:
+    from raw_indexer.execution_ir.python_from_raw import build_execution_ir_from_raw
+
+    raw_doc = index_repo(golden_repo)
+    ir = build_execution_ir_from_raw(raw_doc)
+    msg = _build_flow_overlay_user_message(ir)
+    assert "py:boundary:unresolved" in msg
+    assert "callers_to_this_node" in msg
+    assert "unresolved_call_sink" in msg
+    assert "caller_label_short" in msg
+    assert "unresolved_callsites" in msg
+    assert "FastAPI" in msg
+    assert "fastapi.FastAPI" in msg
 
 
 def test_update_map_missing_key(golden_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -93,6 +111,21 @@ def test_update_map_mock_llm_merges(
                     },
                 },
             }
+        if system == FLOW_SYSTEM:
+            from raw_indexer.execution_ir.python_from_raw import build_execution_ir_from_raw
+
+            ir = build_execution_ir_from_raw(raw_doc)
+            fids = [
+                str(n["id"])
+                for n in ir.get("nodes", [])
+                if isinstance(n, dict) and n.get("id") and not n.get("raw_symbol_id")
+            ]
+            return {
+                "by_flow_node_id": {
+                    fid: {"displayName": f"Flow-{fid[-12:]}", "userDescription": f"Flow D {fid}"}
+                    for fid in fids
+                },
+            }
         raise AssertionError(f"unexpected system prompt: {system[:40]}")
 
     ov = tmp_path / "overlay.json"
@@ -103,10 +136,12 @@ def test_update_map_mock_llm_merges(
     assert res["files_updated"] == len(file_ids)
     assert res.get("directories_updated") == len(dir_ids)
     assert res.get("root_updated") == 1
+    assert res.get("flow_nodes_updated", 0) >= 1
     out = json.loads(ov.read_text(encoding="utf-8"))
     assert len(out["by_symbol_id"]) >= len(sym_ids)
     assert len(out.get("by_directory_id", {})) >= len(dir_ids)
     assert out.get("by_root_id", {}).get(ROOT_OVERLAY_ID, {}).get("displayName") == "Root stub"
+    assert out.get("by_flow_node_id", {}).get("py:boundary:unresolved", {}).get("displayName")
 
 
 def test_post_update_map_dry_run_api(

@@ -2,12 +2,23 @@
  * Execution IR (flow.json) — language-neutral graph; see docs/product-vision/EXECUTION-MAP-PLAN.md
  */
 
+/** Optional detail on unknown-confidence call edges (Python IR). */
+export type FlowCallsite = {
+  callee?: string
+  import_ref?: string
+  callee_expression?: string
+  line?: number
+  snippet?: string
+}
+
 export type FlowEdge = {
   id?: string
   from: string
   to: string
   kind: string
   confidence: string
+  evidence?: string
+  callsite?: FlowCallsite
 }
 
 export type FlowNode = {

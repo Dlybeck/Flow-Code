@@ -18,8 +18,36 @@ def load_overlay(path: Path | str) -> dict[str, Any]:
             "by_file_id": {},
             "by_directory_id": {},
             "by_root_id": {},
+            "by_flow_node_id": {},
         }
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+def valid_flow_node_ids(raw_doc: dict[str, Any]) -> set[str] | None:
+    """
+    Node ids from the current execution IR built from RAW.
+    Returns None if IR cannot be built (caller should skip flow overlay orphan check).
+    """
+    try:
+        from raw_indexer.execution_ir.python_from_raw import build_execution_ir_from_raw
+
+        ir = build_execution_ir_from_raw(raw_doc)
+    except Exception:
+        return None
+    return {
+        str(n["id"])
+        for n in ir.get("nodes", [])
+        if isinstance(n, dict) and n.get("id")
+    }
+
+
+def overlay_orphan_flow_keys(overlay: dict[str, Any], raw_doc: dict[str, Any]) -> list[str]:
+    """Flow overlay keys not present in execution IR from current RAW."""
+    valid = valid_flow_node_ids(raw_doc)
+    keys = set(overlay.get("by_flow_node_id", {}).keys())
+    if valid is None:
+        return []
+    return sorted(keys - valid)
 
 
 def valid_symbol_ids(raw_doc: dict[str, Any]) -> set[str]:
@@ -32,7 +60,7 @@ def valid_file_ids(raw_doc: dict[str, Any]) -> set[str]:
 
 def valid_directory_ids(raw_doc: dict[str, Any]) -> set[str]:
     """
-    Stable dir:path keys used by the graph (derived from file paths, same as rawGraph).
+    Stable dir:path keys used by the graph (derived from file paths, aligned with RAW index ids).
     """
     out: set[str] = set()
     for f in raw_doc.get("files", []):
@@ -79,6 +107,7 @@ def report_orphans(overlay_path: Path | str, raw_path: Path | str) -> dict[str, 
     fil = overlay_orphan_file_keys(overlay, raw_doc)
     d = overlay_orphan_directory_keys(overlay, raw_doc)
     r = overlay_orphan_root_keys(overlay)
+    flow = overlay_orphan_flow_keys(overlay, raw_doc)
     return {
         "schema_version": 0,
         "overlay_path": str(Path(overlay_path).resolve()),
@@ -87,5 +116,6 @@ def report_orphans(overlay_path: Path | str, raw_path: Path | str) -> dict[str, 
         "orphan_file_ids": fil,
         "orphan_directory_ids": d,
         "orphan_root_ids": r,
-        "orphan_count": len(sym) + len(fil) + len(d) + len(r),
+        "orphan_flow_node_ids": flow,
+        "orphan_count": len(sym) + len(fil) + len(d) + len(r) + len(flow),
     }

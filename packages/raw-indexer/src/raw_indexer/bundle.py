@@ -14,6 +14,7 @@ from raw_indexer.overlay import (
     load_overlay,
     overlay_orphan_directory_keys,
     overlay_orphan_file_keys,
+    overlay_orphan_flow_keys,
     overlay_orphan_keys,
     overlay_orphan_root_keys,
 )
@@ -53,6 +54,9 @@ def _coerce_overlay_fragment(body: Any) -> dict[str, Any]:
     by_root = body.get("by_root_id")
     if by_root is not None and not isinstance(by_root, dict):
         raise ValueError("bundle.overlay.by_root_id must be an object")
+    by_flow = body.get("by_flow_node_id")
+    if by_flow is not None and not isinstance(by_flow, dict):
+        raise ValueError("bundle.overlay.by_flow_node_id must be an object")
     sv = body.get("schema_version")
     if sv is not None and not isinstance(sv, int):
         raise ValueError("bundle.overlay.schema_version must be an integer")
@@ -62,6 +66,7 @@ def _coerce_overlay_fragment(body: Any) -> dict[str, Any]:
         "by_file_id": dict(by_file) if isinstance(by_file, dict) else {},
         "by_directory_id": dict(by_dir) if isinstance(by_dir, dict) else {},
         "by_root_id": dict(by_root) if isinstance(by_root, dict) else {},
+        "by_flow_node_id": dict(by_flow) if isinstance(by_flow, dict) else {},
     }
 
 
@@ -92,15 +97,17 @@ def load_bundle(path: Path | str) -> dict[str, Any]:
 
 
 def merge_overlay_delta(base: dict[str, Any], delta: dict[str, Any]) -> dict[str, Any]:
-    """Deep-enough merge: delta symbol/file/directory entries merge field-wise into base."""
+    """Deep-enough merge: delta symbol/file/directory/flow entries merge field-wise into base."""
     b_sym = dict(base.get("by_symbol_id") or {})
     b_fil = dict(base.get("by_file_id") or {})
     b_dir = dict(base.get("by_directory_id") or {})
     b_root = dict(base.get("by_root_id") or {})
+    b_flow = dict(base.get("by_flow_node_id") or {})
     d_sym = delta.get("by_symbol_id") or {}
     d_fil = delta.get("by_file_id") or {}
     d_dir = delta.get("by_directory_id") or {}
     d_root = delta.get("by_root_id") or {}
+    d_flow = delta.get("by_flow_node_id") or {}
     for sid, ent in d_sym.items():
         if not isinstance(ent, dict):
             raise ValueError(f"overlay entry for symbol {sid!r} must be an object")
@@ -125,12 +132,19 @@ def merge_overlay_delta(base: dict[str, Any], delta: dict[str, Any]) -> dict[str
         prev = dict(b_root.get(rid) or {})
         prev.update(ent)
         b_root[rid] = prev
+    for fid, ent in d_flow.items():
+        if not isinstance(ent, dict):
+            raise ValueError(f"overlay entry for flow node {fid!r} must be an object")
+        prev = dict(b_flow.get(fid) or {})
+        prev.update(ent)
+        b_flow[fid] = prev
     return {
         "schema_version": int(delta.get("schema_version") or base.get("schema_version") or 0),
         "by_symbol_id": b_sym,
         "by_file_id": b_fil,
         "by_directory_id": b_dir,
         "by_root_id": b_root,
+        "by_flow_node_id": b_flow,
     }
 
 
@@ -210,6 +224,7 @@ def apply_bundle(
                 "by_file_id": {},
                 "by_directory_id": {},
                 "by_root_id": {},
+                "by_flow_node_id": {},
             }
         )
         try:
@@ -226,7 +241,8 @@ def apply_bundle(
         fil_o = overlay_orphan_file_keys(merged, raw_doc)
         dir_o = overlay_orphan_directory_keys(merged, raw_doc)
         root_o = overlay_orphan_root_keys(merged)
-        if sym_o or fil_o or dir_o or root_o:
+        flow_o = overlay_orphan_flow_keys(merged, raw_doc)
+        if sym_o or fil_o or dir_o or root_o or flow_o:
             msg = "overlay would contain orphan keys not in RAW after patch"
             if sym_o:
                 msg += f"; orphan_symbol_ids={sym_o[:10]}"
@@ -243,6 +259,10 @@ def apply_bundle(
             if root_o:
                 msg += f"; orphan_root_ids={root_o[:10]}"
                 if len(root_o) > 10:
+                    msg += "…"
+            if flow_o:
+                msg += f"; orphan_flow_node_ids={flow_o[:10]}"
+                if len(flow_o) > 10:
                     msg += "…"
             return ApplyBundleResult(
                 ok=False,

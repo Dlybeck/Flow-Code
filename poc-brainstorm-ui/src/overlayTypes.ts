@@ -12,6 +12,8 @@ export type OverlayDoc = {
   by_directory_id?: Record<string, OverlayEntry>
   /** Diagram root node id raw-root (matches RAW graph). */
   by_root_id?: Record<string, OverlayEntry>
+  /** Execution IR node ids (e.g. py:boundary:*) — Update map fills these. */
+  by_flow_node_id?: Record<string, OverlayEntry>
 }
 
 export function parseOverlayDoc(data: unknown): OverlayDoc {
@@ -38,6 +40,10 @@ export function parseOverlayDoc(data: unknown): OverlayDoc {
         : {},
     by_root_id:
       d.by_root_id && typeof d.by_root_id === 'object' ? d.by_root_id : {},
+    by_flow_node_id:
+      d.by_flow_node_id && typeof d.by_flow_node_id === 'object'
+        ? d.by_flow_node_id
+        : {},
   }
 }
 
@@ -48,5 +54,6 @@ export function emptyOverlay(): OverlayDoc {
     by_file_id: {},
     by_directory_id: {},
     by_root_id: {},
+    by_flow_node_id: {},
   }
 }

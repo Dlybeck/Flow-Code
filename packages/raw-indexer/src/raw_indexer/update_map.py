@@ -20,6 +20,7 @@ from raw_indexer.overlay import (
     load_overlay,
     overlay_orphan_directory_keys,
     overlay_orphan_file_keys,
+    overlay_orphan_flow_keys,
     overlay_orphan_keys,
     overlay_orphan_root_keys,
     valid_directory_ids,
@@ -43,6 +44,29 @@ userDescription:
 
 Good (tone only): "Someone gives a name and gets a short welcome line back." / "Offers a quick yes/no on whether the live service is responding." / "Keeps the runnable demo app in one place."
 Bad (never): "GET /greet/{name}…", "FastAPI application factory", "request-response cycle", "defines package metadata"."""
+
+# Flow-only: describe **what the grouped calls are**, not how the canvas is drawn (no dashed/solid
+# lectures—that belongs in the app UI, not overlay blurbs).
+_FLOW_MAP_RULES = """Voice — labels for the **shared “outside / not boxed” bucket** on the execution map:
+
+Audience: someone who wants to know **what kind of work** those calls represent, not how the graph is styled.
+
+When the prompt includes **unresolved_callsites** (caller, line, optional import_ref / callee / callee_expression, snippet):
+- Ground the copy in those rows: **what** is being invoked or set up (e.g. creating the web app object, registering a route handler) using plain English.
+- You may name a library or product (e.g. FastAPI) when **import_ref** or **snippet** supports it.
+
+displayName (3–7 words):
+- Summarize the **theme** of what lands in this bucket (e.g. "Library setup & route hooks").
+- Avoid: "sink", "unresolved", "boundary node", "collector", "indexer".
+
+userDescription — **exactly 2 sentences**, substance only (under **340** characters if callsites exist, else **260**).
+- **Sentence 1:** This is **not** runnable code by itself; it is a **grouping** for calls from your functions toward targets this index does **not** show as their own function boxes (outside packages, decorators, chained calls, etc.).
+- **Sentence 2:** Give **one or two concrete examples** from unresolved_callsites—what that call is doing in product terms. Do **not** talk about line styles, colors, dashed lines, solid lines, or “the map” / “the diagram” / “arrows”.
+
+Banned in userDescription: dashed, solid, diagram, picture, canvas, map (as in drawing), arrow, line style, indexer, callee, sink, static analysis, resolve/resolution, JSON, confidence, v0.
+
+Good: reads like a short note about **real calls**, not a legend.
+Bad: map-visual meta, field names from JSON, three-plus sentences."""
 
 SYM_SYSTEM = f"""You write labels for a product map.
 
@@ -83,6 +107,16 @@ ROOT_SYSTEM = f"""You write the single diagram root node for a repository map. T
 You receive the repo folder name plus rollups of top-level directories and root-level files (with display names and blurbs from earlier steps). Summarize what this repository delivers as a whole—one level above any single subfolder.
 
 Output JSON only: one object with key "by_root_id" whose value is a single-entry object. That entry's key must be exactly {ROOT_OVERLAY_ID!r} and its value must be {{"displayName"?, "userDescription"?}}."""
+
+FLOW_SYSTEM = f"""You write labels for **special nodes on a flow diagram** (not file-tree symbols).
+
+{_FLOW_MAP_RULES}
+
+These are stand-ins, not ordinary function boxes. Describe **what the grouped calls represent** in the product/code sense—**not** how the graph looks.
+
+Use only the ids given. Output JSON only.
+
+Output shape: a single JSON object with key "by_flow_node_id" mapping each node id string to {{"displayName"?, "userDescription"?}}. Include every id from the prompt."""
 
 
 def _env_flag(name: str) -> bool:
@@ -480,6 +514,127 @@ def _filter_keys(
     return out
 
 
+def _build_flow_overlay_user_message(ir_doc: dict[str, Any]) -> str:
+    """Prompt for IR nodes that have no raw_symbol_id (synthetic / boundary)."""
+    edges = ir_doc.get("edges", [])
+    nodes = ir_doc.get("nodes", [])
+    id_to_label: dict[str, str] = {}
+    for n in nodes:
+        if not isinstance(n, dict) or not n.get("id"):
+            continue
+        iid = str(n["id"])
+        id_to_label[iid] = str(n.get("label", iid))
+
+    blocks: list[str] = []
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        if n.get("raw_symbol_id"):
+            continue
+        nid = str(n.get("id", ""))
+        if not nid:
+            continue
+        incoming_all = [e for e in edges if isinstance(e, dict) and str(e.get("to")) == nid]
+        incoming = incoming_all[:48]
+        callers: list[dict[str, Any]] = []
+        seen_from: set[str] = set()
+        for x in incoming:
+            if str(x.get("kind")) != "calls":
+                continue
+            fid = str(x.get("from", ""))
+            if fid in seen_from:
+                continue
+            seen_from.add(fid)
+            full = id_to_label.get(fid, fid)
+            short = full.rsplit(".", 1)[-1] if full else fid
+            callers.append(
+                {
+                    "from_id": fid,
+                    "caller_label_short": short,
+                    "caller_label_full": full,
+                    "confidence": x.get("confidence"),
+                    "evidence": x.get("evidence"),
+                },
+            )
+        n_calls_in = sum(1 for e in incoming_all if str(e.get("kind")) == "calls")
+        unresolved_callsites: list[dict[str, Any]] = []
+        for x in incoming_all:
+            if str(x.get("kind")) != "calls" or str(x.get("confidence")) != "unknown":
+                continue
+            cs = x.get("callsite")
+            if not isinstance(cs, dict):
+                continue
+            fid = str(x.get("from", ""))
+            full = id_to_label.get(fid, fid)
+            short = full.rsplit(".", 1)[-1] if full else fid
+            row: dict[str, Any] = {"caller_function": short}
+            for key in ("callee", "import_ref", "callee_expression", "line", "snippet"):
+                if key in cs and cs[key] not in (None, ""):
+                    row[key] = cs[key]
+            unresolved_callsites.append(row)
+        unresolved_callsites = unresolved_callsites[:22]
+        role = (
+            "unresolved_call_sink"
+            if nid.endswith("boundary:unresolved") or n.get("kind") == "dynamic_callsite"
+            else "synthetic_flow_node"
+        )
+        payload: dict[str, Any] = {
+            "id": nid,
+            "kind": n.get("kind"),
+            "technical_label": n.get("label"),
+            "map_role": role,
+            "incoming_call_edge_count": n_calls_in,
+            "callers_to_this_node": callers[:12],
+            "other_incoming_edges": [
+                {
+                    "kind": x.get("kind"),
+                    "confidence": x.get("confidence"),
+                    "from_id": x.get("from"),
+                }
+                for x in incoming
+                if str(x.get("kind")) != "calls"
+            ][:8],
+        }
+        if unresolved_callsites:
+            payload["unresolved_callsites"] = unresolved_callsites
+        blocks.append(json.dumps(payload, indent=2))
+    if not blocks:
+        return ""
+    return (
+        "Flow diagram — synthetic nodes (no symbol id). Context below is for you only; "
+        "do not paste field names or jargon into userDescription. "
+        "Output by_flow_node_id for every id.\n\n"
+        + "\n\n---\n\n".join(blocks)
+    )
+
+
+def _dry_run_flow_overlay(raw_doc: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from raw_indexer.execution_ir.python_from_raw import build_execution_ir_from_raw
+
+        ir = build_execution_ir_from_raw(raw_doc)
+    except Exception:
+        return {}
+    out: dict[str, Any] = {}
+    for n in ir.get("nodes", []):
+        if not isinstance(n, dict):
+            continue
+        if n.get("raw_symbol_id"):
+            continue
+        nid = str(n.get("id", ""))
+        if not nid:
+            continue
+        tail = str(n.get("label", nid)).split(".")[-1].replace("_", " ").title()
+        out[nid] = {
+            "displayName": f"{tail} (stub)",
+            "userDescription": (
+                "Placeholder for a boundary or uncertain map node "
+                "(UPDATE_MAP_DRY_RUN)."
+            ),
+        }
+    return out
+
+
 def _dry_run_overlay(raw_doc: dict[str, Any]) -> dict[str, Any]:
     by_sym: dict[str, Any] = {}
     for sym in raw_doc.get("symbols", []):
@@ -522,6 +677,7 @@ def _dry_run_overlay(raw_doc: dict[str, Any]) -> dict[str, Any]:
         "by_file_id": by_fil,
         "by_directory_id": by_dir,
         "by_root_id": by_root,
+        "by_flow_node_id": _dry_run_flow_overlay(raw_doc),
     }
 
 
@@ -546,16 +702,20 @@ def run_update_map(
         merged = merge_overlay_delta(merged, {"by_file_id": stub["by_file_id"]})
         merged = merge_overlay_delta(merged, {"by_directory_id": stub["by_directory_id"]})
         merged = merge_overlay_delta(merged, {"by_root_id": stub["by_root_id"]})
+        merged = merge_overlay_delta(merged, {"by_flow_node_id": stub["by_flow_node_id"]})
         merged["schema_version"] = int(merged.get("schema_version") or 0)
         sym_o = overlay_orphan_keys(merged, raw_doc)
         fil_o = overlay_orphan_file_keys(merged, raw_doc)
         dir_o = overlay_orphan_directory_keys(merged, raw_doc)
         root_o = overlay_orphan_root_keys(merged)
-        if sym_o or fil_o or dir_o or root_o:
+        flow_o = overlay_orphan_flow_keys(merged, raw_doc)
+        if sym_o or fil_o or dir_o or root_o or flow_o:
             return {
                 "ok": False,
                 "dry_run": True,
-                "errors": [f"orphans after merge: sym={sym_o}, file={fil_o}, dir={dir_o}, root={root_o}"],
+                "errors": [
+                    f"orphans after merge: sym={sym_o}, file={fil_o}, dir={dir_o}, root={root_o}, flow={flow_o}",
+                ],
             }
         overlay_path.parent.mkdir(parents=True, exist_ok=True)
         overlay_path.write_text(json.dumps(merged, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -566,6 +726,7 @@ def run_update_map(
             "files_updated": len(stub["by_file_id"]),
             "directories_updated": len(stub["by_directory_id"]),
             "root_updated": 1,
+            "flow_nodes_updated": len(stub["by_flow_node_id"]),
             "errors": [],
         }
 
@@ -670,16 +831,50 @@ def run_update_map(
         errors.append(f"root pass failed: {e}")
         return {"ok": False, "dry_run": False, "errors": errors}
 
+    flow_delta: dict[str, Any] = {}
+    try:
+        from raw_indexer.execution_ir.python_from_raw import build_execution_ir_from_raw
+
+        ir_doc = build_execution_ir_from_raw(raw_doc)
+    except Exception:
+        ir_doc = None
+
+    if ir_doc is not None:
+        flow_user = _build_flow_overlay_user_message(ir_doc)
+        if flow_user.strip():
+            valid_flow = {
+                str(n["id"])
+                for n in ir_doc.get("nodes", [])
+                if isinstance(n, dict) and n.get("id")
+            }
+            try:
+                flow_resp = _chat_completion_json(
+                    api_key=api_key,
+                    base_url=base,
+                    model=model,
+                    system=FLOW_SYSTEM,
+                    user=flow_user,
+                )
+                raw_flow = flow_resp.get("by_flow_node_id")
+                if not isinstance(raw_flow, dict):
+                    raise ValueError("model JSON missing by_flow_node_id object")
+                flow_delta = _filter_keys(raw_flow, valid_flow)
+                merged = merge_overlay_delta(merged, {"by_flow_node_id": flow_delta})
+            except Exception as e:
+                errors.append(f"flow pass failed: {e}")
+                return {"ok": False, "dry_run": False, "errors": errors}
+
     sym_o = overlay_orphan_keys(merged, raw_doc)
     fil_o = overlay_orphan_file_keys(merged, raw_doc)
     dir_o = overlay_orphan_directory_keys(merged, raw_doc)
     root_o = overlay_orphan_root_keys(merged)
-    if sym_o or fil_o or dir_o or root_o:
+    flow_o = overlay_orphan_flow_keys(merged, raw_doc)
+    if sym_o or fil_o or dir_o or root_o or flow_o:
         return {
             "ok": False,
             "dry_run": False,
             "errors": [
-                f"orphan keys after merge: symbol={sym_o}, file={fil_o}, directory={dir_o}, root={root_o}",
+                f"orphan keys after merge: symbol={sym_o}, file={fil_o}, directory={dir_o}, root={root_o}, flow={flow_o}",
             ],
         }
 
@@ -694,5 +889,6 @@ def run_update_map(
         "files_updated": len(fil_delta),
         "directories_updated": len(dir_delta_all) if valid_dir else 0,
         "root_updated": len(root_delta),
+        "flow_nodes_updated": len(flow_delta),
         "errors": [],
     }

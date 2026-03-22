@@ -7,11 +7,13 @@ export type NodeData = {
   title?: string
   /** Secondary line (path, qname, user description, …) */
   subtitle?: string
-  /** Technical label before overlay merge (RAW + overlay mode) */
+  /** Technical label before overlay merge */
   rawLabel?: string
   /** Technical subtitle before overlay merge */
   rawSubtitle?: string
   onTest?: (e: React.MouseEvent) => void
+  /** Flow map: uncertain calls hidden; number of omitted dashed edges from this node */
+  hiddenUncertainCount?: number
 }
 
 function hint(expandable?: boolean) {
@@ -25,7 +27,7 @@ function TestBtn({ onTest }: { onTest?: (e: React.MouseEvent) => void }) {
     <button
       type="button"
       className="node-test"
-      title="Mock: leaf = unit test; parent = smoke + child tests"
+      title="Show node id and technical labels"
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={onTest}
@@ -40,26 +42,21 @@ function Subtitle({ text }: { text?: string }) {
   return <div className="node-subtitle">{text}</div>
 }
 
-export function CapabilityNode({ data, selected }: NodeProps) {
-  const d = data as NodeData
-  const indexTip =
-    typeof d.rawSubtitle === 'string' && d.rawSubtitle.length > 0
-      ? d.rawSubtitle
-      : undefined
+function FlowHiddenUncertainBadge({ count }: { count?: number }) {
+  if (!count || count < 1) return null
+  const title =
+    count === 1
+      ? '1 call site in this function goes to something we do not show as its own box (often a library or decorator). Turn on “Show uncertain detail” in the header to see it.'
+      : `${count} separate call sites in this function go to targets we do not show as their own boxes (e.g. one library constructor plus several decorators)—not “${count} functions,” just ${count} lines of code. Turn on “Show uncertain detail” to see each.`
   return (
-    <div
-      className={`rf-node cap ${selected ? 'selected' : ''}`}
-      title={indexTip}
+    <span
+      className="flow-hidden-badge"
+      title={title}
+      role="img"
+      aria-label={title}
     >
-      <Handle type="target" position={Position.Top} className="h" />
-      <div className="node-row">
-        <span className="node-label">{d.label}</span>
-        <TestBtn onTest={d.onTest} />
-      </div>
-      <Subtitle text={d.subtitle} />
-      {hint(d.expandable)}
-      <Handle type="source" position={Position.Bottom} className="h" />
-    </div>
+      <span className="flow-hidden-badge-dot" aria-hidden />
+    </span>
   )
 }
 
@@ -70,6 +67,7 @@ export function SurfaceNode({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Top} className="h" />
       <div className="node-row">
         <span className="node-label">{d.label}</span>
+        <FlowHiddenUncertainBadge count={d.hiddenUncertainCount} />
         <TestBtn onTest={d.onTest} />
       </div>
       <Subtitle text={d.subtitle} />
@@ -86,45 +84,12 @@ export function FeatureNode({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Top} className="h" />
       <div className="node-row">
         <span className="node-label">{d.label}</span>
+        <FlowHiddenUncertainBadge count={d.hiddenUncertainCount} />
         <TestBtn onTest={d.onTest} />
       </div>
       <Subtitle text={d.subtitle} />
       {hint(d.expandable)}
       <Handle type="source" position={Position.Bottom} className="h" />
-    </div>
-  )
-}
-
-export function CodeNode({ data, selected }: NodeProps) {
-  const d = data as NodeData
-  const hoverHint =
-    d.title ??
-    (typeof d.subtitle === 'string' && d.subtitle.length > 0 ? d.subtitle : undefined)
-  return (
-    <div
-      className={`rf-node code ${selected ? 'selected' : ''}`}
-      title={hoverHint}
-    >
-      <Handle type="target" position={Position.Top} className="h" />
-      <div className="node-row">
-        <span className="node-label mono">{d.label}</span>
-        <TestBtn onTest={d.onTest} />
-      </div>
-      <Subtitle text={d.subtitle} />
-      <Handle type="source" position={Position.Bottom} className="h" />
-    </div>
-  )
-}
-
-export function FloatingNode({ data, selected }: NodeProps) {
-  const d = data as NodeData
-  return (
-    <div className={`rf-node floating ${selected ? 'selected' : ''}`}>
-      <div className="node-row">
-        <span className="node-label mono small">{d.label}</span>
-        <TestBtn onTest={d.onTest} />
-      </div>
-      <span className="float-badge">unlinked</span>
     </div>
   )
 }

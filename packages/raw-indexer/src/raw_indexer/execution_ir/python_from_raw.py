@@ -2,8 +2,9 @@
 Slice 3 — build execution IR from existing RAW index (Python AST v0).
 
 Emits function nodes and `calls` edges for `Name(...)` callees that resolve via
-import-from map or same-module qualified names. Unresolved `Name` calls and
-`Attribute` / method calls emit `confidence: unknown` edges to a boundary node.
+import-from map or same-module qualified names. Unresolved `Name` calls (with
+optional ``import_ref``) and `Attribute` / method calls emit ``confidence: unknown``
+edges to a boundary node, one edge per callsite with a ``callsite`` payload for labeling.
 """
 
 from __future__ import annotations
@@ -66,13 +67,15 @@ class _CallGraphVisitor(ast.NodeVisitor):
         sym_by_qual: dict[str, dict[str, Any]],
         import_map: dict[str, str],
         resolved_edges: set[tuple[str, str]],
-        unknown_from: set[str],
+        unknown_records: list[tuple[str, dict[str, Any]]],
+        source: str,
     ) -> None:
         self.module_q = module_q
         self.sym_by_qual = sym_by_qual
         self.import_map = import_map
         self._resolved_edges = resolved_edges
-        self._unknown_from = unknown_from
+        self._unknown_records = unknown_records
+        self._source = source
         self._scope: list[str] = []
         self._current_fn_qual: str | None = None
 
@@ -117,6 +120,20 @@ class _CallGraphVisitor(ast.NodeVisitor):
                 return cand
         return None
 
+    def _snippet(self, node: ast.AST) -> str:
+        if not self._source:
+            return ""
+        seg = ast.get_source_segment(self._source, node)
+        if not seg:
+            return ""
+        one = seg.strip().replace("\n", " ")
+        return one if len(one) <= 200 else one[:197] + "..."
+
+    def _append_unknown(self, fr: str, node: ast.Call, payload: dict[str, Any]) -> None:
+        line = int(getattr(node, "lineno", 0) or 0)
+        body = {"line": line, "snippet": self._snippet(node), **payload}
+        self._unknown_records.append((fr, body))
+
     def visit_Call(self, node: ast.Call) -> None:
         if self._current_fn_qual and self._current_fn_qual in self.sym_by_qual:
             fr = flow_fn_id(self._current_fn_qual)
@@ -125,7 +142,18 @@ class _CallGraphVisitor(ast.NodeVisitor):
                 if callee_qual:
                     self._resolved_edges.add((fr, flow_fn_id(callee_qual)))
                 elif node.func.id not in _BUILTIN_NAMES:
-                    self._unknown_from.add(fr)
+                    name = node.func.id
+                    pay: dict[str, Any] = {"callee": name}
+                    imp = self.import_map.get(name)
+                    if imp:
+                        pay["import_ref"] = imp
+                    self._append_unknown(fr, node, pay)
+            elif isinstance(node.func, ast.Attribute):
+                try:
+                    expr = ast.unparse(node.func)
+                except (AttributeError, TypeError, ValueError):
+                    expr = "?"
+                self._append_unknown(fr, node, {"callee_expression": expr})
         self.generic_visit(node)
 
 
@@ -165,7 +193,7 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         )
 
     resolved_edges: set[tuple[str, str]] = set()
-    unknown_from: set[str] = set()
+    unknown_records: list[tuple[str, dict[str, Any]]] = []
     files = {str(f.get("id")): f for f in raw_doc.get("files", []) if isinstance(f, dict)}
 
     for s in symbols:
@@ -192,7 +220,8 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             sym_by_qual=sym_by_qual,
             import_map=imp,
             resolved_edges=resolved_edges,
-            unknown_from=unknown_from,
+            unknown_records=unknown_records,
+            source=text,
         )
         vis.visit(tree)
 
@@ -205,7 +234,7 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         if parent_qn and parent_qn in sym_by_qual:
             contains_pairs.add((flow_fn_id(parent_qn), flow_fn_id(qn)))
 
-    if unknown_from:
+    if unknown_records:
         nodes.append(
             {
                 "id": BOUNDARY_UNRESOLVED_ID,
@@ -215,16 +244,22 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             },
         )
 
-    edge_rows: list[tuple[str, str, str, str]] = []
+    def _unknown_sort_key(t: tuple[str, dict[str, Any]]) -> tuple[str, int, str]:
+        fr, d = t
+        line = int(d.get("line") or 0)
+        key = str(d.get("callee") or d.get("callee_expression") or "")
+        return (fr, line, key)
+
+    edge_rows: list[tuple[str, str, str, str, dict[str, Any] | None]] = []
     for fr, to in sorted(contains_pairs):
-        edge_rows.append(("contains", fr, to, "resolved"))
+        edge_rows.append(("contains", fr, to, "resolved", None))
     for fr, to in sorted(resolved_edges):
-        edge_rows.append(("calls", fr, to, "resolved"))
-    for fr in sorted(unknown_from):
-        edge_rows.append(("calls", fr, BOUNDARY_UNRESOLVED_ID, "unknown"))
+        edge_rows.append(("calls", fr, to, "resolved", None))
+    for fr, cs in sorted(unknown_records, key=_unknown_sort_key):
+        edge_rows.append(("calls", fr, BOUNDARY_UNRESOLVED_ID, "unknown", cs))
 
     edges: list[dict[str, Any]] = []
-    for i, (kind, fr, to, confidence) in enumerate(edge_rows):
+    for i, (kind, fr, to, confidence, callsite) in enumerate(edge_rows):
         edge: dict[str, Any] = {
             "id": f"e:{i}",
             "from": fr,
@@ -234,6 +269,8 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         }
         if confidence == "unknown":
             edge["evidence"] = "unresolved_name_or_attribute_call"
+            if callsite is not None:
+                edge["callsite"] = callsite
         edges.append(edge)
 
     entrypoints: list[str] = []

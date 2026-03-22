@@ -31,6 +31,9 @@ def test_unresolved_name_emits_unknown_edge_to_boundary(tmp_path: Path) -> None:
         and e["to"] == BOUNDARY_UNRESOLVED_ID
     ]
     assert any(e["from"] == foo_id for e in unk)
+    bar_edges = [e for e in unk if e["from"] == foo_id]
+    assert len(bar_edges) >= 1
+    assert bar_edges[0].get("callsite", {}).get("callee") == "bar"
 
 
 def test_golden_has_third_party_unresolved_call(golden_repo: Path) -> None:
@@ -38,9 +41,16 @@ def test_golden_has_third_party_unresolved_call(golden_repo: Path) -> None:
     raw_doc = index_repo(golden_repo)
     ir = build_execution_ir_from_raw(raw_doc)
     create_id = "py:fn:golden_app.app.create_app"
-    assert any(
-        e["from"] == create_id
+    to_b = [
+        e
+        for e in ir["edges"]
+        if e["from"] == create_id
         and e["to"] == BOUNDARY_UNRESOLVED_ID
         and e["confidence"] == "unknown"
-        for e in ir["edges"]
-    )
+    ]
+    assert to_b
+    fastapi_edges = [
+        e for e in to_b if (e.get("callsite") or {}).get("callee") == "FastAPI"
+    ]
+    assert fastapi_edges
+    assert (fastapi_edges[0].get("callsite") or {}).get("import_ref") == "fastapi.FastAPI"
