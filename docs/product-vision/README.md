@@ -12,6 +12,7 @@ This folder holds the **single place** to read the **current** product direction
 | **[ORCHESTRATOR-POC-PLAN.md](./ORCHESTRATOR-POC-PLAN.md)** | **Draft POC plan**: map-anchored **comments** → **Send/Go** orchestrator (group + order) → **review** → **one** execution item → existing apply path. |
 | **[UPDATE-MAP-PLAN.md](./UPDATE-MAP-PLAN.md)** | **Update map**: AI fills **overlay** (`displayName`, `userDescription`) — **product-language**, bottom-up **symbols → files**, DeepSeek server-side, **`POST /update-map`**. |
 | **[EXECUTION-MAP-PLAN.md](./EXECUTION-MAP-PLAN.md)** | **Execution / flow map** (Option B): **function-level** “what & when,” **language-neutral IR**, per-language producers, **uncertainty** (`may_call` / external), AI for **why/how**; **testable slices** 0–8. |
+| **[NEXT-STEPS.md](./NEXT-STEPS.md)** | **Living plan:** uncertainty handling, UI cleanup / facelift, scale, flow-AI, scenario lock-in — phased exit criteria. |
 | **[LLM-TESTING.md](./LLM-TESTING.md)** | **Live DeepSeek tests**: repo-root `.env` autoload, **`SKIP_LIVE_LLM`** escape, CI secrets. |
 
 ## Relationship to other docs

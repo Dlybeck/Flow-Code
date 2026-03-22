@@ -5,6 +5,10 @@ import type { Edge, Node } from '@xyflow/react'
 
 import type { FlowDoc, FlowNode } from './flowTypes'
 
+const BOUNDARY_PREFIX = 'py:boundary:'
+const UNKNOWN_CALL_STROKE = '#d29922'
+const RESOLVED_CALL_STROKE = '#58a6ff'
+
 function shortLabel(qname: string): string {
   const i = qname.lastIndexOf('.')
   return i === -1 ? qname : qname.slice(i + 1)
@@ -18,9 +22,17 @@ function locSubtitle(n: FlowNode): string {
   return n.label
 }
 
+function flowNodeReactType(n: FlowNode, entryIds: Set<string>): string {
+  if (n.kind === 'dynamic_callsite' || n.id.startsWith(BOUNDARY_PREFIX)) {
+    return 'boundary'
+  }
+  if (entryIds.has(n.id)) return 'surface'
+  return 'feature'
+}
+
 /** Build nodes and edges. `t-fc-*` / `t-fk-*` participate in dagre (contains + calls). */
 export function buildFlowGraph(doc: FlowDoc): { nodes: Node[]; edges: Edge[] } {
-  const ep = new Set(doc.entrypoints.filter((x) => typeof x === 'string'))
+  const entryIds = new Set(doc.entrypoints.filter((x) => typeof x === 'string'))
   const pos = new Map<string, { x: number; y: number }>()
   let i = 0
   for (const n of doc.nodes) {
@@ -29,14 +41,20 @@ export function buildFlowGraph(doc: FlowDoc): { nodes: Node[]; edges: Edge[] } {
   }
 
   const nodes: Node[] = doc.nodes.map((n) => {
-    const isEp = ep.has(n.id)
+    const rt = flowNodeReactType(n, entryIds)
+    const isEp = entryIds.has(n.id)
+    const isBoundary = rt === 'boundary'
     return {
       id: n.id,
-      type: isEp ? 'surface' : 'feature',
+      type: rt,
       position: pos.get(n.id) ?? { x: 0, y: 0 },
       data: {
         label: shortLabel(n.label),
-        subtitle: isEp ? `entry · ${locSubtitle(n)}` : locSubtitle(n),
+        subtitle: isBoundary
+          ? 'Static analysis did not resolve a target'
+          : isEp
+            ? `entry · ${locSubtitle(n)}`
+            : locSubtitle(n),
         rawLabel: n.label,
         rawSubtitle: n.id,
         rawSymbolId:
@@ -58,20 +76,18 @@ export function buildFlowGraph(doc: FlowDoc): { nodes: Node[]; edges: Edge[] } {
         style: { stroke: 'var(--edge)', strokeWidth: 1.5 },
       })
     } else if (e.kind === 'calls') {
-      const dashed =
-        e.confidence !== 'resolved'
-          ? { strokeDasharray: '6 4' as const }
-          : {}
+      const uncertain = e.confidence !== 'resolved'
+      const dashed = uncertain ? { strokeDasharray: '6 4' as const } : {}
       edges.push({
         id: `t-fk-${idStr}-${hi++}`,
         source: e.from,
         target: e.to,
         style: {
-          stroke: '#58a6ff',
-          strokeWidth: 1.5,
+          stroke: uncertain ? UNKNOWN_CALL_STROKE : RESOLVED_CALL_STROKE,
+          strokeWidth: uncertain ? 1.75 : 1.5,
           ...dashed,
         },
-        label: e.confidence === 'resolved' ? 'calls' : e.confidence,
+        label: uncertain ? 'uncertain' : 'calls',
         labelStyle: { fill: 'var(--text-muted)', fontSize: 9 },
         labelBgStyle: { fill: 'transparent' },
       })

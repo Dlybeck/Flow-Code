@@ -9,6 +9,7 @@ from raw_indexer.execution_ir import (
     reachable_node_ids,
     validate_execution_ir,
 )
+from raw_indexer.execution_ir.python_from_raw import BOUNDARY_UNRESOLVED_ID
 from raw_indexer.index import index_repo
 
 
@@ -38,3 +39,12 @@ def test_golden_fastapi_execution_ir(
 
     order = dfs_visit_order(eps, ir["edges"], max_depth=8, max_children_per_node=16)
     assert any(e.node_id == greet_to_id and e.action == "enter" for e in order)
+
+    create_id = "py:fn:golden_app.app.create_app"
+    assert any(n["id"] == BOUNDARY_UNRESOLVED_ID for n in ir["nodes"])
+    assert any(
+        e["from"] == create_id
+        and e["to"] == BOUNDARY_UNRESOLVED_ID
+        and e["confidence"] == "unknown"
+        for e in call_edges
+    )

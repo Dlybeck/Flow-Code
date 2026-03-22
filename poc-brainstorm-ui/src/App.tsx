@@ -25,6 +25,7 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import {
+  BoundaryNode,
   CapabilityNode,
   CodeNode,
   FeatureNode,
@@ -59,6 +60,7 @@ const nodeTypes = {
   feature: FeatureNode,
   code: CodeNode,
   floating: FloatingNode,
+  boundary: BoundaryNode,
 }
 
 type GraphMode = 'flow' | 'mock' | 'raw'
@@ -350,7 +352,7 @@ function GraphCanvas({ graphMode, flowDoc, rawDoc, overlayDoc }: GraphCanvasProp
         </button>
         <p className="hint">
           {graphMode === 'flow'
-            ? 'Main view: function-level execution map. Gray edges = contains (nesting); blue = resolved calls. Route-style nodes = entrypoints. Friendly titles from overlay match RAW symbol ids when present.'
+            ? 'Flow: gray = contains, blue = resolved calls, dashed amber = uncertain. Boundary node = analysis stopped. Overlay titles when raw_symbol_id matches.'
             : graphMode === 'raw'
               ? 'Double-click a directory to expand/collapse its children (the folder stays). Double-click a file to show/hide symbols. Layout is auto-applied from tree edges; dashed = internal imports.'
               : 'Drag on empty canvas to box-select. Shift+click to add to selection. Drag selected group together. Middle / right-drag to pan (or Space+drag).'}
@@ -567,30 +569,23 @@ export default function App() {
               Visual: disk + graph + shared code →
             </a>
           </p>
-          <h1>Brainstorm POC — execution map</h1>
+          <h1>Execution map</h1>
           <p className="sub">
-            <strong>Flow</strong> is the primary view (function-level contains + calls).{' '}
-            <strong>RAW</strong> is the filesystem/symbol index; <strong>overlay</strong> adds
-            friendly labels (by RAW symbol id, including on flow nodes when{' '}
-            <code>raw_symbol_id</code> is set).{' '}
+            <strong>Flow</strong> — what may run (contains + calls; dashed amber = uncertain).{' '}
+            <strong>RAW</strong> — repo structure. Labels from <strong>overlay</strong> when{' '}
+            <code>raw_symbol_id</code> matches.{' '}
             {brainstormApiEnabled() ? (
-              <>
-                API: <code>{flowDataUrl()}</code>, <code>{rawDataUrl()}</code>,{' '}
-                <code>{overlayDataUrl()}</code> (Vite → FastAPI).{' '}
-              </>
+              <span className="sub-meta">API-backed JSON.</span>
             ) : (
-              <>
-                Static: <code>public/flow.json</code>, <code>raw.json</code>,{' '}
-                <code>overlay.json</code>.{' '}
-              </>
+              <span className="sub-meta">
+                Static <code>public/*.json</code>.
+              </span>
             )}
-            <strong>Mock</strong> uses <code>src/mockGraph.ts</code>.
             {import.meta.env.DEV ? (
-              <>
+              <span className="sub-meta">
                 {' '}
-                <em>Dev:</em> graph data refetches every 4s when this tab is visible (no
-                reload button needed after <code>index:golden</code> or reindex).
-              </>
+                Dev auto-refresh ~4s.
+              </span>
             ) : null}
           </p>
           <div className="mode-bar">
@@ -626,30 +621,6 @@ export default function App() {
             <button type="button" onClick={reloadGraphData}>
               Reload flow + RAW + overlay
             </button>
-            <label>
-              Load flow file
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={onPickFlowFile}
-              />
-            </label>
-            <label>
-              Load RAW file
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={onPickRawFile}
-              />
-            </label>
-            <label>
-              Load overlay file
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={onPickOverlayFile}
-              />
-            </label>
           </div>
           {rawErr ? <p className="raw-err">{rawErr}</p> : null}
           {flowHint ? <p className="flow-hint">{flowHint}</p> : null}
@@ -668,116 +639,148 @@ export default function App() {
       </div>
 
       <aside className="side-panel">
-        {brainstormApiEnabled() ? (
-          <>
-            <UpdateMapPanel onDone={reloadGraphData} />
-            <ApplyBundlePanel onApplied={reloadGraphData} />
-          </>
-        ) : null}
+        <section className="side-hero">
+          <h2>Map</h2>
+          <p className="side-hero-text">
+            Solid blue edges = resolved calls. Dashed amber = uncertain (e.g. third-party
+            constructor). Gray = nesting. Orange “uncertain” node = analysis stopped there.
+          </p>
+        </section>
 
         <section>
           <h2>Legend</h2>
-          <div className="legend">
+          <div className="legend legend-compact">
             <div className="legend-row">
-              <span className="swatch surface" /> Flow entrypoint
+              <span className="swatch surface" /> Entry
             </div>
             <div className="legend-row">
-              <span className="swatch feature" /> Function (flow / symbol)
+              <span className="swatch feature" /> Function
             </div>
             <div className="legend-row">
-              <span className="swatch cap" /> Project / directory (RAW)
+              <span className="swatch boundary" /> Uncertain boundary
+            </div>
+            <div className="legend-row">
+              <span className="legend-edge solid" /> Contains
+            </div>
+            <div className="legend-row">
+              <span className="legend-edge call" /> Call (resolved)
+            </div>
+            <div className="legend-row">
+              <span className="legend-edge uncertain" /> Call (uncertain)
+            </div>
+            <div className="legend-row">
+              <span className="swatch cap" /> Directory (RAW)
             </div>
             <div className="legend-row">
               <span className="swatch code" /> File (RAW)
             </div>
             <div className="legend-row">
-              <span className="legend-edge solid" /> Contains / tree
-            </div>
-            <div className="legend-row">
-              <span className="legend-edge call" /> Calls (flow)
-            </div>
-            <div className="legend-row">
-              <span className="swatch float" /> Floating / dead code signal
+              <span className="swatch float" /> Mock float
             </div>
           </div>
         </section>
 
-        {indexMetaView ? (
-          <section>
-            <h2>Index coverage</h2>
-            <div className="mock-card index-coverage">
-              <p>
-                <strong>{indexMetaView.completeness}</strong>
-                {indexMetaView.engine ? ` · engine: ${indexMetaView.engine}` : null}
-              </p>
-              <ul className="index-limits">
-                {(indexMetaView.known_limits ?? []).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </div>
-          </section>
+        {brainstormApiEnabled() ? (
+          <details className="side-details" open>
+            <summary>Developer (API)</summary>
+            <UpdateMapPanel onDone={reloadGraphData} />
+            <ApplyBundlePanel onApplied={reloadGraphData} />
+          </details>
         ) : null}
 
-        {rawDoc?.diagnostics?.summary ? (
+        <details className="side-details">
+          <summary>Index &amp; diagnostics</summary>
+          {indexMetaView ? (
+            <section>
+              <h3 className="side-subh">Index coverage</h3>
+              <div className="mock-card index-coverage">
+                <p>
+                  <strong>{indexMetaView.completeness}</strong>
+                  {indexMetaView.engine ? ` · engine: ${indexMetaView.engine}` : null}
+                </p>
+                <ul className="index-limits">
+                  {(indexMetaView.known_limits ?? []).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          ) : null}
+
+          {rawDoc?.diagnostics?.summary ? (
+            <section>
+              <h3 className="side-subh">Type checker</h3>
+              <div className="mock-card index-coverage">
+                <p>
+                  <strong>{rawDoc.diagnostics.engine ?? 'pyright'}</strong>
+                  {' · '}
+                  errors {rawDoc.diagnostics.summary.errorCount ?? 0}, warnings{' '}
+                  {rawDoc.diagnostics.summary.warningCount ?? 0}
+                </p>
+                {rawDoc.diagnostics.note ? (
+                  <p className="diag-note">{rawDoc.diagnostics.note}</p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
           <section>
-            <h2>Type checker</h2>
-            <div className="mock-card index-coverage">
-              <p>
-                <strong>{rawDoc.diagnostics.engine ?? 'pyright'}</strong>
-                {' · '}
-                errors {rawDoc.diagnostics.summary.errorCount ?? 0}, warnings{' '}
-                {rawDoc.diagnostics.summary.warningCount ?? 0}
+            <h3 className="side-subh">Refresh</h3>
+            <div className="mock-card">
+              <code className="code-tiny">npm run index:golden</code>
+              <p className="side-note">
+                Writes <code>public/raw.json</code> + <code>flow.json</code>.
+                {brainstormApiEnabled() ? (
+                  <>
+                    {' '}
+                    Or <code>POST /reindex</code>, then <strong>Reload</strong> above.
+                  </>
+                ) : null}{' '}
+                <code className="code-tiny">npm run check:orphans</code>
               </p>
-              {rawDoc.diagnostics.note ? (
-                <p className="diag-note">{rawDoc.diagnostics.note}</p>
-              ) : null}
             </div>
           </section>
-        ) : null}
+        </details>
 
-        <section>
-          <h2>Refresh index</h2>
-          <div className="mock-card">
-            <code style={{ fontSize: 10, wordBreak: 'break-all' }}>
-              npm run index:golden
-            </code>
-            <br />
-            Writes <code>public/raw.json</code> and <code>public/flow.json</code>.
-            <br />
-            {brainstormApiEnabled() ? (
-              <>
-                <code>POST /reindex</code> refreshes RAW + flow on the server; then use{' '}
-                <strong>Reload flow + RAW + overlay</strong>. Overlay:{' '}
-                <code>PATCH /overlay</code> or edit <code>public/overlay.json</code>.
-              </>
-            ) : (
-              <>
-                Edit <code>public/overlay.json</code> for labels (keys = RAW symbol ids).
-              </>
-            )}{' '}
-            Check stale keys:{' '}
-            <code style={{ fontSize: 10 }}>npm run check:orphans</code>
+        <details className="side-details">
+          <summary>Import JSON</summary>
+          <div className="side-imports">
+            <label>
+              Flow
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={onPickFlowFile}
+              />
+            </label>
+            <label>
+              RAW
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={onPickRawFile}
+              />
+            </label>
+            <label>
+              Overlay
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={onPickOverlayFile}
+              />
+            </label>
           </div>
-        </section>
+        </details>
 
-        <section>
-          <h2>Mock check-in</h2>
+        <details className="side-details">
+          <summary>POC placeholders</summary>
           <div className="mock-card">
-            <strong>Agent idle</strong>
-            Next: periodic summary would appear here (goal-based run, not
-            chatty).
+            <strong>Mock check-in</strong> — agent summary would go here.
           </div>
-        </section>
-
-        <section>
-          <h2>Mock goal</h2>
           <div className="mock-card">
-            <strong>“Wire Account → privacy copy”</strong>
-            In a real build, work would attach to a subtree; tests would map to
-            the same nodes.
+            <strong>Mock goal</strong> — e.g. wire Account → privacy copy.
           </div>
-        </section>
+        </details>
       </aside>
     </div>
   )

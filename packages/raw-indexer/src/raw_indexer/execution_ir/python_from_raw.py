@@ -1,18 +1,27 @@
 """
 Slice 3 — build execution IR from existing RAW index (Python AST v0).
 
-Emits function nodes and resolved `calls` edges for simple `Name(...)` callees
-that resolve via import-from map or same-module qualified names.
+Emits function nodes and `calls` edges for `Name(...)` callees that resolve via
+import-from map or same-module qualified names. Unresolved `Name` calls and
+`Attribute` / method calls emit `confidence: unknown` edges to a boundary node.
 """
 
 from __future__ import annotations
 
 import ast
+import builtins
 from pathlib import Path
 from typing import Any
 
+# Unresolved `Name(...)` callees in this set are skipped (no unknown edge) — avoids noise
+# from `dict()`, `len()`, etc. Unresolved non-builtins (e.g. third-party constructors) still
+# become `confidence: unknown` to the boundary node.
+_BUILTIN_NAMES = frozenset(vars(builtins))
+
 from raw_indexer.execution_ir.validate import EXECUTION_IR_SCHEMA_VERSION, validate_execution_ir
 from raw_indexer.index import module_qualname_from_path
+
+BOUNDARY_UNRESOLVED_ID = "py:boundary:unresolved"
 
 
 def flow_fn_id(qualified_name: str) -> str:
@@ -56,12 +65,14 @@ class _CallGraphVisitor(ast.NodeVisitor):
         module_q: str,
         sym_by_qual: dict[str, dict[str, Any]],
         import_map: dict[str, str],
-        edge_pairs: set[tuple[str, str]],
+        resolved_edges: set[tuple[str, str]],
+        unknown_from: set[str],
     ) -> None:
         self.module_q = module_q
         self.sym_by_qual = sym_by_qual
         self.import_map = import_map
-        self.edge_pairs = edge_pairs
+        self._resolved_edges = resolved_edges
+        self._unknown_from = unknown_from
         self._scope: list[str] = []
         self._current_fn_qual: str | None = None
 
@@ -108,13 +119,13 @@ class _CallGraphVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         if self._current_fn_qual and self._current_fn_qual in self.sym_by_qual:
-            callee_qual: str | None = None
+            fr = flow_fn_id(self._current_fn_qual)
             if isinstance(node.func, ast.Name):
                 callee_qual = self._resolve_name_callee(node.func.id)
-            if callee_qual:
-                fr = flow_fn_id(self._current_fn_qual)
-                to = flow_fn_id(callee_qual)
-                self.edge_pairs.add((fr, to))
+                if callee_qual:
+                    self._resolved_edges.add((fr, flow_fn_id(callee_qual)))
+                elif node.func.id not in _BUILTIN_NAMES:
+                    self._unknown_from.add(fr)
         self.generic_visit(node)
 
 
@@ -153,7 +164,8 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             },
         )
 
-    edge_pairs: set[tuple[str, str]] = set()
+    resolved_edges: set[tuple[str, str]] = set()
+    unknown_from: set[str] = set()
     files = {str(f.get("id")): f for f in raw_doc.get("files", []) if isinstance(f, dict)}
 
     for s in symbols:
@@ -179,7 +191,8 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             module_q=mq,
             sym_by_qual=sym_by_qual,
             import_map=imp,
-            edge_pairs=edge_pairs,
+            resolved_edges=resolved_edges,
+            unknown_from=unknown_from,
         )
         vis.visit(tree)
 
@@ -192,22 +205,36 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         if parent_qn and parent_qn in sym_by_qual:
             contains_pairs.add((flow_fn_id(parent_qn), flow_fn_id(qn)))
 
-    edge_rows: list[tuple[str, str, str]] = []
-    for fr, to in sorted(contains_pairs):
-        edge_rows.append(("contains", fr, to))
-    for fr, to in sorted(edge_pairs):
-        edge_rows.append(("calls", fr, to))
-    edges: list[dict[str, Any]] = []
-    for i, (kind, fr, to) in enumerate(edge_rows):
-        edges.append(
+    if unknown_from:
+        nodes.append(
             {
-                "id": f"e:{i}",
-                "from": fr,
-                "to": to,
-                "kind": kind,
-                "confidence": "resolved",
+                "id": BOUNDARY_UNRESOLVED_ID,
+                "kind": "dynamic_callsite",
+                "language": "python",
+                "label": "Unresolved / not traced (v0)",
             },
         )
+
+    edge_rows: list[tuple[str, str, str, str]] = []
+    for fr, to in sorted(contains_pairs):
+        edge_rows.append(("contains", fr, to, "resolved"))
+    for fr, to in sorted(resolved_edges):
+        edge_rows.append(("calls", fr, to, "resolved"))
+    for fr in sorted(unknown_from):
+        edge_rows.append(("calls", fr, BOUNDARY_UNRESOLVED_ID, "unknown"))
+
+    edges: list[dict[str, Any]] = []
+    for i, (kind, fr, to, confidence) in enumerate(edge_rows):
+        edge: dict[str, Any] = {
+            "id": f"e:{i}",
+            "from": fr,
+            "to": to,
+            "kind": kind,
+            "confidence": confidence,
+        }
+        if confidence == "unknown":
+            edge["evidence"] = "unresolved_name_or_attribute_call"
+        edges.append(edge)
 
     entrypoints: list[str] = []
     for n in nodes:

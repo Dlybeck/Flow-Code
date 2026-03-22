@@ -67,4 +67,39 @@ describe('buildFlowGraph', () => {
     expect(kinds.some((k) => String(k.id).startsWith('t-fc-'))).toBe(true)
     expect(kinds.some((k) => String(k.id).startsWith('t-fk-'))).toBe(true)
   })
+
+  it('uses boundary node type and dashed uncertain call edges', () => {
+    const doc: FlowDoc = {
+      ...mini,
+      nodes: [
+        ...mini.nodes,
+        {
+          id: 'py:boundary:unresolved',
+          kind: 'dynamic_callsite',
+          language: 'python',
+          label: 'Unresolved / not traced (v0)',
+        },
+      ],
+      edges: [
+        ...mini.edges,
+        {
+          from: 'py:fn:app.util',
+          to: 'py:boundary:unresolved',
+          kind: 'calls',
+          confidence: 'unknown',
+        },
+      ],
+    }
+    const { nodes, edges } = buildFlowGraph(doc)
+    expect(nodes.find((n) => n.id === 'py:boundary:unresolved')?.type).toBe(
+      'boundary',
+    )
+    const unk = edges.find(
+      (e) => e.target === 'py:boundary:unresolved' && e.label === 'uncertain',
+    )
+    expect(unk).toBeDefined()
+    expect((unk?.style as { strokeDasharray?: string })?.strokeDasharray).toBe(
+      '6 4',
+    )
+  })
 })

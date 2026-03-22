@@ -128,3 +128,20 @@ export function FloatingNode({ data, selected }: NodeProps) {
     </div>
   )
 }
+
+/** Execution IR boundary: static analysis stopped here (unresolved / not traced). */
+export function BoundaryNode({ data, selected }: NodeProps) {
+  const d = data as NodeData
+  return (
+    <div className={`rf-node boundary ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} className="h" />
+      <div className="node-row">
+        <span className="node-label">{d.label}</span>
+        <TestBtn onTest={d.onTest} />
+      </div>
+      <Subtitle text={d.subtitle} />
+      <span className="boundary-badge">uncertain</span>
+      <Handle type="source" position={Position.Bottom} className="h" />
+    </div>
+  )
+}

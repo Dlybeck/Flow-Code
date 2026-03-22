@@ -20,6 +20,14 @@
       "id": "e:2",
       "kind": "calls",
       "to": "py:fn:golden_app.core.greeting_for"
+    },
+    {
+      "confidence": "unknown",
+      "evidence": "unresolved_name_or_attribute_call",
+      "from": "py:fn:golden_app.app.create_app",
+      "id": "e:3",
+      "kind": "calls",
+      "to": "py:boundary:unresolved"
     }
   ],
   "entrypoints": [
@@ -76,6 +84,12 @@
         "start_line": 4
       },
       "raw_symbol_id": "sym:src/golden_app/core.py:golden_app.core.greeting_for"
+    },
+    {
+      "id": "py:boundary:unresolved",
+      "kind": "dynamic_callsite",
+      "label": "Unresolved / not traced (v0)",
+      "language": "python"
     }
   ],
   "producers": [
