@@ -7,8 +7,10 @@ from raw_indexer.diff_raw import diff_raw
 from raw_indexer.index import index_repo
 from raw_indexer.overlay import (
     load_overlay,
+    overlay_orphan_directory_keys,
     overlay_orphan_file_keys,
     overlay_orphan_keys,
+    valid_directory_ids,
 )
 
 
@@ -40,3 +42,9 @@ def test_overlay_orphans(samples_dir: Path, golden_repo: Path, tmp_path: Path) -
     assert "sym:src/golden_app/core.py:golden_app.core.greeting_for" not in orphans
     f_orphans = overlay_orphan_file_keys(overlay, doc)
     assert "file:ghost:missing.py" in f_orphans
+    assert "dir:src/golden_app" in valid_directory_ids(doc)
+    d_orphans = overlay_orphan_directory_keys(
+        {"by_directory_id": {"dir:ghost:nope": {"displayName": "x"}}},
+        doc,
+    )
+    assert "dir:ghost:nope" in d_orphans

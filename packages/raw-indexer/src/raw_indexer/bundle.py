@@ -10,7 +10,13 @@ from typing import Any
 
 from raw_indexer.apply_patch import apply_unified_patch
 from raw_indexer.index import index_repo
-from raw_indexer.overlay import load_overlay, overlay_orphan_file_keys, overlay_orphan_keys
+from raw_indexer.overlay import (
+    load_overlay,
+    overlay_orphan_directory_keys,
+    overlay_orphan_file_keys,
+    overlay_orphan_keys,
+    overlay_orphan_root_keys,
+)
 from raw_indexer.validate import validate_repo
 
 BUNDLE_SCHEMA_VERSION = 0
@@ -41,6 +47,12 @@ def _coerce_overlay_fragment(body: Any) -> dict[str, Any]:
         raise ValueError("bundle.overlay.by_symbol_id must be an object")
     if by_file is not None and not isinstance(by_file, dict):
         raise ValueError("bundle.overlay.by_file_id must be an object")
+    by_dir = body.get("by_directory_id")
+    if by_dir is not None and not isinstance(by_dir, dict):
+        raise ValueError("bundle.overlay.by_directory_id must be an object")
+    by_root = body.get("by_root_id")
+    if by_root is not None and not isinstance(by_root, dict):
+        raise ValueError("bundle.overlay.by_root_id must be an object")
     sv = body.get("schema_version")
     if sv is not None and not isinstance(sv, int):
         raise ValueError("bundle.overlay.schema_version must be an integer")
@@ -48,6 +60,8 @@ def _coerce_overlay_fragment(body: Any) -> dict[str, Any]:
         "schema_version": int(sv) if isinstance(sv, int) else 0,
         "by_symbol_id": dict(by_sym) if isinstance(by_sym, dict) else {},
         "by_file_id": dict(by_file) if isinstance(by_file, dict) else {},
+        "by_directory_id": dict(by_dir) if isinstance(by_dir, dict) else {},
+        "by_root_id": dict(by_root) if isinstance(by_root, dict) else {},
     }
 
 
@@ -78,11 +92,15 @@ def load_bundle(path: Path | str) -> dict[str, Any]:
 
 
 def merge_overlay_delta(base: dict[str, Any], delta: dict[str, Any]) -> dict[str, Any]:
-    """Deep-enough merge: delta symbol/file entries replace or merge field-wise into base."""
+    """Deep-enough merge: delta symbol/file/directory entries merge field-wise into base."""
     b_sym = dict(base.get("by_symbol_id") or {})
     b_fil = dict(base.get("by_file_id") or {})
+    b_dir = dict(base.get("by_directory_id") or {})
+    b_root = dict(base.get("by_root_id") or {})
     d_sym = delta.get("by_symbol_id") or {}
     d_fil = delta.get("by_file_id") or {}
+    d_dir = delta.get("by_directory_id") or {}
+    d_root = delta.get("by_root_id") or {}
     for sid, ent in d_sym.items():
         if not isinstance(ent, dict):
             raise ValueError(f"overlay entry for symbol {sid!r} must be an object")
@@ -95,10 +113,24 @@ def merge_overlay_delta(base: dict[str, Any], delta: dict[str, Any]) -> dict[str
         prev = dict(b_fil.get(fid) or {})
         prev.update(ent)
         b_fil[fid] = prev
+    for did, ent in d_dir.items():
+        if not isinstance(ent, dict):
+            raise ValueError(f"overlay entry for directory {did!r} must be an object")
+        prev = dict(b_dir.get(did) or {})
+        prev.update(ent)
+        b_dir[did] = prev
+    for rid, ent in d_root.items():
+        if not isinstance(ent, dict):
+            raise ValueError(f"overlay entry for root {rid!r} must be an object")
+        prev = dict(b_root.get(rid) or {})
+        prev.update(ent)
+        b_root[rid] = prev
     return {
         "schema_version": int(delta.get("schema_version") or base.get("schema_version") or 0),
         "by_symbol_id": b_sym,
         "by_file_id": b_fil,
+        "by_directory_id": b_dir,
+        "by_root_id": b_root,
     }
 
 
@@ -170,7 +202,16 @@ def apply_bundle(
     if "overlay" in parsed:
         assert overlay_path is not None
         op = Path(overlay_path)
-        existing = load_overlay(op) if op.is_file() else {"by_symbol_id": {}, "by_file_id": {}}
+        existing = (
+            load_overlay(op)
+            if op.is_file()
+            else {
+                "by_symbol_id": {},
+                "by_file_id": {},
+                "by_directory_id": {},
+                "by_root_id": {},
+            }
+        )
         try:
             merged = merge_overlay_delta(existing, parsed["overlay"])
         except ValueError as e:
@@ -183,7 +224,9 @@ def apply_bundle(
             )
         sym_o = overlay_orphan_keys(merged, raw_doc)
         fil_o = overlay_orphan_file_keys(merged, raw_doc)
-        if sym_o or fil_o:
+        dir_o = overlay_orphan_directory_keys(merged, raw_doc)
+        root_o = overlay_orphan_root_keys(merged)
+        if sym_o or fil_o or dir_o or root_o:
             msg = "overlay would contain orphan keys not in RAW after patch"
             if sym_o:
                 msg += f"; orphan_symbol_ids={sym_o[:10]}"
@@ -192,6 +235,14 @@ def apply_bundle(
             if fil_o:
                 msg += f"; orphan_file_ids={fil_o[:10]}"
                 if len(fil_o) > 10:
+                    msg += "…"
+            if dir_o:
+                msg += f"; orphan_directory_ids={dir_o[:10]}"
+                if len(dir_o) > 10:
+                    msg += "…"
+            if root_o:
+                msg += f"; orphan_root_ids={root_o[:10]}"
+                if len(root_o) > 10:
                     msg += "…"
             return ApplyBundleResult(
                 ok=False,

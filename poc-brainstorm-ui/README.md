@@ -30,7 +30,7 @@ Two terminals from **repo root**:
 1. **`npm run api`** from repo root (runs `scripts/brainstorm-api.sh`; needs `pip install -e ".[api]"` in `packages/raw-indexer`).
 2. **`npm run dev:api`** (or `cd poc-brainstorm-ui && npm run dev:api`).
 
-The UI then fetches **`/api/brainstorm/raw`** and **`/overlay`** (Vite proxies to Uvicorn on port 8000). With the API, the side panel includes **Apply change package** — **`POST /apply-bundle`** with a unified diff (dev/POC until AI proposes the same payload). Production build still defaults to static files unless you set **`VITE_BRAINSTORM_API`** at build time.
+The UI then fetches **`/api/brainstorm/raw`** and **`/overlay`** (Vite proxies to Uvicorn on port 8000). With the API, the side panel includes **Update map** (**`POST /update-map`**, DeepSeek labels in `overlay.json`) and **Apply change package** (**`POST /apply-bundle`**). Put **`DEEPSEEK_API_KEY`** in repo-root **`.env`** (see **`.env.example`**); **`scripts/brainstorm-api.sh`** loads **`.env`**. Use **`UPDATE_MAP_DRY_RUN=1`** to test without a key. Production build still defaults to static files unless you set **`VITE_BRAINSTORM_API`** at build time.
 
 **Regenerate the golden index** (from this directory):
 

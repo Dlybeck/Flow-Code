@@ -188,7 +188,8 @@ export function buildRawGraph(
     data: {
       label: projectLabel(doc.root),
       expandable: rootExpandable,
-      subtitle: `RAW · ${doc.indexer} · index: ${indexCov}`,
+      subtitle: 'Double-click to open folders and files',
+      rawSubtitle: `RAW · ${doc.indexer} · index: ${indexCov}`,
     },
   })
 

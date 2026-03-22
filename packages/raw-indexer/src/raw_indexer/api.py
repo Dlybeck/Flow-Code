@@ -13,7 +13,13 @@ from pydantic import BaseModel, Field
 
 from raw_indexer.bundle import apply_bundle
 from raw_indexer.index import index_repo, write_index
-from raw_indexer.overlay import overlay_orphan_file_keys, overlay_orphan_keys
+from raw_indexer.overlay import (
+    overlay_orphan_directory_keys,
+    overlay_orphan_file_keys,
+    overlay_orphan_keys,
+    overlay_orphan_root_keys,
+)
+from raw_indexer.update_map import run_update_map
 
 
 class ReindexBody(BaseModel):
@@ -41,7 +47,7 @@ class ApplyBundleBody(BaseModel):
     )
     overlay: dict[str, Any] | None = Field(
         default=None,
-        description="Optional overlay fragment (by_symbol_id / by_file_id) to merge",
+        description="Optional overlay fragment (by_symbol_id / by_file_id / by_directory_id) to merge",
     )
     dry_run: bool = Field(default=False, description="patch --dry-run only; disallowed if overlay set")
     skip_validate: bool = Field(default=False, description="Skip pytest/typecheck after apply")
@@ -104,10 +110,16 @@ def _golden_repo() -> Path:
 def _normalize_overlay(body: dict[str, Any]) -> dict[str, Any]:
     by_sym = body.get("by_symbol_id")
     by_file = body.get("by_file_id")
+    by_dir = body.get("by_directory_id")
+    by_root = body.get("by_root_id")
     if by_sym is not None and not isinstance(by_sym, dict):
         raise HTTPException(status_code=422, detail="by_symbol_id must be an object")
     if by_file is not None and not isinstance(by_file, dict):
         raise HTTPException(status_code=422, detail="by_file_id must be an object")
+    if by_dir is not None and not isinstance(by_dir, dict):
+        raise HTTPException(status_code=422, detail="by_directory_id must be an object")
+    if by_root is not None and not isinstance(by_root, dict):
+        raise HTTPException(status_code=422, detail="by_root_id must be an object")
     sv = body.get("schema_version")
     if sv is not None and not isinstance(sv, int):
         raise HTTPException(status_code=422, detail="schema_version must be an integer")
@@ -115,6 +127,8 @@ def _normalize_overlay(body: dict[str, Any]) -> dict[str, Any]:
         "schema_version": int(sv) if isinstance(sv, int) else 0,
         "by_symbol_id": dict(by_sym) if isinstance(by_sym, dict) else {},
         "by_file_id": dict(by_file) if isinstance(by_file, dict) else {},
+        "by_directory_id": dict(by_dir) if isinstance(by_dir, dict) else {},
+        "by_root_id": dict(by_root) if isinstance(by_root, dict) else {},
     }
 
 
@@ -144,7 +158,13 @@ def get_overlay() -> JSONResponse:
     path = _overlay_path()
     if not path.is_file():
         return JSONResponse(
-            content={"schema_version": 0, "by_symbol_id": {}, "by_file_id": {}},
+            content={
+                "schema_version": 0,
+                "by_symbol_id": {},
+                "by_file_id": {},
+                "by_directory_id": {},
+                "by_root_id": {},
+            },
         )
     data = json.loads(path.read_text(encoding="utf-8"))
     return JSONResponse(content=data)
@@ -159,13 +179,17 @@ def patch_overlay(body: dict[str, Any]) -> JSONResponse:
     overlay = _normalize_overlay(body)
     sym_orphans = overlay_orphan_keys(overlay, raw_doc)
     file_orphans = overlay_orphan_file_keys(overlay, raw_doc)
-    if sym_orphans or file_orphans:
+    dir_orphans = overlay_orphan_directory_keys(overlay, raw_doc)
+    root_orphans = overlay_orphan_root_keys(overlay)
+    if sym_orphans or file_orphans or dir_orphans or root_orphans:
         raise HTTPException(
             status_code=422,
             detail={
                 "message": "Overlay contains keys not present in RAW",
                 "orphan_symbol_ids": sym_orphans,
                 "orphan_file_ids": file_orphans,
+                "orphan_directory_ids": dir_orphans,
+                "orphan_root_ids": root_orphans,
             },
         )
     out = _overlay_path()
@@ -213,3 +237,20 @@ def apply_bundle_http(body: ApplyBundleBody) -> JSONResponse:
     if not res.ok:
         return JSONResponse(status_code=422, content=payload)
     return JSONResponse(content=payload)
+
+
+@app.post("/update-map")
+def update_map() -> JSONResponse:
+    """
+    **Update map** — AI (DeepSeek) fills ``displayName`` / ``userDescription`` in
+    ``overlay.json``. Requires ``DEEPSEEK_API_KEY`` unless ``UPDATE_MAP_DRY_RUN=1``.
+
+    Refreshes ``raw.json`` from ``BRAINSTORM_GOLDEN_REPO`` first.
+    """
+    root = _golden_repo()
+    doc = index_repo(root)
+    write_index(doc, _raw_path())
+    result = run_update_map(root, _overlay_path(), doc)
+    if not result.get("ok"):
+        return JSONResponse(status_code=503, content=result)
+    return JSONResponse(content=result)

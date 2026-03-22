@@ -42,8 +42,15 @@ function Subtitle({ text }: { text?: string }) {
 
 export function CapabilityNode({ data, selected }: NodeProps) {
   const d = data as NodeData
+  const indexTip =
+    typeof d.rawSubtitle === 'string' && d.rawSubtitle.length > 0
+      ? d.rawSubtitle
+      : undefined
   return (
-    <div className={`rf-node cap ${selected ? 'selected' : ''}`}>
+    <div
+      className={`rf-node cap ${selected ? 'selected' : ''}`}
+      title={indexTip}
+    >
       <Handle type="target" position={Position.Top} className="h" />
       <div className="node-row">
         <span className="node-label">{d.label}</span>
@@ -90,10 +97,13 @@ export function FeatureNode({ data, selected }: NodeProps) {
 
 export function CodeNode({ data, selected }: NodeProps) {
   const d = data as NodeData
+  const hoverHint =
+    d.title ??
+    (typeof d.subtitle === 'string' && d.subtitle.length > 0 ? d.subtitle : undefined)
   return (
     <div
       className={`rf-node code ${selected ? 'selected' : ''}`}
-      title={d.title ?? undefined}
+      title={hoverHint}
     >
       <Handle type="target" position={Position.Top} className="h" />
       <div className="node-row">

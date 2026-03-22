@@ -108,6 +108,9 @@ Or run **`scripts/brainstorm-api.sh`** from the monorepo root (uses the same def
 - **`PATCH /overlay`** — replace overlay body; **422** if any keys are not in current RAW  
 - **`POST /reindex`** — body `{"repo_root": "/path"}` optional; else **`BRAINSTORM_GOLDEN_REPO`**; writes **`raw.json`** under **`BRAINSTORM_PUBLIC_DIR`**
 - **`POST /apply-bundle`** — JSON body: same fields as CLI bundle (**`schema_version`**, **`unified_diff`**, optional **`overlay`**, optional **`dry_run`**, **`skip_validate`**, **`pytest_only`**). Applies to **`BRAINSTORM_GOLDEN_REPO`** (Option A: one deployment per project). On success, refreshes **`public/raw.json`** from the repo. **`422`** + result JSON if apply/validate/orphans fail.
+- **`POST /update-map`** — **Update map**: reindexes **`BRAINSTORM_GOLDEN_REPO`** into **`raw.json`**, then calls **DeepSeek** (OpenAI-compatible) to fill **`overlay.json`** `displayName` / `userDescription` for **symbols** then **files**. Requires **`DEEPSEEK_API_KEY`** in the environment unless **`UPDATE_MAP_DRY_RUN=1`**. See **`.env.example`** at the monorepo root. **`503`** + JSON if misconfigured or the model pass fails.
+
+**Secrets:** copy **`.env.example`** → **`.env`** in the repo root (gitignored). **`scripts/brainstorm-api.sh`** sources **`.env`** automatically when present.
 
 ## JSON shape (schema_version 0)
 

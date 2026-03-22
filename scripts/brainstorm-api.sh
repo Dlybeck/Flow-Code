@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -f "$ROOT/.env" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$ROOT/.env"
+  set +a
+fi
 export BRAINSTORM_PUBLIC_DIR="${BRAINSTORM_PUBLIC_DIR:-$ROOT/poc-brainstorm-ui/public}"
 export BRAINSTORM_GOLDEN_REPO="${BRAINSTORM_GOLDEN_REPO:-$ROOT/fixtures/golden-fastapi}"
 cd "$ROOT/packages/raw-indexer"

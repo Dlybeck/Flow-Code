@@ -37,6 +37,7 @@ import { buildMockTestReport } from './mockTests'
 import type { OverlayDoc } from './overlayTypes'
 import { emptyOverlay, parseOverlayDoc } from './overlayTypes'
 import { ApplyBundlePanel } from './ApplyBundlePanel'
+import { UpdateMapPanel } from './UpdateMapPanel'
 import { brainstormApiEnabled, overlayDataUrl, rawDataUrl } from './apiConfig'
 import { ROOT_ID, buildRawGraph, defaultRawExpanded } from './rawGraph'
 import type { RawIndexDoc } from './rawTypes'
@@ -475,7 +476,10 @@ export default function App() {
 
       <aside className="side-panel">
         {brainstormApiEnabled() ? (
-          <ApplyBundlePanel onApplied={reloadRaw} />
+          <>
+            <UpdateMapPanel onDone={reloadRaw} />
+            <ApplyBundlePanel onApplied={reloadRaw} />
+          </>
         ) : null}
 
         <section>

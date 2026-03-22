@@ -62,8 +62,62 @@ def test_patch_overlay_rejects_orphan(client: TestClient) -> None:
             "schema_version": 0,
             "by_symbol_id": {"sym:missing": {"displayName": "x"}},
             "by_file_id": {},
+            "by_directory_id": {},
+            "by_root_id": {},
         },
     )
+    assert r.status_code == 422
+
+
+def test_patch_overlay_rejects_orphan_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    raw = {
+        "schema_version": 0,
+        "root": str(tmp_path),
+        "files": [{"id": "file:x.py", "path": "src/x.py", "sha256": "x"}],
+        "symbols": [],
+        "edges": [],
+    }
+    (tmp_path / "raw.json").write_text(json.dumps(raw), encoding="utf-8")
+    (tmp_path / "overlay.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(tmp_path))
+    monkeypatch.delenv("BRAINSTORM_GOLDEN_REPO", raising=False)
+    with TestClient(app) as c:
+        r = c.patch(
+            "/overlay",
+            json={
+                "schema_version": 0,
+                "by_symbol_id": {},
+                "by_file_id": {},
+                "by_directory_id": {"dir:ghost": {"displayName": "nope"}},
+                "by_root_id": {},
+            },
+        )
+    assert r.status_code == 422
+
+
+def test_patch_overlay_rejects_bad_root_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    raw = {
+        "schema_version": 0,
+        "root": str(tmp_path),
+        "files": [{"id": "file:x.py", "path": "src/x.py", "sha256": "x"}],
+        "symbols": [],
+        "edges": [],
+    }
+    (tmp_path / "raw.json").write_text(json.dumps(raw), encoding="utf-8")
+    (tmp_path / "overlay.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(tmp_path))
+    monkeypatch.delenv("BRAINSTORM_GOLDEN_REPO", raising=False)
+    with TestClient(app) as c:
+        r = c.patch(
+            "/overlay",
+            json={
+                "schema_version": 0,
+                "by_symbol_id": {},
+                "by_file_id": {},
+                "by_directory_id": {},
+                "by_root_id": {"not-raw-root": {"displayName": "x"}},
+            },
+        )
     assert r.status_code == 422
 
 
@@ -74,6 +128,8 @@ def test_patch_overlay_writes(client: TestClient, tmp_path: Path) -> None:
             "schema_version": 0,
             "by_symbol_id": {"sym:a:f": {"displayName": "renamed"}},
             "by_file_id": {},
+            "by_directory_id": {},
+            "by_root_id": {},
         },
     )
     assert r.status_code == 200

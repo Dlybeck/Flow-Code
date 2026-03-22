@@ -9,6 +9,8 @@ This folder holds the **single place** to read the **current** product direction
 | **[ROADMAP.md](./ROADMAP.md)** | **Full development phases** (0–8): order of work so the build stays on vision; **AI & tool hosts** (MCP + HTTP, solo v1); detail per phase when you start it. |
 | **[goal.md](./goal.md)** | Narrative **why**: bridge human intent ↔ AI execution (map + anchors). |
 | **[v1-strategy.md](./v1-strategy.md)** | **v1 architectural decision**: shared Python spine, **in-house graph shell first**, optional MCP/IDE **after**; **next steps** (bundle → API → UI → model → adapters). |
+| **[ORCHESTRATOR-POC-PLAN.md](./ORCHESTRATOR-POC-PLAN.md)** | **Draft POC plan**: map-anchored **comments** → **Send/Go** orchestrator (group + order) → **review** → **one** execution item → existing apply path. |
+| **[UPDATE-MAP-PLAN.md](./UPDATE-MAP-PLAN.md)** | **Update map**: AI fills **overlay** (`displayName`, `userDescription`) — **product-language**, bottom-up **symbols → files**, DeepSeek server-side, **`POST /update-map`**. |
 
 ## Relationship to other docs
 
@@ -31,3 +33,5 @@ This folder holds the **single place** to read the **current** product direction
 | 2026-03-22 | **`ROADMAP.md`** — phased full development guide (Phase 0 done → agent + v1 polish). |
 | 2026-03-22 | **ROADMAP** *AI and tool hosts* + **SPEC §6** / **ARCHITECTURE** alignment (platform-agnostic MCP + HTTP). |
 | 2026-03-21 | **`goal.md`** + **`v1-strategy.md`** — narrative goal and **in-house-first** delivery order with numbered next steps. |
+| 2026-03-22 | **`ORCHESTRATOR-POC-PLAN.md`** — comments + orchestrator + execution POC slices for review. |
+| 2026-03-22 | **`UPDATE-MAP-PLAN.md`** — “Update map” AI overlay curation (DeepSeek, bottom-up, API + POC). |

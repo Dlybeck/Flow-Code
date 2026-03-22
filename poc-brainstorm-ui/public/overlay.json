@@ -1,19 +1,51 @@
 {
-  "schema_version": 0,
+  "by_directory_id": {
+    "dir:src": {
+      "displayName": "Golden Fixture application source",
+      "userDescription": "Holds the complete Golden Fixture service that checks system health and creates personalized greetings. It bundles the version marker and all the working parts together in one place."
+    },
+    "dir:src/golden_app": {
+      "displayName": "Golden Fixture application",
+      "userDescription": "Provides a live service with two main features. It checks if the service is responding and creates friendly greetings from names. The package also tracks which release version is active."
+    }
+  },
   "by_file_id": {
+    "file:src/golden_app/__init__.py": {
+      "displayName": "Golden fixture package identity",
+      "userDescription": "Holds the official version marker for the Golden Fixture application. It tells everyone which release they're working with."
+    },
     "file:src/golden_app/app.py": {
-      "displayName": "HTTP API surface",
-      "userDescription": "FastAPI routes and app factory."
+      "displayName": "Live service connections",
+      "userDescription": "Connects people to the service's two main features. It offers a quick status check and turns names into friendly greetings."
     },
     "file:src/golden_app/core.py": {
-      "displayName": "Shared greeting logic",
-      "userDescription": "Pure functions used by the API."
+      "displayName": "Friendly message builder",
+      "userDescription": "Transforms any name into a warm, clean greeting. It ensures every name gets a proper welcome, even when none is provided."
+    }
+  },
+  "by_root_id": {
+    "raw-root": {
+      "displayName": "Golden Fixture service demo",
+      "userDescription": "Provides a simple demo service that checks if systems are running and creates personalized greetings. It bundles everything needed into one ready-to-run package."
     }
   },
   "by_symbol_id": {
+    "sym:src/golden_app/app.py:golden_app.app.create_app": {
+      "displayName": "Golden Fixture API setup",
+      "userDescription": "Sets up the Golden Fixture API with two simple interactions. It provides a quick status check and a personalized greeting feature."
+    },
+    "sym:src/golden_app/app.py:golden_app.app.create_app.greet": {
+      "displayName": "Personalized greeting generator",
+      "userDescription": "Takes a person's name and returns a friendly welcome message. Names go in, friendly hellos come out."
+    },
+    "sym:src/golden_app/app.py:golden_app.app.create_app.health": {
+      "displayName": "Quick service status check",
+      "userDescription": "Offers a simple yes/no indicator that the service is running and ready. Operators can instantly see if everything is working."
+    },
     "sym:src/golden_app/core.py:golden_app.core.greeting_for": {
-      "displayName": "User-facing greeting",
-      "userDescription": "Builds the Hello string from a trimmed name."
+      "displayName": "Friendly message builder",
+      "userDescription": "Transforms any name into a warm, clean greeting. It ensures every name gets a proper welcome, even when none is provided."
     }
-  }
+  },
+  "schema_version": 0
 }

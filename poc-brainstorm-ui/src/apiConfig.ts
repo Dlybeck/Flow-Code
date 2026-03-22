@@ -20,3 +20,7 @@ export function overlayDataUrl(): string {
 export function applyBundleUrl(): string {
   return `${base}/apply-bundle`
 }
+
+export function updateMapUrl(): string {
+  return `${base}/update-map`
+}
