@@ -26,6 +26,11 @@ dev = [
 [project.scripts]
 raw-indexer = "raw_indexer.cli:main"
 
+[tool.pytest.ini_options]
+markers = [
+    "live_llm: hits real DeepSeek (see docs/product-vision/LLM-TESTING.md)",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

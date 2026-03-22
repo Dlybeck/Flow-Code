@@ -78,6 +78,14 @@
   margin: 4px 0 0;
 }
 
+.flow-hint {
+  font-size: 11px;
+  color: var(--accent);
+  margin: 6px 0 0;
+  max-width: 56ch;
+  line-height: 1.35;
+}
+
 .flow-wrap {
   min-height: 420px;
   height: 100%;
@@ -92,11 +100,20 @@
 
 .flow-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 420px;
   color: var(--text-muted);
   font-size: 14px;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.flow-empty .hint {
+  font-size: 12px;
+  margin-top: 8px;
+  max-width: 36ch;
 }
 
 .side-panel {
@@ -280,6 +297,17 @@
 .swatch.float {
   border: 2px dashed var(--float);
   background: transparent;
+}
+
+.legend-edge {
+  width: 22px;
+  height: 0;
+  flex-shrink: 0;
+  border-top: 2px solid var(--edge);
+}
+
+.legend-edge.call {
+  border-top-color: #58a6ff;
 }
 
 /* React Flow */

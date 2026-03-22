@@ -11,6 +11,8 @@ This folder holds the **single place** to read the **current** product direction
 | **[v1-strategy.md](./v1-strategy.md)** | **v1 architectural decision**: shared Python spine, **in-house graph shell first**, optional MCP/IDE **after**; **next steps** (bundle → API → UI → model → adapters). |
 | **[ORCHESTRATOR-POC-PLAN.md](./ORCHESTRATOR-POC-PLAN.md)** | **Draft POC plan**: map-anchored **comments** → **Send/Go** orchestrator (group + order) → **review** → **one** execution item → existing apply path. |
 | **[UPDATE-MAP-PLAN.md](./UPDATE-MAP-PLAN.md)** | **Update map**: AI fills **overlay** (`displayName`, `userDescription`) — **product-language**, bottom-up **symbols → files**, DeepSeek server-side, **`POST /update-map`**. |
+| **[EXECUTION-MAP-PLAN.md](./EXECUTION-MAP-PLAN.md)** | **Execution / flow map** (Option B): **function-level** “what & when,” **language-neutral IR**, per-language producers, **uncertainty** (`may_call` / external), AI for **why/how**; **testable slices** 0–8. |
+| **[LLM-TESTING.md](./LLM-TESTING.md)** | **Live DeepSeek tests**: repo-root `.env` autoload, **`SKIP_LIVE_LLM`** escape, CI secrets. |
 
 ## Relationship to other docs
 
@@ -35,3 +37,5 @@ This folder holds the **single place** to read the **current** product direction
 | 2026-03-21 | **`goal.md`** + **`v1-strategy.md`** — narrative goal and **in-house-first** delivery order with numbered next steps. |
 | 2026-03-22 | **`ORCHESTRATOR-POC-PLAN.md`** — comments + orchestrator + execution POC slices for review. |
 | 2026-03-22 | **`UPDATE-MAP-PLAN.md`** — “Update map” AI overlay curation (DeepSeek, bottom-up, API + POC). |
+| 2026-03-22 | **`EXECUTION-MAP-PLAN.md`** — flow-first map, execution IR, phased testable slices. |
+| 2026-03-22 | **`LLM-TESTING.md`** + live `pytest` for Update map (real API). |

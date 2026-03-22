@@ -16,6 +16,11 @@ export function overlayDataUrl(): string {
   return base ? `${base}/overlay` : '/overlay.json'
 }
 
+/** Execution IR (function graph): same host as RAW via Vite proxy or static `public/flow.json`. */
+export function flowDataUrl(): string {
+  return base ? `${base}/flow` : '/flow.json'
+}
+
 /** Phase 5: POST JSON change package; only valid when {@link brainstormApiEnabled}. */
 export function applyBundleUrl(): string {
   return `${base}/apply-bundle`

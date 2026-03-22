@@ -1,0 +1,27 @@
+{
+  "schema_version": 0,
+  "languages": ["python"],
+  "entrypoints": ["py:fn:app.main"],
+  "nodes": [
+    {
+      "id": "py:fn:app.main",
+      "kind": "function",
+      "language": "python",
+      "label": "app.main"
+    },
+    {
+      "id": "py:fn:app.helper",
+      "kind": "function",
+      "language": "python",
+      "label": "app.helper"
+    }
+  ],
+  "edges": [
+    {
+      "from": "py:fn:app.main",
+      "to": "py:fn:app.helper",
+      "kind": "calls",
+      "confidence": "maybe"
+    }
+  ]
+}

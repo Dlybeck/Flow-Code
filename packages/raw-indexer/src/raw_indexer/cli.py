@@ -1,4 +1,4 @@
-"""CLI: index | diff | orphans | overlay-migrate | validate | apply | apply-verify | apply-bundle"""
+"""CLI: index | execution-ir | diff | orphans | overlay-migrate | validate | apply | apply-verify | apply-bundle"""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pathlib import Path
 
 from raw_indexer.apply_patch import apply_unified_patch
 from raw_indexer.bundle import apply_bundle, load_bundle
+from raw_indexer.execution_ir import build_execution_ir_from_raw
 from raw_indexer.diagnostics_pyright import attach_diagnostics_to_raw
 from raw_indexer.diff_raw import diff_raw, format_diff_report
 from raw_indexer.index import index_repo, write_index
@@ -35,6 +36,25 @@ def main(argv: list[str] | None = None) -> int:
         "--diagnostics",
         action="store_true",
         help="Attach Pyright/Basedpyright JSON diagnostics if on PATH (optional honesty layer)",
+    )
+
+    p_ir = sub.add_parser(
+        "execution-ir",
+        help="Index repo and emit execution IR (flow) JSON",
+    )
+    p_ir.add_argument("path", type=Path, help="Repository root")
+    p_ir.add_argument("-o", "--out", type=Path, default=None, help="Write JSON to file (default: stdout)")
+    p_ir.add_argument(
+        "--src-root",
+        action="append",
+        dest="src_roots",
+        default=None,
+        help="Relative source root (repeatable), default: src/ if present else .",
+    )
+    p_ir.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Attach Pyright/Basedpyright JSON diagnostics to RAW before building IR",
     )
 
     p_diff = sub.add_parser("diff", help="Diff two RAW JSON files")
@@ -117,6 +137,18 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(args, "diagnostics", False):
             doc = attach_diagnostics_to_raw(doc, args.path.resolve())
         write_index(doc, args.out)
+        return 0
+
+    if args.cmd == "execution-ir":
+        doc = index_repo(args.path, src_roots=args.src_roots)
+        if getattr(args, "diagnostics", False):
+            doc = attach_diagnostics_to_raw(doc, args.path.resolve())
+        ir_doc = build_execution_ir_from_raw(doc)
+        text = json.dumps(ir_doc, indent=2, sort_keys=True) + "\n"
+        if args.out:
+            args.out.write_text(text, encoding="utf-8")
+        else:
+            print(text, end="")
         return 0
 
     if args.cmd == "diff":

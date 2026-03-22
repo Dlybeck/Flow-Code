@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "index:golden": "bash scripts/index-golden.sh",
-    "check:orphans": "bash scripts/check-orphans.sh"
+    "check:orphans": "bash scripts/check-orphans.sh",
+    "test": "vitest run"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.1",
@@ -31,6 +32,7 @@
     "globals": "^17.4.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "vitest": "^3.2.4"
   }
 }

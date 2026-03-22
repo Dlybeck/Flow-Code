@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from raw_indexer.bundle import apply_bundle
+from raw_indexer.execution_ir import build_execution_ir_from_raw
 from raw_indexer.index import index_repo, write_index
 from raw_indexer.overlay import (
     overlay_orphan_directory_keys,
@@ -91,6 +92,18 @@ def _overlay_path() -> Path:
     return _public_dir() / "overlay.json"
 
 
+def _flow_path() -> Path:
+    return _public_dir() / "flow.json"
+
+
+def _write_flow_json(raw_doc: dict[str, Any]) -> Path:
+    """Derive execution IR from RAW and write next to raw.json (POC main graph)."""
+    path = _flow_path()
+    ir_doc = build_execution_ir_from_raw(raw_doc)
+    path.write_text(json.dumps(ir_doc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 def _golden_repo() -> Path:
     env = os.environ.get("BRAINSTORM_GOLDEN_REPO", "").strip()
     if env:
@@ -134,7 +147,7 @@ def _normalize_overlay(body: dict[str, Any]) -> dict[str, Any]:
 
 app = FastAPI(
     title="Brainstorm API",
-    description="RAW + overlay for the brainstorm POC (Phase 3).",
+    description="RAW + execution IR (flow.json) + overlay for the brainstorm POC.",
     version="0.1.0",
 )
 
@@ -149,6 +162,15 @@ def get_raw() -> JSONResponse:
     path = _raw_path()
     if not path.is_file():
         raise HTTPException(status_code=404, detail=f"Missing {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return JSONResponse(content=data)
+
+
+@app.get("/flow")
+def get_flow() -> JSONResponse:
+    path = _flow_path()
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"Missing {path} — run POST /reindex or index:golden")
     data = json.loads(path.read_text(encoding="utf-8"))
     return JSONResponse(content=data)
 
@@ -205,9 +227,11 @@ def reindex(body: ReindexBody | None = None) -> dict[str, Any]:
     doc = index_repo(root)
     raw_out = _raw_path()
     write_index(doc, raw_out)
+    flow_out = _write_flow_json(doc)
     return {
         "ok": True,
         "wrote": str(raw_out),
+        "flow_wrote": str(flow_out),
         "symbol_count": len(doc.get("symbols", [])),
         "file_count": len(doc.get("files", [])),
     }
@@ -233,6 +257,7 @@ def apply_bundle_http(body: ApplyBundleBody) -> JSONResponse:
     if res.ok and not body.dry_run:
         doc = index_repo(root)
         write_index(doc, _raw_path())
+        _write_flow_json(doc)
     payload = res.to_json_dict()
     if not res.ok:
         return JSONResponse(status_code=422, content=payload)
@@ -250,6 +275,7 @@ def update_map() -> JSONResponse:
     root = _golden_repo()
     doc = index_repo(root)
     write_index(doc, _raw_path())
+    _write_flow_json(doc)
     result = run_update_map(root, _overlay_path(), doc)
     if not result.get("ok"):
         return JSONResponse(status_code=503, content=result)

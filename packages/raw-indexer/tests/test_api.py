@@ -32,6 +32,18 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
         ),
         encoding="utf-8",
     )
+    (tmp_path / "flow.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 0,
+                "languages": ["python"],
+                "entrypoints": [],
+                "nodes": [],
+                "edges": [],
+            },
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(tmp_path))
     monkeypatch.delenv("BRAINSTORM_GOLDEN_REPO", raising=False)
     return TestClient(app)
@@ -53,6 +65,13 @@ def test_get_overlay(client: TestClient) -> None:
     r = client.get("/overlay")
     assert r.status_code == 200
     assert r.json()["by_symbol_id"]["sym:a:f"]["displayName"] == "f"
+
+
+def test_get_flow(client: TestClient) -> None:
+    r = client.get("/flow")
+    assert r.status_code == 200
+    assert r.json()["schema_version"] == 0
+    assert r.json()["nodes"] == []
 
 
 def test_patch_overlay_rejects_orphan(client: TestClient) -> None:
@@ -160,8 +179,13 @@ def test_reindex_writes_raw(
     body = r.json()
     assert body["ok"] is True
     assert body["symbol_count"] >= 1
+    assert "flow_wrote" in body
+    assert Path(body["flow_wrote"]).is_file()
     raw = json.loads((pub / "raw.json").read_text(encoding="utf-8"))
     assert raw.get("symbols")
+    flow = json.loads((pub / "flow.json").read_text(encoding="utf-8"))
+    assert flow.get("schema_version") == 0
+    assert isinstance(flow.get("nodes"), list)
 
 
 def test_post_apply_bundle_updates_repo_and_raw(
@@ -203,6 +227,10 @@ def test_post_apply_bundle_updates_repo_and_raw(
     raw = json.loads((pub / "raw.json").read_text(encoding="utf-8"))
     assert raw.get("schema_version") == 0
     assert len(raw.get("symbols", [])) >= 1
+    assert (pub / "flow.json").is_file()
+    flow = json.loads((pub / "flow.json").read_text(encoding="utf-8"))
+    assert flow.get("schema_version") == 0
+    assert any("greeting_for" in str(n.get("label", "")) for n in flow.get("nodes", []))
 
 
 def test_post_apply_bundle_invalid_schema(

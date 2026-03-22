@@ -1,0 +1,89 @@
+{
+  "edges": [
+    {
+      "confidence": "resolved",
+      "from": "py:fn:golden_app.app.create_app",
+      "id": "e:0",
+      "kind": "contains",
+      "to": "py:fn:golden_app.app.create_app.greet"
+    },
+    {
+      "confidence": "resolved",
+      "from": "py:fn:golden_app.app.create_app",
+      "id": "e:1",
+      "kind": "contains",
+      "to": "py:fn:golden_app.app.create_app.health"
+    },
+    {
+      "confidence": "resolved",
+      "from": "py:fn:golden_app.app.create_app.greet",
+      "id": "e:2",
+      "kind": "calls",
+      "to": "py:fn:golden_app.core.greeting_for"
+    }
+  ],
+  "entrypoints": [
+    "py:fn:golden_app.app.create_app"
+  ],
+  "languages": [
+    "python"
+  ],
+  "nodes": [
+    {
+      "id": "py:fn:golden_app.app.create_app",
+      "kind": "function",
+      "label": "golden_app.app.create_app",
+      "language": "python",
+      "location": {
+        "end_line": 19,
+        "path": "src/golden_app/app.py",
+        "start_line": 8
+      },
+      "raw_symbol_id": "sym:src/golden_app/app.py:golden_app.app.create_app"
+    },
+    {
+      "id": "py:fn:golden_app.app.create_app.health",
+      "kind": "function",
+      "label": "golden_app.app.create_app.health",
+      "language": "python",
+      "location": {
+        "end_line": 13,
+        "path": "src/golden_app/app.py",
+        "start_line": 12
+      },
+      "raw_symbol_id": "sym:src/golden_app/app.py:golden_app.app.create_app.health"
+    },
+    {
+      "id": "py:fn:golden_app.app.create_app.greet",
+      "kind": "function",
+      "label": "golden_app.app.create_app.greet",
+      "language": "python",
+      "location": {
+        "end_line": 17,
+        "path": "src/golden_app/app.py",
+        "start_line": 16
+      },
+      "raw_symbol_id": "sym:src/golden_app/app.py:golden_app.app.create_app.greet"
+    },
+    {
+      "id": "py:fn:golden_app.core.greeting_for",
+      "kind": "function",
+      "label": "golden_app.core.greeting_for",
+      "language": "python",
+      "location": {
+        "end_line": 7,
+        "path": "src/golden_app/core.py",
+        "start_line": 4
+      },
+      "raw_symbol_id": "sym:src/golden_app/core.py:golden_app.core.greeting_for"
+    }
+  ],
+  "producers": [
+    {
+      "name": "raw_indexer.execution_ir.python_from_raw",
+      "version": "0"
+    }
+  ],
+  "repo_root": "/home/dlybeck/Projects/Modular Code/fixtures/golden-fastapi",
+  "schema_version": 0
+}

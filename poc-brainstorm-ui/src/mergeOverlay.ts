@@ -15,6 +15,32 @@ type NodeData = Record<string, unknown> & {
   expandable?: boolean
 }
 
+/** Overlay on execution-IR nodes: match `by_symbol_id` via `data.rawSymbolId`. */
+export function applyOverlayToFlowNodes(
+  nodes: Node[],
+  overlay: OverlayDoc | null,
+): Node[] {
+  if (!overlay) return nodes
+  const bySym = overlay.by_symbol_id ?? {}
+  return nodes.map((n) => {
+    const d = n.data as NodeData & { rawSymbolId?: string }
+    const rid = d.rawSymbolId
+    if (!rid) return n
+    const sym = bySym[rid]
+    if (!sym) return n
+    const next: NodeData = { ...d }
+    if (sym.displayName) {
+      next.rawLabel = next.rawLabel ?? d.label
+      next.label = sym.displayName
+    }
+    if (sym.userDescription !== undefined && sym.userDescription !== '') {
+      next.rawSubtitle = next.rawSubtitle ?? d.subtitle
+      next.subtitle = sym.userDescription
+    }
+    return { ...n, data: next }
+  })
+}
+
 export function applyOverlayToNodes(
   nodes: Node[],
   overlay: OverlayDoc | null,

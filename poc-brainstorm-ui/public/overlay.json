@@ -1,50 +1,50 @@
 {
   "by_directory_id": {
     "dir:src": {
-      "displayName": "Golden Fixture application source",
-      "userDescription": "Holds the complete Golden Fixture service that checks system health and creates personalized greetings. It bundles the version marker and all the working parts together in one place."
+      "displayName": "Golden fixture service source",
+      "userDescription": "Holds the golden fixture service that brings two simple features online. It checks service health and creates friendly greetings from names, with version tracking for releases."
     },
     "dir:src/golden_app": {
-      "displayName": "Golden Fixture application",
-      "userDescription": "Provides a live service with two main features. It checks if the service is responding and creates friendly greetings from names. The package also tracks which release version is active."
+      "displayName": "Golden fixture service",
+      "userDescription": "Provides a live service with two simple features. It checks if the service is running and creates friendly greetings from names. The package version helps track which release is active."
     }
   },
   "by_file_id": {
     "file:src/golden_app/__init__.py": {
-      "displayName": "Golden fixture package identity",
-      "userDescription": "Holds the official version marker for the Golden Fixture application. It tells everyone which release they're working with."
+      "displayName": "Golden fixture package version",
+      "userDescription": "Holds the version number for the golden fixture package. This helps track which release is running."
     },
     "file:src/golden_app/app.py": {
       "displayName": "Live service connections",
-      "userDescription": "Connects people to the service's two main features. It offers a quick status check and turns names into friendly greetings."
+      "userDescription": "Brings the service online with two simple features. It offers a quick status check and turns names into friendly greetings."
     },
     "file:src/golden_app/core.py": {
-      "displayName": "Friendly message builder",
-      "userDescription": "Transforms any name into a warm, clean greeting. It ensures every name gets a proper welcome, even when none is provided."
+      "displayName": "Greeting message builder",
+      "userDescription": "Takes a name and crafts a warm welcome message. It handles missing names gracefully by using a default."
     }
   },
   "by_root_id": {
     "raw-root": {
-      "displayName": "Golden Fixture service demo",
-      "userDescription": "Provides a simple demo service that checks if systems are running and creates personalized greetings. It bundles everything needed into one ready-to-run package."
+      "displayName": "Golden fixture service",
+      "userDescription": "This repository delivers a simple service that checks if everything is working and creates friendly greetings from names. It keeps track of different versions for smooth releases."
     }
   },
   "by_symbol_id": {
     "sym:src/golden_app/app.py:golden_app.app.create_app": {
       "displayName": "Golden Fixture API setup",
-      "userDescription": "Sets up the Golden Fixture API with two simple interactions. It provides a quick status check and a personalized greeting feature."
+      "userDescription": "Sets up the main service with two simple interactions. It provides a quick status check and a personalized greeting feature."
     },
     "sym:src/golden_app/app.py:golden_app.app.create_app.greet": {
       "displayName": "Personalized greeting generator",
-      "userDescription": "Takes a person's name and returns a friendly welcome message. Names go in, friendly hellos come out."
+      "userDescription": "Takes a person's name and returns a friendly welcome message. If no name is provided, it defaults to a generic greeting."
     },
     "sym:src/golden_app/app.py:golden_app.app.create_app.health": {
-      "displayName": "Quick service status check",
-      "userDescription": "Offers a simple yes/no indicator that the service is running and ready. Operators can instantly see if everything is working."
+      "displayName": "Service status check",
+      "userDescription": "Offers a simple yes/no signal about whether the service is running and ready. Operators can use this to monitor system availability."
     },
     "sym:src/golden_app/core.py:golden_app.core.greeting_for": {
-      "displayName": "Friendly message builder",
-      "userDescription": "Transforms any name into a warm, clean greeting. It ensures every name gets a proper welcome, even when none is provided."
+      "displayName": "Greeting message formatter",
+      "userDescription": "Creates the actual greeting text from a name. It handles empty inputs gracefully and ensures the output is clean and welcoming."
     }
   },
   "schema_version": 0

@@ -104,11 +104,12 @@ Or run **`scripts/brainstorm-api.sh`** from the monorepo root (uses the same def
 
 - **`GET /health`** — liveness  
 - **`GET /raw`** — full RAW document  
+- **`GET /flow`** — execution IR JSON (**`flow.json`**) — **404** until **`POST /reindex`** or **`index:golden`** has created it  
 - **`GET /overlay`** — overlay JSON (empty maps if file missing)  
 - **`PATCH /overlay`** — replace overlay body; **422** if any keys are not in current RAW  
-- **`POST /reindex`** — body `{"repo_root": "/path"}` optional; else **`BRAINSTORM_GOLDEN_REPO`**; writes **`raw.json`** under **`BRAINSTORM_PUBLIC_DIR`**
-- **`POST /apply-bundle`** — JSON body: same fields as CLI bundle (**`schema_version`**, **`unified_diff`**, optional **`overlay`**, optional **`dry_run`**, **`skip_validate`**, **`pytest_only`**). Applies to **`BRAINSTORM_GOLDEN_REPO`** (Option A: one deployment per project). On success, refreshes **`public/raw.json`** from the repo. **`422`** + result JSON if apply/validate/orphans fail.
-- **`POST /update-map`** — **Update map**: reindexes **`BRAINSTORM_GOLDEN_REPO`** into **`raw.json`**, then calls **DeepSeek** (OpenAI-compatible) to fill **`overlay.json`** `displayName` / `userDescription` for **symbols** then **files**. Requires **`DEEPSEEK_API_KEY`** in the environment unless **`UPDATE_MAP_DRY_RUN=1`**. See **`.env.example`** at the monorepo root. **`503`** + JSON if misconfigured or the model pass fails.
+- **`POST /reindex`** — body `{"repo_root": "/path"}` optional; else **`BRAINSTORM_GOLDEN_REPO`**; writes **`raw.json`** and **`flow.json`** under **`BRAINSTORM_PUBLIC_DIR`** (response includes **`flow_wrote`**)  
+- **`POST /apply-bundle`** — JSON body: same fields as CLI bundle (**`schema_version`**, **`unified_diff`**, optional **`overlay`**, optional **`dry_run`**, **`skip_validate`**, **`pytest_only`**). Applies to **`BRAINSTORM_GOLDEN_REPO`**. On success, refreshes **`raw.json`** and **`flow.json`**. **`422`** + result JSON if apply/validate/orphans fail.
+- **`POST /update-map`** — **Update map**: reindexes into **`raw.json`**, refreshes **`flow.json`**, then calls **DeepSeek** to fill **`overlay.json`**. Requires **`DEEPSEEK_API_KEY`** unless **`UPDATE_MAP_DRY_RUN=1`**. **`503`** + JSON if misconfigured or the model pass fails.
 
 **Secrets:** copy **`.env.example`** → **`.env`** in the repo root (gitignored). **`scripts/brainstorm-api.sh`** sources **`.env`** automatically when present.
 
@@ -131,3 +132,5 @@ Or run **`scripts/brainstorm-api.sh`** from the monorepo root (uses the same def
 pytest
 ruff check src tests
 ```
+
+**Update map — live DeepSeek test:** `tests/test_update_map_live.py` calls the **real** API. Put **`DEEPSEEK_API_KEY`** in **repo-root** `.env` (it is loaded automatically before tests) or export it. Without a key, that test **fails** on purpose. Air-gapped: **`SKIP_LIVE_LLM=1`**. See **[`docs/product-vision/LLM-TESTING.md`](../../docs/product-vision/LLM-TESTING.md)**.

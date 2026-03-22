@@ -20,6 +20,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
@@ -31,14 +32,22 @@ import {
   SurfaceNode,
 } from './CustomNodes'
 import { layoutVisibleGraph, reapplyDraggedSubtrees } from './layoutGraph'
-import { applyOverlayToNodes } from './mergeOverlay'
+import { applyOverlayToFlowNodes, applyOverlayToNodes } from './mergeOverlay'
 import { buildGraph } from './mockGraph'
 import { buildMockTestReport } from './mockTests'
 import type { OverlayDoc } from './overlayTypes'
 import { emptyOverlay, parseOverlayDoc } from './overlayTypes'
 import { ApplyBundlePanel } from './ApplyBundlePanel'
 import { UpdateMapPanel } from './UpdateMapPanel'
-import { brainstormApiEnabled, overlayDataUrl, rawDataUrl } from './apiConfig'
+import {
+  brainstormApiEnabled,
+  flowDataUrl,
+  overlayDataUrl,
+  rawDataUrl,
+} from './apiConfig'
+import { buildFlowGraph } from './flowGraph'
+import type { FlowDoc } from './flowTypes'
+import { parseFlowDoc } from './flowTypes'
 import { ROOT_ID, buildRawGraph, defaultRawExpanded } from './rawGraph'
 import type { RawIndexDoc } from './rawTypes'
 import { effectiveIndexMeta, parseRawIndexDoc } from './rawTypes'
@@ -52,15 +61,40 @@ const nodeTypes = {
   floating: FloatingNode,
 }
 
-type GraphMode = 'mock' | 'raw'
+type GraphMode = 'flow' | 'mock' | 'raw'
 
 type GraphCanvasProps = {
   graphMode: GraphMode
+  flowDoc: FlowDoc | null
   rawDoc: RawIndexDoc | null
   overlayDoc: OverlayDoc | null
 }
 
-function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
+/**
+ * `fitView` on the ReactFlow element only runs once on mount; when `nodes` are filled
+ * in a later effect (common for flow/RAW), the viewport stays wrong until this runs.
+ */
+function FitViewWhenGraphChanges({
+  graphMode,
+  nodeCount,
+  nodeIdsKey,
+}: {
+  graphMode: GraphMode
+  nodeCount: number
+  nodeIdsKey: string
+}) {
+  const { fitView } = useReactFlow()
+  useEffect(() => {
+    if (nodeCount === 0) return
+    const id = requestAnimationFrame(() => {
+      fitView({ padding: 0.2, duration: 200 })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [graphMode, nodeCount, nodeIdsKey, fitView])
+  return null
+}
+
+function GraphCanvas({ graphMode, flowDoc, rawDoc, overlayDoc }: GraphCanvasProps) {
   const [mockExpanded, setMockExpanded] = useState<Set<string>>(
     () => new Set(['ui']),
   )
@@ -78,6 +112,22 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
   const displayedSnapshotRef = useRef<Pick<Node, 'id' | 'position'>[]>([])
 
   const { nodes: builtNodes, edges: builtEdges } = useMemo(() => {
+    if (graphMode === 'flow') {
+      if (!flowDoc) {
+        return { nodes: [] as Node[], edges: [] as Edge[] }
+      }
+      const { nodes: fn, edges: fe } = buildFlowGraph(flowDoc)
+      const posMap = layoutVisibleGraph(fn, fe)
+      let nodesLaidOut = fn.map((n) => ({
+        ...n,
+        position: posMap.get(n.id) ?? n.position,
+      }))
+      /* eslint-disable-next-line react-hooks/refs */
+      const dragSnapshot = displayedSnapshotRef.current
+      nodesLaidOut = reapplyDraggedSubtrees(nodesLaidOut, fe, dragSnapshot)
+      const withOverlay = applyOverlayToFlowNodes(nodesLaidOut, overlayDoc)
+      return { nodes: withOverlay, edges: fe }
+    }
     if (graphMode === 'mock') {
       const { nodes: mockNodes, edges: mockEdges } = buildGraph(mockExpanded)
       /* Same subtree shift as RAW: merge keeps dragged parent pos while children came from fresh layout. */
@@ -128,7 +178,9 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
       return builtNodes.map((n: Node) => {
         const old = prevMap.get(n.id)
         const position =
-          graphMode === 'raw' ? n.position : (old?.position ?? n.position)
+          graphMode === 'raw' || graphMode === 'flow'
+            ? n.position
+            : (old?.position ?? n.position)
         return {
           ...n,
           position,
@@ -138,6 +190,28 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
               e.stopPropagation()
               if (graphMode === 'mock') {
                 setTestText(buildMockTestReport(n.id, mockExpanded))
+              } else if (graphMode === 'flow') {
+                const d = n.data as {
+                  label?: string
+                  subtitle?: string
+                  rawLabel?: string
+                  rawSubtitle?: string
+                }
+                setTestText(
+                  [
+                    `▸ ${d.label ?? n.id}`,
+                    `  id: ${n.id}`,
+                    d.rawLabel ? `  qualified: ${d.rawLabel}` : '',
+                    d.subtitle ? `  ${d.subtitle}` : '',
+                    d.rawSubtitle && d.rawSubtitle !== d.subtitle
+                      ? `  (technical) ${d.rawSubtitle}`
+                      : '',
+                    '',
+                    '  (execution map — static contains + calls)',
+                  ]
+                    .filter(Boolean)
+                    .join('\n'),
+                )
               } else {
                 const d = n.data as {
                   label?: string
@@ -182,6 +256,9 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
 
   const onNodeDoubleClick = useCallback(
     (_evt: MouseEvent, node: Node) => {
+      if (graphMode === 'flow') {
+        return
+      }
       if (graphMode === 'raw') {
         const id = node.id
         if (
@@ -214,6 +291,18 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
     [graphMode],
   )
 
+  if (graphMode === 'flow' && !flowDoc) {
+    return (
+      <div className="flow-empty">
+        <p>No execution map loaded.</p>
+        <p className="hint">
+          Add <code>public/flow.json</code> (run <code>npm run index:golden</code>) or use the API
+          and <code>POST /reindex</code>.
+        </p>
+      </div>
+    )
+  }
+
   if (graphMode === 'raw' && !rawDoc) {
     return (
       <div className="flow-empty">
@@ -221,6 +310,8 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
       </div>
     )
   }
+
+  const fitViewKey = `${graphMode}:${nodes.map((n) => n.id).join('|')}`
 
   return (
     <ReactFlow
@@ -230,8 +321,6 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
       onEdgesChange={onEdgesChange}
       onNodeDoubleClick={onNodeDoubleClick}
       nodeTypes={nodeTypes}
-      fitView
-      fitViewOptions={{ padding: 0.2 }}
       minZoom={0.35}
       maxZoom={1.5}
       proOptions={{ hideAttribution: true }}
@@ -247,6 +336,11 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
       multiSelectionKeyCode="Shift"
       panActivationKeyCode="Space"
     >
+      <FitViewWhenGraphChanges
+        graphMode={graphMode}
+        nodeCount={nodes.length}
+        nodeIdsKey={fitViewKey}
+      />
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
       <Controls showInteractive={false} />
 
@@ -255,9 +349,11 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
           Auto-layout open
         </button>
         <p className="hint">
-          {graphMode === 'raw'
-            ? 'Double-click a directory to expand/collapse its children (the folder stays). Double-click a file to show/hide symbols. Layout is auto-applied from tree edges; dashed = internal imports.'
-            : 'Drag on empty canvas to box-select. Shift+click to add to selection. Drag selected group together. Middle / right-drag to pan (or Space+drag).'}
+          {graphMode === 'flow'
+            ? 'Main view: function-level execution map. Gray edges = contains (nesting); blue = resolved calls. Route-style nodes = entrypoints. Friendly titles from overlay match RAW symbol ids when present.'
+            : graphMode === 'raw'
+              ? 'Double-click a directory to expand/collapse its children (the folder stays). Double-click a file to show/hide symbols. Layout is auto-applied from tree edges; dashed = internal imports.'
+              : 'Drag on empty canvas to box-select. Shift+click to add to selection. Drag selected group together. Middle / right-drag to pan (or Space+drag).'}
         </p>
       </Panel>
 
@@ -285,10 +381,12 @@ function GraphCanvas({ graphMode, rawDoc, overlayDoc }: GraphCanvasProps) {
 }
 
 export default function App() {
-  const [graphMode, setGraphMode] = useState<GraphMode>('mock')
+  const [graphMode, setGraphMode] = useState<GraphMode>('flow')
+  const [flowDoc, setFlowDoc] = useState<FlowDoc | null>(null)
   const [rawDoc, setRawDoc] = useState<RawIndexDoc | null>(null)
   const [overlayDoc, setOverlayDoc] = useState<OverlayDoc | null>(null)
   const [rawErr, setRawErr] = useState<string | null>(null)
+  const [flowHint, setFlowHint] = useState<string | null>(null)
 
   const loadOverlayFromResponse = useCallback(async (res: Response) => {
     if (!res.ok) {
@@ -298,27 +396,74 @@ export default function App() {
     setOverlayDoc(parseOverlayDoc(await res.json()))
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
+  type LoadMode = 'initial' | 'reload' | 'poll'
+
+  const loadGraphBundle = useCallback(
+    async (loadMode: LoadMode) => {
+      const loud = loadMode !== 'poll'
+      const fetchOpts: RequestInit = { cache: 'no-store' }
+
+      if (loud) {
+        setRawErr(null)
+        setFlowHint(null)
+      }
+
       try {
-        const rawRes = await fetch(rawDataUrl())
+        const rawRes = await fetch(rawDataUrl(), fetchOpts)
         if (!rawRes.ok) {
-          throw new Error(`raw index HTTP ${rawRes.status}`)
+          if (loud) {
+            throw new Error(`raw index HTTP ${rawRes.status}`)
+          }
+          return
         }
         const doc = parseRawIndexDoc(await rawRes.json())
-        if (cancelled) return
         setRawDoc(doc)
-        setGraphMode('raw')
-        setRawErr(null)
+        if (loud) setRawErr(null)
+
         try {
-          const ovrRes = await fetch(overlayDataUrl())
-          if (!cancelled) await loadOverlayFromResponse(ovrRes)
+          const ovrRes = await fetch(overlayDataUrl(), fetchOpts)
+          await loadOverlayFromResponse(ovrRes)
         } catch {
-          if (!cancelled) setOverlayDoc(emptyOverlay())
+          setOverlayDoc(emptyOverlay())
+        }
+
+        let nextFlow: FlowDoc | null | undefined
+        let flowOk = false
+        try {
+          const flowRes = await fetch(flowDataUrl(), fetchOpts)
+          if (flowRes.ok) {
+            nextFlow = parseFlowDoc(await flowRes.json())
+            flowOk = true
+            if (loud) setFlowHint(null)
+          } else if (loud) {
+            nextFlow = null
+            if (brainstormApiEnabled() && flowRes.status === 404) {
+              setFlowHint(
+                'No execution map on the API yet (GET /flow → 404). Run npm run dev:studio or npm run index:golden, or POST /reindex.',
+              )
+            } else {
+              setFlowHint(null)
+            }
+          }
+        } catch {
+          if (loud) {
+            nextFlow = null
+            if (brainstormApiEnabled()) {
+              setFlowHint(
+                'Could not load GET /flow (is the API running?). Try npm run dev:studio from repo root.',
+              )
+            }
+          }
+        }
+
+        if (loadMode === 'poll') {
+          if (flowOk && nextFlow !== undefined) setFlowDoc(nextFlow)
+        } else {
+          setFlowDoc(nextFlow ?? null)
+          setGraphMode(nextFlow ? 'flow' : 'raw')
         }
       } catch (e) {
-        if (!cancelled) {
+        if (loud) {
           setRawErr(
             e instanceof Error
               ? e.message
@@ -326,11 +471,24 @@ export default function App() {
           )
         }
       }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [loadOverlayFromResponse])
+    },
+    [loadOverlayFromResponse],
+  )
+
+  useEffect(() => {
+    void loadGraphBundle('initial')
+  }, [loadGraphBundle])
+
+  /** Dev-only: pick up new public/*.json or API reindex without clicking Reload. */
+  useEffect(() => {
+    if (!import.meta.env.DEV) return undefined
+    const ms = 4000
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      void loadGraphBundle('poll')
+    }, ms)
+    return () => window.clearInterval(id)
+  }, [loadGraphBundle])
 
   const onPickRawFile = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -354,22 +512,28 @@ export default function App() {
     [],
   )
 
-  const reloadRaw = useCallback(() => {
-    setRawErr(null)
-    fetch(rawDataUrl())
-      .then(async (rawRes) => {
-        if (!rawRes.ok) throw new Error(`raw index HTTP ${rawRes.status}`)
-        setRawDoc(parseRawIndexDoc(await rawRes.json()))
-        setGraphMode('raw')
-        try {
-          const ovrRes = await fetch(overlayDataUrl())
-          await loadOverlayFromResponse(ovrRes)
-        } catch {
-          setOverlayDoc(emptyOverlay())
-        }
-      })
-      .catch((e) => setRawErr(String(e)))
-  }, [loadOverlayFromResponse])
+  const onPickFlowFile = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const text = String(reader.result ?? '')
+        const doc = parseFlowDoc(JSON.parse(text))
+        setFlowDoc(doc)
+        setGraphMode('flow')
+        setRawErr(null)
+      } catch (err) {
+        setRawErr(err instanceof Error ? err.message : 'Invalid flow JSON')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }, [])
+
+  const reloadGraphData = useCallback(() => {
+    void loadGraphBundle('reload')
+  }, [loadGraphBundle])
 
   const onPickOverlayFile = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -403,24 +567,43 @@ export default function App() {
               Visual: disk + graph + shared code →
             </a>
           </p>
-          <h1>Brainstorm POC — node map</h1>
+          <h1>Brainstorm POC — execution map</h1>
           <p className="sub">
-            <strong>RAW</strong> + <strong>overlay</strong>:{' '}
+            <strong>Flow</strong> is the primary view (function-level contains + calls).{' '}
+            <strong>RAW</strong> is the filesystem/symbol index; <strong>overlay</strong> adds
+            friendly labels (by RAW symbol id, including on flow nodes when{' '}
+            <code>raw_symbol_id</code> is set).{' '}
             {brainstormApiEnabled() ? (
               <>
-                API <code>{rawDataUrl()}</code> + <code>{overlayDataUrl()}</code>{' '}
-                (Vite proxy to FastAPI).{' '}
+                API: <code>{flowDataUrl()}</code>, <code>{rawDataUrl()}</code>,{' '}
+                <code>{overlayDataUrl()}</code> (Vite → FastAPI).{' '}
               </>
             ) : (
               <>
-                <code>public/raw.json</code> and{' '}
-                <code>public/overlay.json</code>{' '}
+                Static: <code>public/flow.json</code>, <code>raw.json</code>,{' '}
+                <code>overlay.json</code>.{' '}
               </>
             )}
-            (friendly names keyed by RAW ids). <strong>Mock</strong> uses{' '}
-            <code>src/mockGraph.ts</code>. No file-tree shell.
+            <strong>Mock</strong> uses <code>src/mockGraph.ts</code>.
+            {import.meta.env.DEV ? (
+              <>
+                {' '}
+                <em>Dev:</em> graph data refetches every 4s when this tab is visible (no
+                reload button needed after <code>index:golden</code> or reindex).
+              </>
+            ) : null}
           </p>
           <div className="mode-bar">
+            <label>
+              <input
+                type="radio"
+                name="mode"
+                checked={graphMode === 'flow'}
+                onChange={() => setGraphMode('flow')}
+                disabled={!flowDoc}
+              />
+              Flow (execution)
+            </label>
             <label>
               <input
                 type="radio"
@@ -440,9 +623,17 @@ export default function App() {
               />
               Mock
             </label>
-            <button type="button" onClick={reloadRaw}>
-              Reload RAW + overlay
+            <button type="button" onClick={reloadGraphData}>
+              Reload flow + RAW + overlay
             </button>
+            <label>
+              Load flow file
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={onPickFlowFile}
+              />
+            </label>
             <label>
               Load RAW file
               <input
@@ -461,6 +652,7 @@ export default function App() {
             </label>
           </div>
           {rawErr ? <p className="raw-err">{rawErr}</p> : null}
+          {flowHint ? <p className="flow-hint">{flowHint}</p> : null}
         </div>
       </header>
 
@@ -468,6 +660,7 @@ export default function App() {
         <ReactFlowProvider>
           <GraphCanvas
             graphMode={graphMode}
+            flowDoc={flowDoc}
             rawDoc={rawDoc}
             overlayDoc={overlayDoc}
           />
@@ -477,8 +670,8 @@ export default function App() {
       <aside className="side-panel">
         {brainstormApiEnabled() ? (
           <>
-            <UpdateMapPanel onDone={reloadRaw} />
-            <ApplyBundlePanel onApplied={reloadRaw} />
+            <UpdateMapPanel onDone={reloadGraphData} />
+            <ApplyBundlePanel onApplied={reloadGraphData} />
           </>
         ) : null}
 
@@ -486,16 +679,22 @@ export default function App() {
           <h2>Legend</h2>
           <div className="legend">
             <div className="legend-row">
-              <span className="swatch cap" /> Project / directory
+              <span className="swatch surface" /> Flow entrypoint
             </div>
             <div className="legend-row">
-              <span className="swatch surface" /> Screen / route
+              <span className="swatch feature" /> Function (flow / symbol)
             </div>
             <div className="legend-row">
-              <span className="swatch feature" /> Symbol
+              <span className="swatch cap" /> Project / directory (RAW)
             </div>
             <div className="legend-row">
-              <span className="swatch code" /> File
+              <span className="swatch code" /> File (RAW)
+            </div>
+            <div className="legend-row">
+              <span className="legend-edge solid" /> Contains / tree
+            </div>
+            <div className="legend-row">
+              <span className="legend-edge call" /> Calls (flow)
             </div>
             <div className="legend-row">
               <span className="swatch float" /> Floating / dead code signal
@@ -544,17 +743,17 @@ export default function App() {
               npm run index:golden
             </code>
             <br />
+            Writes <code>public/raw.json</code> and <code>public/flow.json</code>.
+            <br />
             {brainstormApiEnabled() ? (
               <>
-                Overlay via API <code>PATCH /overlay</code> (validated) or edit{' '}
-                <code>public/overlay.json</code> on disk + reload. After{' '}
-                <code>POST /apply-bundle</code>, RAW is refreshed on the server — click{' '}
-                <strong>Reload RAW + overlay</strong> above.
+                <code>POST /reindex</code> refreshes RAW + flow on the server; then use{' '}
+                <strong>Reload flow + RAW + overlay</strong>. Overlay:{' '}
+                <code>PATCH /overlay</code> or edit <code>public/overlay.json</code>.
               </>
             ) : (
               <>
-                Edit <code>public/overlay.json</code> for labels (keep keys in
-                sync with RAW ids).
+                Edit <code>public/overlay.json</code> for labels (keys = RAW symbol ids).
               </>
             )}{' '}
             Check stale keys:{' '}
