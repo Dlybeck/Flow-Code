@@ -40,9 +40,25 @@ python -m raw_indexer apply ../fixtures/golden-fastapi samples/docstring.patch
 
 # Apply + pytest/typecheck + optional fresh RAW dump
 python -m raw_indexer apply-verify ../fixtures/golden-fastapi samples/docstring.patch --pytest-only --write-raw /tmp/after_raw.json
+
+# Phase 5 — JSON bundle: unified diff (string) ± overlay merge, then validate (same guarantees as apply-verify path)
+# Build bundle JSON with "unified_diff" set to the text of a patch file (or use overlay-only: empty diff + "overlay").
+python -m raw_indexer apply-bundle /tmp/golden-copy /tmp/bundle.json --pytest-only
+python -m raw_indexer apply-bundle /tmp/golden-copy /tmp/bundle.json --overlay-path /tmp/overlay.json --pytest-only
+python -m raw_indexer apply-bundle /tmp/golden-copy /tmp/bundle.json --dry-run   # patch dry-run only (no overlay in bundle)
+python -m raw_indexer apply-bundle /tmp/golden-copy /tmp/bundle.json --skip-validate -o /tmp/result.json
 ```
 
 Paths are relative to **`packages/raw-indexer`** in the examples above; use absolute paths in CI.
+
+### `apply-bundle` (Phase 5)
+
+**`schema_version`:** `0`
+
+- **`unified_diff`** (string): contents of a **unified diff** for `patch -p1` from the repo root (same as **`apply`**). May be empty only if **`overlay`** is present (**overlay-only** bundle: merge overlay against current index, no file patch).
+- **`overlay`** (optional): fragment with **`by_symbol_id`** / **`by_file_id`** (and optional **`schema_version`**) merged into the file at **`--overlay-path`** (required when `overlay` is set). After any patch, overlay is validated against a **fresh** `index_repo` — **orphan keys fail** the run (no partial write).
+
+Prints a **JSON result** to stdout (`ok`, `apply_exit_code`, `validate_exit_code`, counts, `errors`). Exit code **1** if not `ok`.
 
 ### `diff` output — `remap` (Phase 4)
 
@@ -91,6 +107,7 @@ Or run **`scripts/brainstorm-api.sh`** from the monorepo root (uses the same def
 - **`GET /overlay`** — overlay JSON (empty maps if file missing)  
 - **`PATCH /overlay`** — replace overlay body; **422** if any keys are not in current RAW  
 - **`POST /reindex`** — body `{"repo_root": "/path"}` optional; else **`BRAINSTORM_GOLDEN_REPO`**; writes **`raw.json`** under **`BRAINSTORM_PUBLIC_DIR`**
+- **`POST /apply-bundle`** — JSON body: same fields as CLI bundle (**`schema_version`**, **`unified_diff`**, optional **`overlay`**, optional **`dry_run`**, **`skip_validate`**, **`pytest_only`**). Applies to **`BRAINSTORM_GOLDEN_REPO`** (Option A: one deployment per project). On success, refreshes **`public/raw.json`** from the repo. **`422`** + result JSON if apply/validate/orphans fail.
 
 ## JSON shape (schema_version 0)
 
@@ -102,6 +119,8 @@ Or run **`scripts/brainstorm-api.sh`** from the monorepo root (uses the same def
 - `diagnostics` (optional): Pyright-shaped payload from **`index --diagnostics`** — `by_path`, `summary`, `partial: true`, `engine`
 
 **Overlay file (presentation, not indexed):** optional `by_symbol_id` and `by_file_id` maps of RAW id → `{ "displayName"?, "userDescription"? }`. The POC and `orphans` command validate keys against the current `raw.json`.
+
+**Bundle file (Phase 5 apply):** `schema_version` `0`, **`unified_diff`** string (or empty with **`overlay`** present), optional **`overlay`** object (same shape as overlay maps above for merge into `--overlay-path`).
 
 ## Development
 

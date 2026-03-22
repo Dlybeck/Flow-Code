@@ -30,6 +30,8 @@
 
 **Phase mapping:** **Phase 6** = MCP + fake-agent script exit; **Phase 7** = orchestration + approval + gates — the **runtime** may be Cursor, Claude Code, a local script, or a **thin** custom UI, all against the **same** tools.
 
+**v1 delivery order (2026-03-21):** Implement the **shared capability layer** (HTTP + library) **first**; **primary** v1 UX is a **minimal in-house** graph shell that calls it. **MCP / OpenCode-style extensions** are **optional second doors** after that loop is credible on **`golden-fastapi`**. See **[v1-strategy.md](./v1-strategy.md)** for the full decision, sync invariants, and numbered next steps.
+
 ---
 
 ## Where we are now
@@ -130,9 +132,9 @@ flowchart LR
 
 **Goal:** Agent-sized **interfaces** match [ARCHITECTURE.md](./ARCHITECTURE.md) without committing to a full LLM product.
 
-**Build (summary):** Implement **`get_raw_subgraph`**, **`get_overlay`**, **`apply_bundle`** (names per SPEC §13) as a **shared Python capability layer**, then expose it as: (1) **HTTP** routes where not already present, and (2) a **thin MCP server** (stdio first; HTTP MCP if useful for remote hosts). Document **example configs** for attaching the same server from **Cursor**, **VS Code**, and **Claude**-class clients (exact filenames evolve — link to repo runbook when it exists).
+**Build (summary):** Implement **`get_raw_subgraph`**, **`get_overlay`**, **`apply_bundle`** (names per SPEC §13) as a **shared Python capability layer**, then expose it as: (1) **HTTP** routes where not already present (consumable by the **in-house** shell per **[v1-strategy.md](./v1-strategy.md)**), and (2) a **thin MCP server** (stdio first; HTTP MCP if useful for remote hosts). Document **example configs** for attaching the same server from **Cursor**, **VS Code**, and **Claude**-class clients (exact filenames evolve — link to repo runbook when it exists).
 
-**Exit:** A **fake agent** (script) can complete a **small** end-to-end task using **only** these tools **and** at least one **real MCP-capable host** can invoke the server successfully against **golden-fastapi**.
+**Exit:** A **fake agent** (HTTP client script counts) can complete a **small** end-to-end task using **only** these capabilities **on golden-fastapi**; **and** at least one **real MCP-capable host** can invoke the MCP server successfully **once** the in-house reference path exists (ordering per **v1-strategy.md**).
 
 **Avoid:** Bespoke **per-vendor** tool implementations; **N×** indexers for **N** chat products.
 
@@ -190,3 +192,4 @@ Update the **Phase 0** table and **changelog** below when a phase completes or i
 | 2026-03-22 | **Phase 4** baseline: **`index_meta`** + file **`analysis`** in indexer; POC coverage panel (**Phase 4** row **In progress**). |
 | 2026-03-22 | **`diff` remap hints**: `remap_hints.py` + **`remap`** block in diff JSON (high/medium symbol + file pairs, ambiguous buckets); tests in **`test_remap_hints.py`**. |
 | 2026-03-22 | **Phase 4 complete**: **`overlay-migrate`**, **`index --diagnostics`**, **`diagnostics_pyright`**, **`language_adapter`**; POC type-check panel; roadmap exit updated. |
+| 2026-03-21 | **v1 delivery order**: pointer to **[v1-strategy.md](./v1-strategy.md)** — in-house graph shell + HTTP spine **before** MCP as primary; Phase **6** build/exit text aligned. |

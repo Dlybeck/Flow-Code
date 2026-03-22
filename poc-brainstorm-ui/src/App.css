@@ -117,6 +117,97 @@
   color: var(--text-muted);
 }
 
+.apply-bundle-section {
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.apply-bundle-locate {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.apply-bundle-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.apply-bundle-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apply-bundle-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+  color: var(--text);
+  resize: vertical;
+  min-height: 120px;
+}
+
+.apply-bundle-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.apply-bundle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.apply-bundle-actions button {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-node);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.apply-bundle-actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.apply-bundle-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.apply-bundle-log {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.35;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .mock-card {
   background: var(--bg-node);
   border: 1px solid var(--border);

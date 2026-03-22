@@ -7,6 +7,8 @@ This folder holds the **single place** to read the **current** product direction
 | **[SPEC.md](./SPEC.md)** | **Consolidated** vision: **§0 coherent spine**, then pipeline, rules, risks, links to deep planning. **Start here.** |
 | **[ARCHITECTURE.md](./ARCHITECTURE.md)** | **Logical** diagram: workspace, indexer, RAW store, diff, overlay, API, UI, agent, validation — must match **SPEC §0–§9**. |
 | **[ROADMAP.md](./ROADMAP.md)** | **Full development phases** (0–8): order of work so the build stays on vision; **AI & tool hosts** (MCP + HTTP, solo v1); detail per phase when you start it. |
+| **[goal.md](./goal.md)** | Narrative **why**: bridge human intent ↔ AI execution (map + anchors). |
+| **[v1-strategy.md](./v1-strategy.md)** | **v1 architectural decision**: shared Python spine, **in-house graph shell first**, optional MCP/IDE **after**; **next steps** (bundle → API → UI → model → adapters). |
 
 ## Relationship to other docs
 
@@ -28,3 +30,4 @@ This folder holds the **single place** to read the **current** product direction
 | 2026-03-21 | **SPEC §9** — Python-native v1 (FastAPI + `src/` canonical), adapter boundary; **`planning/idea.md`** pitches synced. |
 | 2026-03-22 | **`ROADMAP.md`** — phased full development guide (Phase 0 done → agent + v1 polish). |
 | 2026-03-22 | **ROADMAP** *AI and tool hosts* + **SPEC §6** / **ARCHITECTURE** alignment (platform-agnostic MCP + HTTP). |
+| 2026-03-21 | **`goal.md`** + **`v1-strategy.md`** — narrative goal and **in-house-first** delivery order with numbered next steps. |

@@ -15,3 +15,8 @@ export function rawDataUrl(): string {
 export function overlayDataUrl(): string {
   return base ? `${base}/overlay` : '/overlay.json'
 }
+
+/** Phase 5: POST JSON change package; only valid when {@link brainstormApiEnabled}. */
+export function applyBundleUrl(): string {
+  return `${base}/apply-bundle`
+}

@@ -1,4 +1,4 @@
-"""CLI: index | diff | orphans | overlay-migrate | validate | apply | apply-verify"""
+"""CLI: index | diff | orphans | overlay-migrate | validate | apply | apply-verify | apply-bundle"""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from raw_indexer.apply_patch import apply_unified_patch
+from raw_indexer.bundle import apply_bundle, load_bundle
 from raw_indexer.diagnostics_pyright import attach_diagnostics_to_raw
 from raw_indexer.diff_raw import diff_raw, format_diff_report
 from raw_indexer.index import index_repo, write_index
@@ -92,6 +93,23 @@ def main(argv: list[str] | None = None) -> int:
         help="After apply, write fresh RAW JSON to this path (orchestration demo)",
     )
 
+    p_ab = sub.add_parser(
+        "apply-bundle",
+        help="Apply JSON bundle: unified_diff (optional if overlay-only) + optional overlay merge",
+    )
+    p_ab.add_argument("repo", type=Path, help="Repository root")
+    p_ab.add_argument("bundle_json", type=Path, help="Bundle JSON file (schema_version 0)")
+    p_ab.add_argument(
+        "--overlay-path",
+        type=Path,
+        default=None,
+        help="Required if bundle includes overlay: path to overlay.json to read/merge/write",
+    )
+    p_ab.add_argument("--dry-run", action="store_true", help="patch --dry-run only (no overlay bundles)")
+    p_ab.add_argument("--skip-validate", action="store_true", help="Skip pytest/typecheck after apply")
+    p_ab.add_argument("--pytest-only", action="store_true", help="If validating, pytest only (no typecheck)")
+    p_ab.add_argument("-o", "--out", type=Path, default=None, help="Write result JSON to file")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "index":
@@ -158,6 +176,23 @@ def main(argv: list[str] | None = None) -> int:
             doc = index_repo(args.repo)
             write_index(doc, args.write_raw)
         return validate_repo(args.repo, pytest_only=args.pytest_only)
+
+    if args.cmd == "apply-bundle":
+        bundle_doc = load_bundle(args.bundle_json)
+        res = apply_bundle(
+            args.repo,
+            bundle_doc,
+            overlay_path=args.overlay_path,
+            dry_run=args.dry_run,
+            skip_validate=args.skip_validate,
+            pytest_only=args.pytest_only,
+        )
+        text = json.dumps(res.to_json_dict(), indent=2, sort_keys=True) + "\n"
+        if args.out:
+            args.out.write_text(text, encoding="utf-8")
+        else:
+            print(text, end="")
+        return 0 if res.ok else 1
 
     return 1
 

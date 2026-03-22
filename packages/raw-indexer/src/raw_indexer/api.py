@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from raw_indexer.bundle import apply_bundle
 from raw_indexer.index import index_repo, write_index
 from raw_indexer.overlay import overlay_orphan_file_keys, overlay_orphan_keys
 
@@ -22,6 +23,39 @@ class ReindexBody(BaseModel):
         default=None,
         description="Repository root to index; else BRAINSTORM_GOLDEN_REPO",
     )
+
+
+class ApplyBundleBody(BaseModel):
+    """
+    Change package for POST /apply-bundle (Phase 5).
+
+    Repo root is **BRAINSTORM_GOLDEN_REPO** (Option A — one deployment per project).
+    If ``overlay`` is set, it is merged into ``BRAINSTORM_PUBLIC_DIR/overlay.json`` after
+    the patch, validated against a fresh index of the repo.
+    """
+
+    schema_version: int = Field(default=0, description="Must be 0")
+    unified_diff: str = Field(
+        default="",
+        description="Unified diff for patch -p1 from repo root; may be empty if overlay-only",
+    )
+    overlay: dict[str, Any] | None = Field(
+        default=None,
+        description="Optional overlay fragment (by_symbol_id / by_file_id) to merge",
+    )
+    dry_run: bool = Field(default=False, description="patch --dry-run only; disallowed if overlay set")
+    skip_validate: bool = Field(default=False, description="Skip pytest/typecheck after apply")
+    pytest_only: bool = Field(
+        default=False,
+        description="If validating, pytest only (no typecheck)",
+    )
+
+
+def _bundle_dict_from_body(body: ApplyBundleBody) -> dict[str, Any]:
+    d: dict[str, Any] = {"schema_version": body.schema_version, "unified_diff": body.unified_diff}
+    if body.overlay is not None:
+        d["overlay"] = body.overlay
+    return d
 
 
 def _public_dir() -> Path:
@@ -153,3 +187,29 @@ def reindex(body: ReindexBody | None = None) -> dict[str, Any]:
         "symbol_count": len(doc.get("symbols", [])),
         "file_count": len(doc.get("files", [])),
     }
+
+
+@app.post("/apply-bundle")
+def apply_bundle_http(body: ApplyBundleBody) -> JSONResponse:
+    """
+    Apply a change package to **BRAINSTORM_GOLDEN_REPO**, then refresh **public/raw.json**
+    so GET /raw matches the repo after success.
+    """
+    root = _golden_repo()
+    bundle_dict = _bundle_dict_from_body(body)
+    overlay_path = _overlay_path() if body.overlay is not None else None
+    res = apply_bundle(
+        root,
+        bundle_dict,
+        overlay_path=overlay_path,
+        dry_run=body.dry_run,
+        skip_validate=body.skip_validate,
+        pytest_only=body.pytest_only,
+    )
+    if res.ok and not body.dry_run:
+        doc = index_repo(root)
+        write_index(doc, _raw_path())
+    payload = res.to_json_dict()
+    if not res.ok:
+        return JSONResponse(status_code=422, content=payload)
+    return JSONResponse(content=payload)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -105,3 +106,66 @@ def test_reindex_writes_raw(
     assert body["symbol_count"] >= 1
     raw = json.loads((pub / "raw.json").read_text(encoding="utf-8"))
     assert raw.get("symbols")
+
+
+def test_post_apply_bundle_updates_repo_and_raw(
+    workspace_root: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    golden = workspace_root / "fixtures" / "golden-fastapi"
+    dest = tmp_path / "g"
+    shutil.copytree(
+        golden,
+        dest,
+        ignore=shutil.ignore_patterns(".venv", "__pycache__", ".pytest_cache", "*.egg-info"),
+    )
+    pub = tmp_path / "pub"
+    pub.mkdir()
+    (pub / "raw.json").write_text("{}", encoding="utf-8")
+
+    monkeypatch.setenv("BRAINSTORM_GOLDEN_REPO", str(dest))
+    monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(pub))
+
+    patch_text = (
+        workspace_root / "packages" / "raw-indexer" / "samples" / "docstring.patch"
+    ).read_text(encoding="utf-8")
+
+    with TestClient(app) as c:
+        assert c.post("/reindex", json={}).status_code == 200
+        r = c.post(
+            "/apply-bundle",
+            json={
+                "schema_version": 0,
+                "unified_diff": patch_text,
+                "skip_validate": True,
+            },
+        )
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+    assert "patched" in (dest / "src" / "golden_app" / "core.py").read_text(encoding="utf-8")
+    raw = json.loads((pub / "raw.json").read_text(encoding="utf-8"))
+    assert raw.get("schema_version") == 0
+    assert len(raw.get("symbols", [])) >= 1
+
+
+def test_post_apply_bundle_invalid_schema(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    (repo / "src" / "x").mkdir(parents=True)
+    (repo / "src" / "x" / "__init__.py").write_text("", encoding="utf-8")
+    pub = tmp_path / "pub"
+    pub.mkdir()
+    (pub / "raw.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("BRAINSTORM_GOLDEN_REPO", str(repo))
+    monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(pub))
+
+    with TestClient(app) as c:
+        r = c.post(
+            "/apply-bundle",
+            json={"schema_version": 99, "unified_diff": "x"},
+        )
+    assert r.status_code == 422
+    assert r.json().get("ok") is False

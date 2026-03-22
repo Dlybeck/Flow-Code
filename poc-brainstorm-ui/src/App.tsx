@@ -36,6 +36,7 @@ import { buildGraph } from './mockGraph'
 import { buildMockTestReport } from './mockTests'
 import type { OverlayDoc } from './overlayTypes'
 import { emptyOverlay, parseOverlayDoc } from './overlayTypes'
+import { ApplyBundlePanel } from './ApplyBundlePanel'
 import { brainstormApiEnabled, overlayDataUrl, rawDataUrl } from './apiConfig'
 import { ROOT_ID, buildRawGraph, defaultRawExpanded } from './rawGraph'
 import type { RawIndexDoc } from './rawTypes'
@@ -473,6 +474,10 @@ export default function App() {
       </div>
 
       <aside className="side-panel">
+        {brainstormApiEnabled() ? (
+          <ApplyBundlePanel onApplied={reloadRaw} />
+        ) : null}
+
         <section>
           <h2>Legend</h2>
           <div className="legend">
@@ -538,7 +543,9 @@ export default function App() {
             {brainstormApiEnabled() ? (
               <>
                 Overlay via API <code>PATCH /overlay</code> (validated) or edit{' '}
-                <code>public/overlay.json</code> on disk + reload.
+                <code>public/overlay.json</code> on disk + reload. After{' '}
+                <code>POST /apply-bundle</code>, RAW is refreshed on the server — click{' '}
+                <strong>Reload RAW + overlay</strong> above.
               </>
             ) : (
               <>
