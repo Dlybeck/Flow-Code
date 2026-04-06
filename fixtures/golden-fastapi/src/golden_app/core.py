@@ -1,5 +1,23 @@
 """Pure logic tested without HTTP."""
 
+import random
+
+_GREETINGS = [
+    "Hello, {name}!",
+    "Hi there, {name}!",
+    "Greetings, {name}!",
+    "Hey {name}!",
+    "Howdy {name}!",
+]
+
+_GOODBYES = [
+    "Goodbye, {name}!",
+    "Farewell, {name}!",
+    "See you later, {name}!",
+    "Bye {name}!",
+    "Take care, {name}!",
+]
+
 
 def greeting_for(name: str | None) -> str:
     """Return a short greeting string."""
@@ -8,7 +26,8 @@ def greeting_for(name: str | None) -> str:
     name = name.strip()
     if not name:
         name = "friend"
-    return f"Hello, {name}!"
+    template = random.choice(_GREETINGS)
+    return template.format(name=name)
 
 
 def goodbye_for(name: str | None) -> str:
@@ -18,4 +37,5 @@ def goodbye_for(name: str | None) -> str:
     name = name.strip()
     if not name:
         name = "friend"
-    return f"Goodbye, {name}!"
+    template = random.choice(_GOODBYES)
+    return template.format(name=name)
