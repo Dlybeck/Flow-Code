@@ -17,7 +17,8 @@
       "line": 5,
       "module": "golden_app.core",
       "names": [
-        "greeting_for"
+        "greeting_for",
+        "goodbye_for"
       ]
     }
   ],
@@ -38,7 +39,7 @@
       },
       "id": "file:src/golden_app/app.py",
       "path": "src/golden_app/app.py",
-      "sha256": "c4759dfc372516da66ee7391fcd3600588e0c91c2e841b00aca3e64f05933b37"
+      "sha256": "2e5c2b05b056ed4727a4d769b1ad7a594284be2c104bf03dbb825cefbfc2200c"
     },
     {
       "analysis": {
@@ -47,7 +48,7 @@
       },
       "id": "file:src/golden_app/core.py",
       "path": "src/golden_app/core.py",
-      "sha256": "8f3de1462061a08e095d64b39f1b48e6928a199cbb4993a9ccbccdec2e72523e"
+      "sha256": "17df62a85e70efc0f1ee2baa29fe50995191ae4d34cf6f78fb23bd963c31df62"
     }
   ],
   "index_meta": {
@@ -64,7 +65,7 @@
   "schema_version": 0,
   "symbols": [
     {
-      "end_line": 19,
+      "end_line": 29,
       "file_id": "file:src/golden_app/app.py",
       "id": "sym:src/golden_app/app.py:golden_app.app.create_app",
       "kind": "function",
@@ -73,31 +74,49 @@
       "qualified_name": "golden_app.app.create_app"
     },
     {
-      "end_line": 13,
+      "end_line": 15,
       "file_id": "file:src/golden_app/app.py",
       "id": "sym:src/golden_app/app.py:golden_app.app.create_app.health",
       "kind": "function",
-      "line": 12,
+      "line": 13,
       "name": "health",
       "qualified_name": "golden_app.app.create_app.health"
     },
     {
-      "end_line": 17,
+      "end_line": 21,
       "file_id": "file:src/golden_app/app.py",
       "id": "sym:src/golden_app/app.py:golden_app.app.create_app.greet",
       "kind": "function",
-      "line": 16,
+      "line": 19,
       "name": "greet",
       "qualified_name": "golden_app.app.create_app.greet"
     },
     {
-      "end_line": 7,
+      "end_line": 27,
+      "file_id": "file:src/golden_app/app.py",
+      "id": "sym:src/golden_app/app.py:golden_app.app.create_app.goodbye",
+      "kind": "function",
+      "line": 25,
+      "name": "goodbye",
+      "qualified_name": "golden_app.app.create_app.goodbye"
+    },
+    {
+      "end_line": 11,
       "file_id": "file:src/golden_app/core.py",
       "id": "sym:src/golden_app/core.py:golden_app.core.greeting_for",
       "kind": "function",
       "line": 4,
       "name": "greeting_for",
       "qualified_name": "golden_app.core.greeting_for"
+    },
+    {
+      "end_line": 21,
+      "file_id": "file:src/golden_app/core.py",
+      "id": "sym:src/golden_app/core.py:golden_app.core.goodbye_for",
+      "kind": "function",
+      "line": 14,
+      "name": "goodbye_for",
+      "qualified_name": "golden_app.core.goodbye_for"
     }
   ]
 }

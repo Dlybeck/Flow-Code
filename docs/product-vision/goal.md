@@ -32,6 +32,33 @@ That **shared reference**—human wording on the map, machine anchors underneath
 
 ---
 
-*Captured from product discussion, 2026-03-21.*
+## UX principles (non-negotiable)
+
+These emerged from product discussion and override convenience-driven design choices:
+
+**1. No code ever surfaces to the user.**
+After an AI run, the user sees the map (with amber badges on changed nodes) and a plain-language summary. Diffs, file paths, and line numbers are never shown. The map *is* the diff visualizer.
+
+**2. Node annotations are starting points, not bug locations.**
+When a user points at a node on the map, that is a rough area for the AI to begin from — not a precise symbol to patch. The AI should explore the full call graph, follow threads, and potentially make large changes far from the annotated node. The user may be wrong about the exact location; it is the AI's job to resolve that gap.
+
+**3. PM-to-developer, not pair programming.**
+The user has high-level intent and the general direction of what needs fixing. The AI does the investigation and coding. The user is available to clarify when the AI needs it, but is not watching code being written. This is not fire-and-forget (one prompt, walk away) and not true pair programming (both looking at code together) — it's closer to a PM briefing a developer. Check-in surfaces should be conversational and plain-language, not code review gates. Progress signals on the map (pulsing badges) let the user know work is happening without demanding attention.
+
+---
+
+## AI integration architecture
+
+**OpenCode + MCP** is the chosen path (2026-03-22):
+- **MCP server** exposes the execution graph to any AI client (Claude Code, Cursor, OpenCode, Zed)
+- **OpenCode** (`sst/opencode`) acts as the coding agent — model-agnostic, open-source, REST API + SSE
+- `session.diff` SSE events from OpenCode drive amber badge updates on the map
+- In-house LLM wrappers (`_chat_completion_json`) are for annotation/overlay only, not for coding tasks
+
+See **[ORCHESTRATOR-POC-PLAN.md](./ORCHESTRATOR-POC-PLAN.md)** for the v0 scaffold (comment → plan → execute) that this architecture supersedes.
+
+---
+
+*Captured from product discussion, 2026-03-21 / 2026-03-22.*
 
 **Execution order (v1):** see **[v1-strategy.md](./v1-strategy.md)** — shared spine, in-house graph shell first, optional MCP/IDE after.

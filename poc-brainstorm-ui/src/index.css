@@ -6,9 +6,9 @@
   --text: #e6edf3;
   --text-muted: #8b949e;
   --accent: #58a6ff;
-  --cap: #a371f7;
   --surface: #3fb950;
-  --float: #d29922;
+  --uncertain: #d29922;
+  --danger: #f85149;
   --edge: #484f58;
   --font: 'DM Sans', system-ui, sans-serif;
   --mono: ui-monospace, 'SF Mono', Consolas, monospace;

@@ -69,17 +69,6 @@ export function ApplyBundlePanel({ onApplied }: Props) {
   return (
     <section className="apply-bundle-section">
       <h2>Apply change package</h2>
-      <p className="apply-bundle-locate">
-        <strong>Where to paste:</strong> use the large text box <strong>below</strong> (this
-        right-hand column). You need <code>npm run dev:api</code> and the API running (
-        <code>npm run api</code>).
-      </p>
-      <p className="apply-bundle-hint">
-        <code>POST {applyBundleUrl()}</code> — unified diff for{' '}
-        <code>patch -p1</code> from repo root. On success the API refreshes{' '}
-        <code>raw.json</code>; click <strong>Reload RAW + overlay</strong> in the header if the
-        graph does not update.
-      </p>
       <div className="mock-card apply-bundle-card">
         <textarea
           className="apply-bundle-textarea"

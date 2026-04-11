@@ -39,7 +39,7 @@
       "callsite": {
         "callee": "FastAPI",
         "import_ref": "fastapi.FastAPI",
-        "line": 10,
+        "line": 9,
         "snippet": "FastAPI(title=\"Golden Fixture API\")"
       },
       "confidence": "unknown",
@@ -53,7 +53,7 @@
       "callsite": {
         "callee": "FastAPI",
         "import_ref": "fastapi.FastAPI",
-        "line": 10,
+        "line": 9,
         "snippet": "FastAPI(title=\"Golden Fixture API\")"
       },
       "confidence": "unknown",
@@ -67,7 +67,7 @@
       "callsite": {
         "callee": "FastAPI",
         "import_ref": "fastapi.FastAPI",
-        "line": 10,
+        "line": 9,
         "snippet": "FastAPI(title=\"Golden Fixture API\")"
       },
       "confidence": "unknown",
@@ -81,7 +81,7 @@
       "callsite": {
         "callee": "FastAPI",
         "import_ref": "fastapi.FastAPI",
-        "line": 10,
+        "line": 9,
         "snippet": "FastAPI(title=\"Golden Fixture API\")"
       },
       "confidence": "unknown",
@@ -94,7 +94,7 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 23,
+        "line": 19,
         "snippet": "app.get(\"/goodbye/{name}\")"
       },
       "confidence": "unknown",
@@ -107,7 +107,7 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 23,
+        "line": 19,
         "snippet": "app.get(\"/goodbye/{name}\")"
       },
       "confidence": "unknown",
@@ -120,7 +120,7 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 23,
+        "line": 19,
         "snippet": "app.get(\"/goodbye/{name}\")"
       },
       "confidence": "unknown",
@@ -133,7 +133,7 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 23,
+        "line": 19,
         "snippet": "app.get(\"/goodbye/{name}\")"
       },
       "confidence": "unknown",
@@ -146,12 +146,12 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 24,
-        "snippet": "app.get(\"/goodbye/\")"
+        "line": 15,
+        "snippet": "app.get(\"/greet/{name}\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.goodbye",
+      "from": "py:fn:golden_app.app.create_app.greet",
       "id": "e:13",
       "kind": "calls",
       "to": "py:boundary:unresolved"
@@ -159,12 +159,12 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 24,
-        "snippet": "app.get(\"/goodbye/\")"
+        "line": 15,
+        "snippet": "app.get(\"/greet/{name}\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.goodbye",
+      "from": "py:fn:golden_app.app.create_app.greet",
       "id": "e:14",
       "kind": "calls",
       "to": "py:boundary:unresolved"
@@ -172,12 +172,12 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 24,
-        "snippet": "app.get(\"/goodbye/\")"
+        "line": 15,
+        "snippet": "app.get(\"/greet/{name}\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.goodbye",
+      "from": "py:fn:golden_app.app.create_app.greet",
       "id": "e:15",
       "kind": "calls",
       "to": "py:boundary:unresolved"
@@ -185,12 +185,12 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 24,
-        "snippet": "app.get(\"/goodbye/\")"
+        "line": 15,
+        "snippet": "app.get(\"/greet/{name}\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.goodbye",
+      "from": "py:fn:golden_app.app.create_app.greet",
       "id": "e:16",
       "kind": "calls",
       "to": "py:boundary:unresolved"
@@ -198,12 +198,12 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 17,
-        "snippet": "app.get(\"/greet/{name}\")"
+        "line": 11,
+        "snippet": "app.get(\"/health\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.app.create_app.health",
       "id": "e:17",
       "kind": "calls",
       "to": "py:boundary:unresolved"
@@ -211,12 +211,12 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 17,
-        "snippet": "app.get(\"/greet/{name}\")"
+        "line": 11,
+        "snippet": "app.get(\"/health\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.app.create_app.health",
       "id": "e:18",
       "kind": "calls",
       "to": "py:boundary:unresolved"
@@ -224,12 +224,12 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 17,
-        "snippet": "app.get(\"/greet/{name}\")"
+        "line": 11,
+        "snippet": "app.get(\"/health\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.app.create_app.health",
       "id": "e:19",
       "kind": "calls",
       "to": "py:boundary:unresolved"
@@ -237,169 +237,117 @@
     {
       "callsite": {
         "callee_expression": "app.get",
-        "line": 17,
-        "snippet": "app.get(\"/greet/{name}\")"
+        "line": 11,
+        "snippet": "app.get(\"/health\")"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.app.create_app.health",
       "id": "e:20",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 18,
-        "snippet": "app.get(\"/greet/\")"
+        "callee_expression": "name.strip",
+        "line": 16,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.core.goodbye_for",
       "id": "e:21",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 18,
-        "snippet": "app.get(\"/greet/\")"
+        "callee_expression": "name.strip",
+        "line": 16,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.core.goodbye_for",
       "id": "e:22",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 18,
-        "snippet": "app.get(\"/greet/\")"
+        "callee_expression": "name.strip",
+        "line": 20,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.core.goodbye_for",
       "id": "e:23",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 18,
-        "snippet": "app.get(\"/greet/\")"
+        "callee_expression": "name.strip",
+        "line": 20,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.greet",
+      "from": "py:fn:golden_app.core.goodbye_for",
       "id": "e:24",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 12,
-        "snippet": "app.get(\"/health\")"
+        "callee_expression": "name.strip",
+        "line": 6,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.health",
+      "from": "py:fn:golden_app.core.greeting_for",
       "id": "e:25",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 12,
-        "snippet": "app.get(\"/health\")"
+        "callee_expression": "name.strip",
+        "line": 6,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.health",
+      "from": "py:fn:golden_app.core.greeting_for",
       "id": "e:26",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 12,
-        "snippet": "app.get(\"/health\")"
+        "callee_expression": "name.strip",
+        "line": 10,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.health",
+      "from": "py:fn:golden_app.core.greeting_for",
       "id": "e:27",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     },
     {
       "callsite": {
-        "callee_expression": "app.get",
-        "line": 12,
-        "snippet": "app.get(\"/health\")"
+        "callee_expression": "name.strip",
+        "line": 10,
+        "snippet": "name.strip()"
       },
       "confidence": "unknown",
       "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.app.create_app.health",
+      "from": "py:fn:golden_app.core.greeting_for",
       "id": "e:28",
-      "kind": "calls",
-      "to": "py:boundary:unresolved"
-    },
-    {
-      "callsite": {
-        "callee_expression": "name.strip",
-        "line": 18,
-        "snippet": "name.strip()"
-      },
-      "confidence": "unknown",
-      "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.core.goodbye_for",
-      "id": "e:29",
-      "kind": "calls",
-      "to": "py:boundary:unresolved"
-    },
-    {
-      "callsite": {
-        "callee_expression": "name.strip",
-        "line": 18,
-        "snippet": "name.strip()"
-      },
-      "confidence": "unknown",
-      "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.core.goodbye_for",
-      "id": "e:30",
-      "kind": "calls",
-      "to": "py:boundary:unresolved"
-    },
-    {
-      "callsite": {
-        "callee_expression": "name.strip",
-        "line": 8,
-        "snippet": "name.strip()"
-      },
-      "confidence": "unknown",
-      "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.core.greeting_for",
-      "id": "e:31",
-      "kind": "calls",
-      "to": "py:boundary:unresolved"
-    },
-    {
-      "callsite": {
-        "callee_expression": "name.strip",
-        "line": 8,
-        "snippet": "name.strip()"
-      },
-      "confidence": "unknown",
-      "evidence": "unresolved_name_or_attribute_call",
-      "from": "py:fn:golden_app.core.greeting_for",
-      "id": "e:32",
       "kind": "calls",
       "to": "py:boundary:unresolved"
     }
@@ -417,7 +365,7 @@
       "label": "golden_app.app.create_app",
       "language": "python",
       "location": {
-        "end_line": 29,
+        "end_line": 23,
         "path": "src/golden_app/app.py",
         "start_line": 8
       },
@@ -429,9 +377,9 @@
       "label": "golden_app.app.create_app.health",
       "language": "python",
       "location": {
-        "end_line": 15,
+        "end_line": 13,
         "path": "src/golden_app/app.py",
-        "start_line": 13
+        "start_line": 12
       },
       "raw_symbol_id": "sym:src/golden_app/app.py:golden_app.app.create_app.health"
     },
@@ -441,9 +389,9 @@
       "label": "golden_app.app.create_app.greet",
       "language": "python",
       "location": {
-        "end_line": 21,
+        "end_line": 17,
         "path": "src/golden_app/app.py",
-        "start_line": 19
+        "start_line": 16
       },
       "raw_symbol_id": "sym:src/golden_app/app.py:golden_app.app.create_app.greet"
     },
@@ -453,9 +401,9 @@
       "label": "golden_app.app.create_app.goodbye",
       "language": "python",
       "location": {
-        "end_line": 27,
+        "end_line": 21,
         "path": "src/golden_app/app.py",
-        "start_line": 25
+        "start_line": 20
       },
       "raw_symbol_id": "sym:src/golden_app/app.py:golden_app.app.create_app.goodbye"
     },

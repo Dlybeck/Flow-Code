@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import time
 from pathlib import Path
 
 import pytest
@@ -319,3 +320,169 @@ def test_post_apply_bundle_invalid_schema(
         )
     assert r.status_code == 422
     assert r.json().get("ok") is False
+
+
+# ─── Work session tests ───────────────────────────────────────────────────────
+# All use WORK_DRY_RUN=1 — no AgentAPI or external services needed.
+
+
+@pytest.fixture
+def work_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """Client with WORK_DRY_RUN=1 and a minimal public dir."""
+    flow = {
+        "schema_version": 0,
+        "languages": ["python"],
+        "entrypoints": ["py:fn:golden_app.core.greeting_for"],
+        "nodes": [
+            {"id": "py:fn:golden_app.core.greeting_for", "label": "greeting_for", "kind": "function"},
+            {"id": "py:fn:golden_app.app.greet", "label": "greet", "kind": "function"},
+        ],
+        "edges": [
+            {"source": "py:fn:golden_app.app.greet", "target": "py:fn:golden_app.core.greeting_for", "kind": "calls"},
+        ],
+    }
+    (tmp_path / "flow.json").write_text(json.dumps(flow), encoding="utf-8")
+    (tmp_path / "raw.json").write_text(json.dumps({"schema_version": 0, "files": [], "symbols": [], "edges": []}), encoding="utf-8")
+    (tmp_path / "overlay.json").write_text(json.dumps({"schema_version": 0, "by_symbol_id": {}, "by_file_id": {}, "by_directory_id": {}, "by_root_id": {}, "by_flow_node_id": {}}), encoding="utf-8")
+    monkeypatch.setenv("BRAINSTORM_PUBLIC_DIR", str(tmp_path))
+    monkeypatch.delenv("BRAINSTORM_GOLDEN_REPO", raising=False)
+    monkeypatch.setenv("WORK_DRY_RUN", "1")
+    return TestClient(app)
+
+
+def test_go_returns_investigating_phase(work_client: TestClient) -> None:
+    r = work_client.post("/go", json={"brief": "fix the greeting", "node_ids": [], "node_labels": []})
+    assert r.status_code == 200
+    sid = r.json()["session_id"]
+
+    status = work_client.get(f"/status/{sid}").json()
+    assert status["phase"] == "investigating"
+    assert status["activity_message"]  # non-empty
+
+
+def test_go_accepts_extra_context(work_client: TestClient) -> None:
+    r = work_client.post("/go", json={
+        "brief": "fix greeting",
+        "node_ids": [],
+        "node_labels": [],
+        "extra_context": "also fix the goodbye function",
+    })
+    assert r.status_code == 200
+    sid = r.json()["session_id"]
+    status = work_client.get(f"/status/{sid}").json()
+    assert status["phase"] == "investigating"
+
+
+def test_full_dryrun_session_reaches_done(work_client: TestClient) -> None:
+    r = work_client.post("/go", json={"brief": "fix greeting", "node_ids": [], "node_labels": []})
+    assert r.status_code == 200
+    sid = r.json()["session_id"]
+
+    # Poll until planning phase, then confirm the plan
+    deadline = time.time() + 20
+    plan_confirmed = False
+    phase = ""
+    while time.time() < deadline:
+        status = work_client.get(f"/status/{sid}").json()
+        phase = status.get("phase", "")
+        if phase == "planning" and not plan_confirmed:
+            assert status.get("plan_text"), "planning phase must include plan_text"
+            work_client.post(f"/status/{sid}/reply", json={"answer": "__confirm__"})
+            plan_confirmed = True
+        if phase in ("done", "error"):
+            break
+        time.sleep(0.5)
+
+    assert phase == "done"
+    assert status.get("summary")
+    assert isinstance(status.get("changed_node_ids"), list)
+
+
+def test_planning_phase_returns_plan_text(work_client: TestClient) -> None:
+    r = work_client.post("/go", json={"brief": "fix greeting", "node_ids": [], "node_labels": []})
+    sid = r.json()["session_id"]
+
+    # Wait for planning phase
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        status = work_client.get(f"/status/{sid}").json()
+        if status.get("phase") == "planning":
+            break
+        time.sleep(0.5)
+
+    assert status["phase"] == "planning"
+    assert status.get("plan_text"), "plan_text must be non-empty in planning phase"
+
+
+def test_plan_confirm_transitions_to_writing(work_client: TestClient) -> None:
+    r = work_client.post("/go", json={"brief": "fix greeting", "node_ids": [], "node_labels": []})
+    sid = r.json()["session_id"]
+
+    # Wait for planning phase
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        status = work_client.get(f"/status/{sid}").json()
+        if status.get("phase") == "planning":
+            break
+        time.sleep(0.5)
+
+    assert status["phase"] == "planning"
+
+    # Confirm plan
+    work_client.post(f"/status/{sid}/reply", json={"answer": "__confirm__"})
+
+    # Next poll should be writing or beyond (not planning)
+    time.sleep(0.2)
+    status = work_client.get(f"/status/{sid}").json()
+    assert status["phase"] != "planning"
+
+
+def test_cancel_session(work_client: TestClient) -> None:
+    r = work_client.post("/go", json={"brief": "fix greeting", "node_ids": [], "node_labels": []})
+    sid = r.json()["session_id"]
+
+    cancel = work_client.post(f"/status/{sid}/cancel")
+    assert cancel.json()["ok"] is True
+
+    # Session should be gone
+    assert work_client.get(f"/status/{sid}").status_code == 404
+
+
+def test_prompt_contains_source_context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """_build_node_context injects file path and source snippet for anchored nodes."""
+    from raw_indexer.api import _build_node_context
+
+    # Create a source file in the fake repo
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    src_file = src_dir / "greet.py"
+    src_file.write_text("def greeting_for(name):\n    return f'Hello, {name}'\n", encoding="utf-8")
+
+    flow = {
+        "schema_version": 0,
+        "nodes": [
+            {
+                "id": "py:fn:greet.greeting_for",
+                "label": "greeting_for",
+                "kind": "function",
+                "location": {"path": "src/greet.py", "start_line": 1, "end_line": 2},
+            },
+            {
+                "id": "py:fn:greet.caller",
+                "label": "caller",
+                "kind": "function",
+            },
+        ],
+        "edges": [
+            {"source": "py:fn:greet.caller", "target": "py:fn:greet.greeting_for", "kind": "calls"},
+        ],
+    }
+    flow_path = tmp_path / "flow.json"
+    flow_path.write_text(json.dumps(flow), encoding="utf-8")
+
+    ctx = _build_node_context(["py:fn:greet.greeting_for"], flow_path, tmp_path)
+
+    assert "greeting_for" in ctx
+    assert "src/greet.py" in ctx
+    assert "Hello" in ctx  # source snippet injected
+    assert "caller" in ctx  # neighbor label included

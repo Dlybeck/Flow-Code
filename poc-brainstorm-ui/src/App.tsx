@@ -31,7 +31,17 @@ import type { OverlayDoc } from './overlayTypes'
 import { emptyOverlay, parseOverlayDoc } from './overlayTypes'
 import { ApplyBundlePanel } from './ApplyBundlePanel'
 import { UpdateMapPanel } from './UpdateMapPanel'
-import { brainstormApiEnabled, flowDataUrl, overlayDataUrl } from './apiConfig'
+import { BriefPanel } from './BriefPanel'
+import { WorkingPanel, type WorkResult } from './WorkingPanel'
+import { DonePanel } from './DonePanel'
+import {
+  brainstormApiEnabled,
+  flowDataUrl,
+  goUrl,
+  overlayDataUrl,
+  undoUrl,
+  updateMapUrl,
+} from './apiConfig'
 import {
   applyFlowCollapse,
   buildFlowGraph,
@@ -50,11 +60,17 @@ const nodeTypes = {
   boundary: BoundaryNode,
 }
 
+type SidebarMode = 'brief' | 'working' | 'done'
+
 type GraphCanvasProps = {
   flowDoc: FlowDoc | null
   overlayDoc: OverlayDoc | null
-  /** When false, hide boundary node + dashed uncertain calls; nodes show a dot if some were hidden. */
   showFlowUncertainDetail: boolean
+  onSelectionChange: (nodeIds: string[], nodeLabels: string[]) => void
+  focusNodeIds: string[] | null
+  changedNodeIds: Set<string>
+  /** True while the AI is re-labeling all nodes — drives cascade scan animation */
+  isAnnotating: boolean
 }
 
 function FitViewWhenGraphChanges({
@@ -79,11 +95,12 @@ function GraphCanvas({
   flowDoc,
   overlayDoc,
   showFlowUncertainDetail,
+  onSelectionChange,
+  focusNodeIds,
+  changedNodeIds,
+  isAnnotating,
 }: GraphCanvasProps) {
-  const [testText, setTestText] = useState<string | null>(null)
-  const [flowCollapsed, setFlowCollapsed] = useState<Set<string>>(
-    () => new Set(),
-  )
+  const [flowCollapsed, setFlowCollapsed] = useState<Set<string>>(() => new Set())
   const flowStructSigRef = useRef('')
 
   useEffect(() => {
@@ -91,53 +108,57 @@ function GraphCanvas({
   }, [flowDoc])
 
   const { collapsedDoc, builtNodes, builtEdges } = useMemo(() => {
-      if (!flowDoc) {
-        return {
-          collapsedDoc: null as FlowDoc | null,
-          builtNodes: [] as Node[],
-          builtEdges: [] as Edge[],
-        }
-      }
-      const viewDoc = filterFlowDocUncertainty(
-        flowDoc,
-        showFlowUncertainDetail,
-      )
-      const hiddenBySource = showFlowUncertainDetail
-        ? new Map<string, number>()
-        : flowHiddenUncertainCounts(flowDoc)
-      const collapsedDoc = applyFlowCollapse(viewDoc, flowCollapsed)
-      const expandableIds = flowIdsWithContainsChildren(viewDoc)
-      const { nodes: fn, edges: fe } = buildFlowGraph(collapsedDoc)
-      const posMap = layoutVisibleGraph(fn, fe)
-      const nodesLaidOut = fn.map((n) => ({
-        ...n,
-        position: posMap.get(n.id) ?? n.position,
-        data: {
-          ...n.data,
-          expandable: expandableIds.has(n.id),
-        },
-      }))
-      let withOverlay = applyOverlayToFlowNodes(nodesLaidOut, overlayDoc)
-      if (!showFlowUncertainDetail) {
-        withOverlay = withOverlay.map((n) => ({
-          ...n,
-          data: {
-            ...n.data,
-            hiddenUncertainCount: hiddenBySource.get(n.id) ?? 0,
-          },
-        }))
-      }
+    if (!flowDoc) {
       return {
-        collapsedDoc,
-        builtNodes: withOverlay,
-        builtEdges: fe,
+        collapsedDoc: null as FlowDoc | null,
+        builtNodes: [] as Node[],
+        builtEdges: [] as Edge[],
       }
-    }, [
-      flowDoc,
-      flowCollapsed,
-      overlayDoc,
-      showFlowUncertainDetail,
-    ])
+    }
+    const viewDoc = filterFlowDocUncertainty(flowDoc, showFlowUncertainDetail)
+    const hiddenBySource = showFlowUncertainDetail
+      ? new Map<string, number>()
+      : flowHiddenUncertainCounts(flowDoc)
+    const collapsedDoc = applyFlowCollapse(viewDoc, flowCollapsed)
+    const expandableIds = flowIdsWithContainsChildren(viewDoc)
+    const { nodes: fn, edges: fe } = buildFlowGraph(collapsedDoc)
+    const posMap = layoutVisibleGraph(fn, fe)
+    const nodesLaidOut = fn.map((n) => ({
+      ...n,
+      position: posMap.get(n.id) ?? n.position,
+      data: { ...n.data, expandable: expandableIds.has(n.id) },
+    }))
+    let withOverlay = applyOverlayToFlowNodes(nodesLaidOut, overlayDoc)
+    if (!showFlowUncertainDetail) {
+      withOverlay = withOverlay.map((n) => ({
+        ...n,
+        data: { ...n.data, hiddenUncertainCount: hiddenBySource.get(n.id) ?? 0 },
+      }))
+    }
+
+    // Compute per-node scan delay for cascading relabeling animation
+    let minY = 0
+    let yRange = 1
+    if (isAnnotating && withOverlay.length > 0) {
+      const ys = withOverlay.map((n) => n.position.y)
+      minY = Math.min(...ys)
+      const maxY = Math.max(...ys)
+      yRange = maxY - minY || 1
+    }
+
+    const withDelta = withOverlay.map((n) => {
+      const isChanged = changedNodeIds.has(n.id)
+      const scanDelay = isAnnotating
+        ? Math.round(((n.position.y - minY) / yRange) * 2500) / 1000
+        : undefined
+      return {
+        ...n,
+        data: { ...n.data, isChanged, isAnnotating: isAnnotating && isChanged, isRelabeling: isAnnotating, scanDelay },
+      }
+    })
+
+    return { collapsedDoc, builtNodes: withDelta, builtEdges: fe }
+  }, [flowDoc, flowCollapsed, overlayDoc, showFlowUncertainDetail, changedNodeIds, isAnnotating])
 
   const collapsedKey = useMemo(
     () => [...flowCollapsed].sort().join('|'),
@@ -171,43 +192,9 @@ function GraphCanvas({
       const prevMap = new Map(prev.map((n) => [n.id, n]))
       return builtNodes.map((n: Node) => {
         const old = prevMap.get(n.id)
-        let position: { x: number; y: number }
-        if (preserveFlowPositions && old !== undefined) {
-          position = old.position
-        } else {
-          position = n.position
-        }
-        return {
-          ...n,
-          position,
-          data: {
-            ...n.data,
-            onTest: (e: MouseEvent) => {
-              e.stopPropagation()
-              const d = n.data as {
-                label?: string
-                subtitle?: string
-                rawLabel?: string
-                rawSubtitle?: string
-              }
-              setTestText(
-                [
-                  `▸ ${d.label ?? n.id}`,
-                  `  id: ${n.id}`,
-                  d.rawLabel ? `  qualified: ${d.rawLabel}` : '',
-                  d.subtitle ? `  ${d.subtitle}` : '',
-                  d.rawSubtitle && d.rawSubtitle !== d.subtitle
-                    ? `  (technical) ${d.rawSubtitle}`
-                    : '',
-                  '',
-                  '  (execution map — contains + calls)',
-                ]
-                  .filter(Boolean)
-                  .join('\n'),
-              )
-            },
-          },
-        }
+        const position =
+          preserveFlowPositions && old !== undefined ? old.position : n.position
+        return { ...n, position }
       })
     })
     setEdges(builtEdges)
@@ -224,18 +211,40 @@ function GraphCanvas({
     })
   }, [edges, setNodes])
 
-  const onNodeDoubleClick = useCallback(
-    (_evt: MouseEvent, node: Node) => {
-      const d = node.data as { expandable?: boolean }
-      if (!d.expandable) return
-      setFlowCollapsed((prev) => {
-        const next = new Set(prev)
-        if (next.has(node.id)) next.delete(node.id)
-        else next.add(node.id)
-        return next
+  const onNodeDoubleClick = useCallback((_evt: MouseEvent, node: Node) => {
+    const d = node.data as { expandable?: boolean }
+    if (!d.expandable) return
+    setFlowCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(node.id)) next.delete(node.id)
+      else next.add(node.id)
+      return next
+    })
+  }, [])
+
+  const { fitView } = useReactFlow()
+
+  useEffect(() => {
+    if (!focusNodeIds || focusNodeIds.length === 0) return
+    const focusSet = new Set(focusNodeIds)
+    setNodes((prev) => prev.map((n) => ({ ...n, selected: focusSet.has(n.id) })))
+    requestAnimationFrame(() => {
+      void fitView({
+        nodes: focusNodeIds.map((id) => ({ id })),
+        padding: 0.4,
+        duration: 350,
       })
+    })
+  }, [focusNodeIds, fitView, setNodes])
+
+  const handleSelectionChange = useCallback(
+    ({ nodes: selected }: { nodes: Node[]; edges: Edge[] }) => {
+      onSelectionChange(
+        selected.map((n) => n.id),
+        selected.map((n) => (n.data as { label: string }).label),
+      )
     },
-    [],
+    [onSelectionChange],
   )
 
   if (!flowDoc) {
@@ -257,6 +266,7 @@ function GraphCanvas({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeDoubleClick={onNodeDoubleClick}
+      onSelectionChange={handleSelectionChange}
       nodeTypes={nodeTypes}
       minZoom={0.35}
       maxZoom={1.5}
@@ -273,35 +283,20 @@ function GraphCanvas({
       multiSelectionKeyCode="Shift"
       panActivationKeyCode="Space"
     >
-      <FitViewWhenGraphChanges
-        nodeCount={builtNodes.length}
-        nodeIdsKey={fitViewKey}
-      />
+      <FitViewWhenGraphChanges nodeCount={builtNodes.length} nodeIdsKey={fitViewKey} />
+      {isAnnotating && <div className="graph-scan-line" aria-hidden />}
       <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
       <Controls showInteractive={false} />
 
       <Panel position="top-left" className="flow-toolbar">
         <button type="button" onClick={autoLayout}>
-          Auto-layout open
+          Auto-layout
         </button>
         <p className="hint">
-          <strong>Double-click</strong> a function to collapse or expand nested functions (contains).
-          Gray = contains, blue = resolved calls. Amber dot = hidden uncertain calls (detail off).
+          <strong>Click</strong> or lasso to select nodes.{' '}
+          <strong>Double-click</strong> to collapse/expand. Amber dot = hidden uncertain calls.
         </p>
       </Panel>
-
-      {testText ? (
-        <Panel position="top-right" className="test-panel">
-          <pre>{testText}</pre>
-          <button
-            type="button"
-            className="close-test"
-            onClick={() => setTestText(null)}
-          >
-            Close
-          </button>
-        </Panel>
-      ) : null}
 
       <MiniMap
         nodeStrokeWidth={2}
@@ -320,10 +315,33 @@ export default function App() {
   const [flowHint, setFlowHint] = useState<string | null>(null)
   const [reloadBusy, setReloadBusy] = useState(false)
   const [reloadNotice, setReloadNotice] = useState<string | null>(null)
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
+  const [selectedNodeLabels, setSelectedNodeLabels] = useState<string[]>([])
+  const [changedNodeIds, setChangedNodeIds] = useState<Set<string>>(new Set())
+  const [isRelabeling, setIsRelabeling] = useState(false)
+  const [focusNodeIds, setFocusNodeIds] = useState<string[] | null>(null)
+
+  // Sidebar state machine
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>('brief')
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [workingBrief, setWorkingBrief] = useState('')
+  const [workingNodeLabels, setWorkingNodeLabels] = useState<string[]>([])
+  const [doneResult, setDoneResult] = useState<WorkResult | null>(null)
+  const [isGoing, setIsGoing] = useState(false)
+
   const reloadInFlightRef = useRef(false)
-  const reloadNoticeClearRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  )
+  const reloadNoticeClearRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollFlowSigRef = useRef<string>('')
+
+  // Build nodeId → label map for DonePanel chips
+  const nodeIdToLabel = useMemo(() => {
+    const m = new Map<string, string>()
+    if (!flowDoc) return m
+    for (const n of flowDoc.nodes) {
+      if (n.id && n.label) m.set(n.id, n.label)
+    }
+    return m
+  }, [flowDoc])
 
   const loadOverlayFromResponse = useCallback(async (res: Response) => {
     if (!res.ok) {
@@ -335,7 +353,6 @@ export default function App() {
 
   type LoadMode = 'initial' | 'reload' | 'poll'
 
-  /** Avoid stale static `public/*.json` when the user explicitly reloads. */
   function urlWithReloadBuster(url: string, mode: LoadMode): string {
     if (mode !== 'reload') return url
     const sep = url.includes('?') ? '&' : '?'
@@ -353,23 +370,23 @@ export default function App() {
       const loud = loadMode !== 'poll'
       const fetchOpts: RequestInit = { cache: 'no-store' }
 
-      if (loud) {
-        setFlowHint(null)
-      }
+      if (loud) setFlowHint(null)
 
       let overlayHttpOk = false
-      try {
-        const ovrBase = overlayDataUrl()
-        let ovrUrl =
-          brainstormApiEnabled() && ovrBase.includes('/api/brainstorm')
-            ? `${ovrBase}?cb=${Date.now()}`
-            : ovrBase
-        ovrUrl = urlWithReloadBuster(ovrUrl, loadMode)
-        const ovrRes = await fetch(ovrUrl, fetchOpts)
-        overlayHttpOk = ovrRes.ok
-        await loadOverlayFromResponse(ovrRes)
-      } catch {
-        setOverlayDoc(emptyOverlay())
+      if (loadMode !== 'poll') {
+        try {
+          const ovrBase = overlayDataUrl()
+          let ovrUrl =
+            brainstormApiEnabled() && ovrBase.includes('/api/brainstorm')
+              ? `${ovrBase}?cb=${Date.now()}`
+              : ovrBase
+          ovrUrl = urlWithReloadBuster(ovrUrl, loadMode)
+          const ovrRes = await fetch(ovrUrl, fetchOpts)
+          overlayHttpOk = ovrRes.ok
+          await loadOverlayFromResponse(ovrRes)
+        } catch {
+          setOverlayDoc(emptyOverlay())
+        }
       }
 
       let nextFlow: FlowDoc | null = null
@@ -380,9 +397,18 @@ export default function App() {
         const flowRes = await fetch(flowUrl, fetchOpts)
         flowStatus = flowRes.status
         if (flowRes.ok) {
-          nextFlow = parseFlowDoc(await flowRes.json())
+          const rawJson = await flowRes.json()
           flowOk = true
           if (loud) setFlowHint(null)
+          if (loadMode === 'poll') {
+            const sig = JSON.stringify(rawJson)
+            if (sig !== pollFlowSigRef.current) {
+              pollFlowSigRef.current = sig
+              nextFlow = parseFlowDoc(rawJson)
+            }
+          } else {
+            nextFlow = parseFlowDoc(rawJson)
+          }
         } else if (loud) {
           if (brainstormApiEnabled() && flowRes.status === 404) {
             setFlowHint(
@@ -393,17 +419,15 @@ export default function App() {
           }
         }
       } catch {
-        if (loud) {
-          if (brainstormApiEnabled()) {
-            setFlowHint(
-              'Could not load GET /flow (is the API running?). Try npm run dev:studio from repo root.',
-            )
-          }
+        if (loud && brainstormApiEnabled()) {
+          setFlowHint(
+            'Could not load GET /flow (is the API running?). Try npm run dev:studio from repo root.',
+          )
         }
       }
 
       if (loadMode === 'poll') {
-        if (flowOk) setFlowDoc(nextFlow)
+        if (nextFlow !== null) setFlowDoc(nextFlow)
         return undefined
       }
       setFlowDoc(nextFlow)
@@ -444,9 +468,7 @@ export default function App() {
       })
       if (summary) {
         if (summary.flowOk) {
-          setReloadNotice(
-            `Reloaded ${timeStr} — execution map and overlay refreshed.`,
-          )
+          setReloadNotice(`Reloaded ${timeStr} — execution map and overlay refreshed.`)
         } else {
           const why =
             summary.flowStatus === 404
@@ -473,57 +495,132 @@ export default function App() {
     void reloadGraphData()
   }, [reloadGraphData])
 
+  const handleUpdateMap = useCallback(async () => {
+    setIsRelabeling(true)
+    try {
+      await fetch(updateMapUrl(), { method: 'POST' })
+      await reloadGraphData()
+    } finally {
+      setIsRelabeling(false)
+    }
+  }, [reloadGraphData])
+
   useEffect(() => {
     return () => {
-      if (reloadNoticeClearRef.current) {
-        clearTimeout(reloadNoticeClearRef.current)
-      }
+      if (reloadNoticeClearRef.current) clearTimeout(reloadNoticeClearRef.current)
     }
   }, [])
+
+  const handleSelectionChange = useCallback(
+    (nodeIds: string[], nodeLabels: string[]) => {
+      setSelectedNodeIds(nodeIds)
+      setSelectedNodeLabels(nodeLabels)
+    },
+    [],
+  )
+
+  const handleFocusNodes = useCallback((nodeIds: string[]) => {
+    setFocusNodeIds([...nodeIds])
+  }, [])
+
+  // ─── Work session handlers ─────────────────────────────────────────────────
+
+  const handleGo = useCallback(
+    async (brief: string, nodeIds: string[], nodeLabels: string[], extraContext?: string) => {
+      setIsGoing(true)
+      try {
+        const res = await fetch(goUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brief, node_ids: nodeIds, node_labels: nodeLabels, extra_context: extraContext ?? '' }),
+        })
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as { detail?: string }
+          alert(`Could not start: ${err.detail ?? res.statusText}`)
+          return
+        }
+        const { session_id } = (await res.json()) as { session_id: string }
+        setWorkingBrief(brief)
+        setWorkingNodeLabels(nodeLabels)
+        setActiveSessionId(session_id)
+        setSidebarMode('working')
+      } catch (e) {
+        alert(`Error: ${e instanceof Error ? e.message : String(e)}`)
+      } finally {
+        setIsGoing(false)
+      }
+    },
+    [],
+  )
+
+  const handleWorkingDone = useCallback((result: WorkResult) => {
+    setDoneResult(result)
+    setChangedNodeIds(new Set(result.changed_node_ids))
+    setSidebarMode('done')
+  }, [])
+
+  const handleCancel = useCallback((prefilledBrief: string) => {
+    setActiveSessionId(null)
+    setWorkingBrief(prefilledBrief)
+    setSidebarMode('brief')
+  }, [])
+
+  const handleResolve = useCallback(() => {
+    setDoneResult(null)
+    setChangedNodeIds(new Set())
+    setActiveSessionId(null)
+    setSidebarMode('brief')
+  }, [])
+
+  const handleRetry = useCallback(
+    async (what: string) => {
+      if (!doneResult) return
+      setSidebarMode('brief')
+      // Pre-fill brief from the retry text and re-submit with same node context
+      // (user will hit "Start working →" manually, or we auto-go)
+      setWorkingBrief(what)
+      // Auto-go: reconstruct node ids from the previous done result
+      await handleGo(what, doneResult.changed_node_ids, [])
+    },
+    [doneResult, handleGo],
+  )
+
+  const handleUndo = useCallback(async () => {
+    if (!activeSessionId) return
+    try {
+      await fetch(undoUrl(activeSessionId), { method: 'POST' })
+    } catch {
+      // best-effort
+    }
+    setDoneResult(null)
+    setChangedNodeIds(new Set())
+    setActiveSessionId(null)
+    setSidebarMode('brief')
+  }, [activeSessionId])
 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div>
-          <p className="explainer-link">
-            <a href="/repo-model.html" target="_blank" rel="noreferrer">
-              Visual: disk + graph + shared code →
-            </a>
-          </p>
-          <h1>Execution map</h1>
-          <p className="sub">
-            AI-derived <strong>execution flow</strong> (contains + calls). Friendly labels from{' '}
-            <strong>overlay</strong> when ids match.{' '}
-            {brainstormApiEnabled() ? (
-              <span className="sub-meta">API-backed JSON.</span>
-            ) : (
-              <span className="sub-meta">
-                Static <code>public/flow.json</code> + <code>overlay.json</code>.
-              </span>
-            )}
-            {import.meta.env.DEV ? (
-              <span className="sub-meta">
-                {' '}
-                Dev auto-refresh ~4s.
-              </span>
-            ) : null}
-          </p>
-          <div className="mode-bar">
-            {flowDoc ? (
-              <label className="flow-uncertain-toggle">
-                <input
-                  type="checkbox"
-                  checked={showFlowUncertainDetail}
-                  onChange={(e) =>
-                    setShowFlowUncertainDetail(e.target.checked)
-                  }
-                />
-                Show uncertain detail
-              </label>
-            ) : null}
-          </div>
-          {flowHint ? <p className="flow-hint">{flowHint}</p> : null}
+        <h1>Execution map</h1>
+        <div className="app-status">
+          {brainstormApiEnabled() ? (
+            <span className="status-badge api">API</span>
+          ) : (
+            <span className="status-badge static">Static</span>
+          )}
+          {import.meta.env.DEV ? <span className="status-badge dev">Dev</span> : null}
         </div>
+        {flowDoc ? (
+          <label className="flow-uncertain-toggle">
+            <input
+              type="checkbox"
+              checked={showFlowUncertainDetail}
+              onChange={(e) => setShowFlowUncertainDetail(e.target.checked)}
+            />
+            Uncertain detail
+          </label>
+        ) : null}
+        {flowHint ? <p className="flow-hint">{flowHint}</p> : null}
       </header>
 
       <div className="flow-wrap">
@@ -532,18 +629,50 @@ export default function App() {
             flowDoc={flowDoc}
             overlayDoc={overlayDoc}
             showFlowUncertainDetail={showFlowUncertainDetail}
+            onSelectionChange={handleSelectionChange}
+            focusNodeIds={focusNodeIds}
+            changedNodeIds={changedNodeIds}
+            isAnnotating={isRelabeling}
           />
         </ReactFlowProvider>
       </div>
 
       <aside className="side-panel">
-        <div className="side-chat-slot" aria-label="Chat placeholder">
-          <p className="side-chat-placeholder">
-            Assistant chat will go here — use the canvas for now.
-          </p>
-        </div>
+        <p className="side-hero">
+          Your codebase as a map. Select an area, describe the problem, and the AI will investigate and fix it.
+        </p>
 
-        <section>
+        {sidebarMode === 'working' && activeSessionId ? (
+          <WorkingPanel
+            sessionId={activeSessionId}
+            briefSummary={workingBrief}
+            nodeLabels={workingNodeLabels}
+            onCancel={handleCancel}
+            onDone={handleWorkingDone}
+            onPhaseChange={(_phase) => setIsRelabeling(false)}
+          />
+        ) : sidebarMode === 'done' && doneResult ? (
+          <DonePanel
+            result={doneResult}
+            nodeIdToLabel={nodeIdToLabel}
+            onResolve={handleResolve}
+            onRetry={(what) => void handleRetry(what)}
+            onUndo={() => void handleUndo()}
+            canUndo={activeSessionId !== null}
+            onFocusNodes={handleFocusNodes}
+            onUpdateMap={handleUpdateMap}
+          />
+        ) : (
+          <BriefPanel
+            selectedNodeIds={selectedNodeIds}
+            selectedNodeLabels={selectedNodeLabels}
+            apiEnabled={brainstormApiEnabled()}
+            onGo={handleGo}
+            isGoing={isGoing}
+          />
+        )}
+
+        <section className="legend-section">
           <h2>Legend</h2>
           <div className="legend legend-compact">
             <div className="legend-row">
@@ -565,8 +694,8 @@ export default function App() {
               <span className="legend-edge uncertain" /> Call (uncertain)
             </div>
             <div className="legend-row">
-              <span className="legend-hidden-uncertain-dot" /> Hidden unboxed calls
-              <span className="legend-muted"> (hover dot; detail off)</span>
+              <span className="legend-hidden-uncertain-dot" /> Hidden uncertain calls
+              <span className="legend-muted"> (detail off)</span>
             </div>
           </div>
         </section>
@@ -581,18 +710,14 @@ export default function App() {
           {reloadBusy ? 'Reloading…' : 'Reload map + overlay'}
         </button>
         {reloadNotice ? (
-          <p
-            className="reload-notice"
-            role="status"
-            aria-live="polite"
-          >
+          <p className="reload-notice" role="status" aria-live="polite">
             {reloadNotice}
           </p>
         ) : null}
 
         {brainstormApiEnabled() ? (
           <details className="side-details">
-            <summary>API tools</summary>
+            <summary>Developer tools</summary>
             <UpdateMapPanel onDone={triggerReload} />
             <ApplyBundlePanel onApplied={triggerReload} />
           </details>

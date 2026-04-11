@@ -22,6 +22,9 @@ dev = [
     "httpx>=0.27",
     "fastapi>=0.115",
 ]
+mcp = [
+    "mcp[cli]>=1.0",
+]
 
 [project.scripts]
 raw-indexer = "raw_indexer.cli:main"
