@@ -113,14 +113,13 @@ Implement **language-specific** work behind a narrow boundary (name illustrative
 - **Python:** prefer **Pyright / basedpyright-class** semantics for **types + symbols** where possible; **Tree-sitter** or equivalent for **structure** where helpful; mark **dynamic** `import()`, reflection, metaprogramming as **degraded / partial** (§7).
 - **New language (e.g. TypeScript):** new **adapter** + **validation recipes**; **avoid** embedding TS- or Python-only assumptions in **shared RAW node shapes**—use **generic** node/edge kinds and **optional adapter-specific payloads** when needed.
 
-### 9.4 Roadmap (illustrative)
+### 9.4 Status
 
-1. **Ship** Python adapter + canonical **FastAPI-style** template until the **full loop** is reliable.  
-2. **Harden** remap/orphans + **explicit complete / partial / unknown** UI for **RAW** confidence (see planning threads).  
-3. **Add** a **second language adapter** (e.g. **TypeScript** or **Go**) when **polyglot repos** or a **wedge market** makes it worth the cost—**after** the Python loop is **solid**.  
-4. **Broaden** repo shapes (monorepo, multi-package) with **multi-root** adapter rules—not by forking the core.
-
-**Deep detail:** `docs/planning/brainstorming.md` (§9.6.1, §9.16) — **SPEC** wins on **Python v1 + adapter model** when they differ.
+1. ✅ **Python adapter** (`flowcode.ast_v0`) — stdlib `ast`, RAW + execution IR, `diff`, `orphans`, `overlay-migrate`.
+2. ✅ **TypeScript/JS adapter** (`flowcode.ts_v0`) — tree-sitter, same RAW + IR schema, cross-module call resolution.
+3. ✅ **Generalized entrypoint detection** — config override, `main`, factory, route-handler, `__init__`, fallback.
+4. ✅ **Auto overlay generation** — structural naming + optional Claude Haiku enrichment.
+5. **Next:** Go / Rust adapters, monorepo multi-root support, incremental index.
 
 ---
 
@@ -138,38 +137,33 @@ Implement **language-specific** work behind a narrow boundary (name illustrative
 
 ---
 
-## 12. Visual & throwaway POC
+## 12. Suggested next engineering steps
 
-- **`poc-brainstorm-ui/`** — React Flow mock for **node** UX only; not the indexer or overlay system.
-- **`poc-brainstorm-ui/public/repo-model.html`** — Explains **disk vs graph vs shared file**.
+**Implementation status:** The `flowcode` graph generation package is complete and published at [`packages/flowcode`](../../packages/flowcode).
 
----
-
-## 13. Suggested next engineering steps
-
-**Full phased order (do not get lost):** see **[ROADMAP.md](./ROADMAP.md)** (Phase 0 → 8).
-
-**Implementation started:** Python **v0** indexer CLI and golden fixture live under [`packages/raw-indexer`](../../packages/raw-indexer) and [`fixtures/golden-fastapi`](../../fixtures/golden-fastapi) (AST-based JSON, `diff`, `validate`, `apply-verify`).
-
-1. Spike **RAW** indexer for **one** language → minimal JSON/SQLite.
-2. Freeze **schemas** (RAW node/edge types; overlay record).
-3. Implement **RAW diff** + **deterministic** orphan + **remap** hooks.
-4. Script **curation** pass (AI or stub) with **validation**.
-5. Stub **MCP** tools: `get_raw_subgraph`, `get_overlay`, `apply_bundle`.
-6. **Architecture diagram:** see **[ARCHITECTURE.md](./ARCHITECTURE.md)** (indexer | store | diff | overlay | API | UI | agent).
+Delivered:
+1. **RAW indexer** — Python (`flowcode.ast_v0`) + TypeScript/JS (`flowcode.ts_v0` via tree-sitter).
+2. **Schemas frozen** — RAW node/edge types, overlay record, execution IR schema v1.
+3. **RAW diff** + **deterministic** orphan detection + **remap** hooks.
+4. **Auto overlay curation** — structural naming + optional Claude Haiku enrichment.
+5. **`generate_graph()` API** — one call: index → IR → overlay → merged result.
+6. **Architecture diagram:** see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
 
 ---
 
-## 14. Deep references (planning file)
+## 13. Flowcode package (graph generation layer)
 
-| Topic | Brainstorming sections |
-|-------|-------------------------|
-| Node UX, leaf-only, edges, linked/exploded | §8.0–8.2.3, §8.4–8.7 |
-| Dev architecture, MCP, RAW pipeline, FAQ | §9.1–9.9, §9.10–9.19 |
-| User never codes, validation, dual layout | §10.2, §10.10–10.11, §9.13 |
-| Audience decisions | `docs/planning/audience.md` §6 |
+The **`flowcode`** package is a standalone PyPI library consumed by SlowCode (and any other tool) as the graph generation dependency.
 
-When **SPEC.md** and **brainstorming.md** disagree, **update SPEC** to match the **newer** decision, or resolve explicitly in a changelog row below.
+```python
+from flowcode import generate_graph
+graph = generate_graph("/path/to/repo")
+# nodes, edges, entrypoints, use_cases
+```
+
+CLI: `flowcode index | execution-ir | diff | orphans | overlay-migrate`
+
+See [`packages/flowcode/README.md`](../../packages/flowcode/README.md) for full API, schema, and `.flowcode.toml` config reference.
 
 ### SPEC changelog
 
@@ -184,4 +178,5 @@ When **SPEC.md** and **brainstorming.md** disagree, **update SPEC** to match the
 | 2026-03-22 | **§13:** pointer to **`packages/raw-indexer`** + **`fixtures/golden-fastapi`** (v0 AST indexer landed). |
 | 2026-03-22 | **`ROADMAP.md`** — phased full development guide; **§13** links it. |
 | 2026-03-22 | **§6:** **Platform-agnostic** MCP + HTTP tool surface; pointer to **ROADMAP** *AI and tool hosts*. |
-| 2026-03-22 | **Phase 4 tooling** (implementation): `diff.remap`, **`overlay-migrate`**, optional **`index --diagnostics`** — see **`packages/raw-indexer/README.md`**. |
+| 2026-03-22 | **Phase 4 tooling** (implementation): `diff.remap`, **`overlay-migrate`**, optional **`index --diagnostics`**. |
+| 2026-04-11 | **`flowcode` package** — refactored from `raw-indexer`: TypeScript adapter, generalized entrypoint detection, `auto_overlay`, `generate_graph()` API. §9.4 updated to status. §12–§14 rewritten to reflect delivered state. |

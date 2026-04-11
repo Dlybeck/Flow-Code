@@ -66,11 +66,11 @@ flowchart TB
 | Component | Role |
 |-----------|------|
 | **Workspace** | Normal repo tree (`src/`, config, tests). **Source of file bytes**; Git and language tooling stay authoritative for **text**. |
-| **Indexer** | Deterministic **RAW** build behind a **LanguageAdapter** boundary — **v1: Python** (Pyright-class + structure parse); **more languages** = more adapters, same core (**SPEC §7**, §9). |
+| **Indexer** | Deterministic **RAW** build behind a **LanguageAdapter** boundary — **Python** (`ast`, optional Pyright diagnostics) + **TypeScript/JS** (tree-sitter); **more languages** = more adapters, same core (**SPEC §7**, §9). Entry point: `flowcode.language_adapter.index_repo_auto()`. |
 | **RAW store** | Persisted graph: symbols, refs, use sites, content hashes / versions (**SPEC §4**). |
 | **RAW diff** | Compare **before/after** index on **reparse**; emit structured events for **overlay** and **remap** (**SPEC §4**, §7). |
 | **Deterministic overlay patch** | **Orphans**, **remap** hooks, **quarantine** — **no** model required for correctness (**SPEC §3**). |
-| **Curation** | AI (or stub) **tree-walk** / delta pass: `displayName`, `userDescription`, grouping — **output validated** against **RAW ids** (**SPEC §4**). |
+| **Curation** | Auto-generated from execution IR (`flowcode.auto_overlay`): structural naming + optional Claude Haiku enrichment. `displayName`, `userDescription`, grouping — **output validated** against **RAW ids** (**SPEC §4**). |
 | **Overlay store** | Presentation keyed by **RAW ids**; **labels never replace ids** (**SPEC §3**). |
 | **API** | Subgraph reads, overlay reads/writes allowed by policy, **apply** orchestration (**SPEC §6**). |
 | **Graph UI** | Primary shell: **nodes**, exploded **appearances**, **layout-only** tweaks; **no** directory tree as main nav (**SPEC §2**, §5). |
@@ -85,13 +85,7 @@ flowchart TB
 - **Anchors** link **map** concepts to **paths** and **symbols** when **product graph** and **disk layout** diverge (**SPEC §5**).
 - **Incomplete RAW** surfaces as **degraded / partial** regions in the UI — not as a **silent** complete graph (**SPEC §7**).
 - **Scale:** cost is dominated by **index + store + payload shaping**, not only **curation** API calls (**SPEC §8**).
-- **Tool hosts:** Implement **MCP** (and **HTTP**) as **thin adapters** over the **same** Python/API layer — **Cursor**, **VS Code**, **Claude**-class agents, and **scripts** attach with **config**, not separate domain stacks. See **[ROADMAP.md](./ROADMAP.md)** (*AI and tool hosts*).
-
----
-
-## 4. POC vs product
-
-- **`poc-brainstorm-ui/`** exercises **node UX** only; it is **not** this pipeline (**SPEC §12**).
+- **Tool hosts:** Implement **MCP** (and **HTTP**) as **thin adapters** over the **same** Python/API layer — **Cursor**, **VS Code**, **Claude**-class agents, and **scripts** attach with **config**, not separate domain stacks.
 
 ---
 
@@ -101,4 +95,5 @@ flowchart TB
 |------|------|
 | 2025-03-21 | Initial **logical** architecture (pass 3); aligned to **SPEC §0–§6**, §13 step 6. |
 | 2026-03-21 | **Indexer** row + status ref **§9** (Python v1 adapter, expansion path). |
-| 2026-03-22 | **Tool hosts:** MCP+HTTP shared layer; pointer to **ROADMAP** *AI and tool hosts*; MCP row clarifies thin server + external LLM hosts. |
+| 2026-03-22 | **Tool hosts:** MCP+HTTP shared layer; MCP row clarifies thin server + external LLM hosts. |
+| 2026-04-11 | **Indexer** row updated: Python + TypeScript/JS adapters delivered. **Curation** row updated: `auto_overlay` structural + LLM. §4 POC removed (brainstorm UI deleted). ROADMAP refs removed. |

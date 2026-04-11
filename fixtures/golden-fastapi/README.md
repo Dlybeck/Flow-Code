@@ -1,6 +1,6 @@
 # golden-fastapi
 
-Minimal **FastAPI** package under `src/` layout with **pytest**. Used as the default fixture for [`packages/raw-indexer`](../../packages/raw-indexer).
+Minimal **FastAPI** package under `src/` layout with **pytest**. Used as the default fixture for [`packages/flowcode`](../../packages/flowcode).
 
 ```bash
 cd fixtures/golden-fastapi

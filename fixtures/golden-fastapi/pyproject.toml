@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "golden-fastapi"
 version = "0.1.0"
-description = "Canonical FastAPI fixture for raw-indexer development"
+description = "Canonical FastAPI fixture for flowcode development"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
