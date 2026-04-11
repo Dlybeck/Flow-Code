@@ -10,7 +10,7 @@ This folder holds the design docs for **`flowcode`** — a static analysis graph
 
 ## Implementation
 
-The `flowcode` package at [`packages/flowcode`](../../packages/flowcode) is the delivered graph generation layer. See its [README](../../packages/flowcode/README.md) for API, CLI, schema, and `.flowcode.toml` config reference.
+The `flowcode` package — the repo root is now the package itself. See the [top-level README](../../README.md) for API, CLI, schema, and `.flowcode.toml` config reference.
 
 ## Changelog
 

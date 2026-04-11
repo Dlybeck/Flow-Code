@@ -139,7 +139,7 @@ Implement **language-specific** work behind a narrow boundary (name illustrative
 
 ## 12. Suggested next engineering steps
 
-**Implementation status:** The `flowcode` graph generation package is complete and published at [`packages/flowcode`](../../packages/flowcode).
+**Implementation status:** The `flowcode` graph generation package is complete; the repo root *is* the package.
 
 Delivered:
 1. **RAW indexer** — Python (`flowcode.ast_v0`) + TypeScript/JS (`flowcode.ts_v0` via tree-sitter).
@@ -163,7 +163,7 @@ graph = generate_graph("/path/to/repo")
 
 CLI: `flowcode index | execution-ir | diff | orphans | overlay-migrate`
 
-See [`packages/flowcode/README.md`](../../packages/flowcode/README.md) for full API, schema, and `.flowcode.toml` config reference.
+See the [top-level `README.md`](../../README.md) for full API, schema, and `.flowcode.toml` config reference.
 
 ### SPEC changelog
 

@@ -8,7 +8,7 @@ import pytest
 
 def pytest_configure(config: pytest.Config) -> None:
     """Load repo-root `.env` into the process so pytest sees API keys (never overrides env)."""
-    root = Path(__file__).resolve().parents[3]
+    root = Path(__file__).resolve().parents[1]
     env_path = root / ".env"
     if not env_path.is_file():
         return
@@ -29,8 +29,8 @@ def pytest_configure(config: pytest.Config) -> None:
 
 @pytest.fixture
 def workspace_root() -> Path:
-    """Flow-Code workspace (parent of `packages/`)."""
-    return Path(__file__).resolve().parents[3]
+    """Flow-Code repo root."""
+    return Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
@@ -40,4 +40,4 @@ def golden_repo(workspace_root: Path) -> Path:
 
 @pytest.fixture
 def samples_dir(workspace_root: Path) -> Path:
-    return workspace_root / "packages" / "flowcode" / "samples"
+    return workspace_root / "samples"

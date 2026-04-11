@@ -1,6 +1,6 @@
 # golden-fastapi
 
-Minimal **FastAPI** package under `src/` layout with **pytest**. Used as the default fixture for [`packages/flowcode`](../../packages/flowcode).
+Minimal **FastAPI** package under `src/` layout with **pytest**. Used as the default Python fixture for the `flowcode` test suite.
 
 ```bash
 cd fixtures/golden-fastapi
