@@ -1,0 +1,14 @@
+{
+  "description": "Hand-authored execution-order tree for test_codebase.py. Each node's children are the functions called when this function's invocation continues the flow. Two branching points (validate_input, check_user_exists) produce three leaves.",
+  "nodes": [
+    {"id": "n0", "function": "handle_signup",        "children": ["n1"]},
+    {"id": "n1", "function": "validate_input",       "children": ["n2", "n3"]},
+    {"id": "n2", "function": "log_invalid_input",    "children": []},
+    {"id": "n3", "function": "check_user_exists",    "children": ["n4", "n5"]},
+    {"id": "n4", "function": "return_conflict_error","children": []},
+    {"id": "n5", "function": "create_user",          "children": ["n6"]},
+    {"id": "n6", "function": "send_welcome_email",   "children": []}
+  ],
+  "root": "n0",
+  "split_nodes": ["n1", "n3"]
+}

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow-Code — layered 3D call graph</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --fg: #e6e8ec;
+    --muted: #8b93a1;
+    --accent: #4c9aff;
+    --ok: #7dd181;
+    --warn: #ffb454;
+    --border: #262c36;
+    --panel: rgba(23, 27, 34, 0.92);
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, Inter, Segoe UI, Roboto, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; top: 12px; left: 12px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; color: var(--muted); max-width: 300px;
+    backdrop-filter: blur(8px);
+  }
+  #hud h3 { margin: 0 0 4px; font-size: 13px; color: var(--fg); font-weight: 600; }
+  #hud kbd { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 3px; color: var(--fg); font-family: ui-monospace, monospace; font-size: 11px; }
+  #controls {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 12px; display: flex; gap: 18px; align-items: center;
+    backdrop-filter: blur(8px);
+  }
+  #controls .group { display: flex; flex-direction: column; gap: 3px; min-width: 100px; }
+  #controls .label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 2px; }
+  #controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--fg); }
+  #controls input { margin: 0; }
+  #controls label.disabled { color: var(--muted); cursor: not-allowed; }
+  #info {
+    position: fixed; top: 12px; right: 12px; width: 340px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+    font-size: 13px; backdrop-filter: blur(8px);
+    display: none;
+  }
+  #info.visible { display: block; }
+  #info .qname { font-size: 15px; color: var(--accent); font-weight: 600; letter-spacing: -.005em; }
+  #info .sub { color: var(--muted); font-size: 11px; margin: 4px 0 10px; font-family: ui-monospace, monospace; word-break: break-all; }
+  #info .desc { margin: 10px 0; line-height: 1.5; }
+  #info .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+  #info .stats b { color: var(--fg); }
+  #info .cones { margin-top: 10px; font-size: 11px; }
+  #info .cones span { display: inline-block; padding: 2px 7px; border-radius: 10px; margin-right: 4px; }
+  #info .up { background: rgba(125,209,129,.18); color: var(--ok); }
+  #info .down { background: rgba(255,180,84,.18); color: var(--warn); }
+  #legend {
+    position: fixed; bottom: 12px; left: 12px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; font-size: 11px; color: var(--muted);
+    display: flex; gap: 14px; backdrop-filter: blur(8px);
+  }
+  #legend span::before { content: "●"; margin-right: 4px; font-size: 14px; vertical-align: middle; }
+  .up-c::before { color: var(--ok); }
+  .down-c::before { color: var(--warn); }
+  .hover-c::before { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="hud">
+  <h3>Layered 3D call graph</h3>
+  <div><kbd>drag</kbd> orbit · <kbd>scroll</kbd> zoom · <kbd>hover</kbd> a node to light its cones</div>
+</div>
+
+<div id="controls">
+  <div class="group">
+    <div class="label">Layout</div>
+    <label><input type="radio" name="layout" value="fan" checked> Ski slope (fan)</label>
+    <label><input type="radio" name="layout" value="umap"> Pure embedding</label>
+  </div>
+  <div class="group">
+    <div class="label">Height rule</div>
+    <div style="font-size:11px; color:var(--muted)">Relative descent: drop = (parent_density − child_density) × distance. Child stays level if its density ≥ parent. Slope ≤ 45°.</div>
+  </div>
+</div>
+
+<div id="info">
+  <div class="qname" id="i-qname">—</div>
+  <div class="sub" id="i-sub">—</div>
+  <div class="desc" id="i-desc"></div>
+  <div class="stats" id="i-stats"></div>
+  <div class="cones" id="i-cones"></div>
+</div>
+<div id="legend">
+  <span class="hover-c">hovered</span>
+  <span class="up-c">callers (upward cone)</span>
+  <span class="down-c">callees (downward cone)</span>
+</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

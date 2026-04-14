@@ -1,0 +1,599 @@
+"""Build graph.json for the 3D layered prototype.
+
+Emits multiple layout signals so the browser can toggle between variants:
+  - (x_umap, y_umap)  : UMAP-based layout (pure embedding)
+  - (x_fan, y_fan)    : radial fan — ski-slope layout from call graph + embedding
+                        sibling ordering. Radial distance from each peak = depth.
+  - depth             : call-graph depth (time)
+  - importance        : ancestors × descendants (path flow width)
+  - semantic_density  : avg cos-sim to k-nearest neighbors in embedding space
+
+Renderer composes height = f(depth, importance, semantic_density), with a
+monotonic clamp applied client-side.
+"""
+from __future__ import annotations
+
+import json
+import math
+import sys
+from pathlib import Path
+
+from parse_calls import parse_directory
+
+MODEL_NAME = "jinaai/jina-embeddings-v2-base-code"
+STEP = 3.5          # radial distance per depth level
+MAX_WEDGE_DEG = 120 # max fan-out per node
+SHRINK = 0.9        # wedge shrink factor per level
+
+
+def compute_importance(qnames: list[str], calls_by_q: dict[str, list[str]]) -> dict[str, float]:
+    """Flow width per node: count of distinct ancestors × distinct descendants.
+    A node on many paths → high value → should rise as a ridge.
+    A node on a lone path → low value → sits in a ravine.
+    Output normalized to [0, 1]."""
+    callees: dict[str, set[str]] = {q: set(calls_by_q.get(q, [])) for q in qnames}
+    callers: dict[str, set[str]] = {q: set() for q in qnames}
+    for q, outs in callees.items():
+        for c in outs:
+            if c in callers:
+                callers[c].add(q)
+
+    def reachable(start: str, adj: dict[str, set[str]]) -> set[str]:
+        seen: set[str] = set()
+        stack = [start]
+        while stack:
+            cur = stack.pop()
+            for n in adj.get(cur, ()):
+                if n not in seen:
+                    seen.add(n)
+                    stack.append(n)
+        return seen
+
+    raw: dict[str, float] = {}
+    for q in qnames:
+        ancestors = reachable(q, callers) | {q}
+        descendants = reachable(q, callees) | {q}
+        raw[q] = len(ancestors) * len(descendants)
+    max_raw = max(raw.values(), default=1) or 1
+    return {q: raw[q] / max_raw for q in qnames}
+
+
+def pull_toward_parents(
+    coords: dict[str, tuple[float, float]],
+    qnames: list[str],
+    calls_by_q: dict[str, list[str]],
+    depths: dict[str, int],
+    iterations: int = 4,
+    strength: float = 0.35,
+) -> dict[str, tuple[float, float]]:
+    """Move each non-entry node partway toward the centroid of its parents'
+    XY positions. Over a few iterations this makes parent-child physically
+    adjacent so the Delaunay mesh forms smooth slopes from peaks to leaves."""
+    callers: dict[str, list[str]] = {q: [] for q in qnames}
+    for q, outs in calls_by_q.items():
+        for c in outs:
+            if c in callers:
+                callers[c].append(q)
+
+    pos = dict(coords)
+    for _ in range(iterations):
+        new_pos = dict(pos)
+        # Apply in depth order so each layer uses its parents' already-placed positions
+        for q in sorted(qnames, key=lambda x: depths[x]):
+            ps = callers[q]
+            if not ps:
+                continue
+            cx = sum(pos[p][0] for p in ps) / len(ps)
+            cy = sum(pos[p][1] for p in ps) / len(ps)
+            new_pos[q] = (
+                pos[q][0] * (1 - strength) + cx * strength,
+                pos[q][1] * (1 - strength) + cy * strength,
+            )
+        pos = new_pos
+    return pos
+
+
+def compute_depths(qnames: list[str], calls_by_q: dict[str, list[str]]) -> dict[str, int]:
+    """Longest-path depth from any caller-less root. Cycle-safe.
+
+    Uses two-pass (read old, write new) per iteration so each pass propagates
+    depth by at most +1. Hard-caps final depth at len(qnames)-1 (longest simple path).
+    """
+    callers: dict[str, set[str]] = {q: set() for q in qnames}
+    for q, outs in calls_by_q.items():
+        for c in outs:
+            if c in callers and c != q:  # skip self-recursion
+                callers[c].add(q)
+
+    depth: dict[str, int] = {q: 0 for q in qnames if not callers[q]}
+    # Cap at a reasonable slope height even if there's a 30-deep call chain.
+    # Keeps the mountain legible for any codebase.
+    max_allowed = min(12, max(1, len(qnames) - 1))
+
+    changed = True
+    passes = 0
+    while changed and passes < len(qnames):
+        changed = False
+        passes += 1
+        new_depth = dict(depth)
+        for q in qnames:
+            inbound = [p for p in callers[q] if p in depth]
+            if not inbound:
+                continue
+            nd = 1 + max(depth[p] for p in inbound)
+            if nd > max_allowed:
+                nd = max_allowed
+            if q not in new_depth or new_depth[q] < nd:
+                new_depth[q] = nd
+                changed = True
+        depth = new_depth
+
+    for q in qnames:
+        depth.setdefault(q, 0)
+    return depth
+
+
+def compute_depths_old(qnames: list[str], calls_by_q: dict[str, list[str]]) -> dict[str, int]:
+    """Depth = longest path from an entry point. Entry = no inbound edges."""
+    callers: dict[str, set[str]] = {q: set() for q in qnames}
+    for q, callees in calls_by_q.items():
+        for c in callees:
+            if c in callers:
+                callers[c].add(q)
+
+    depth: dict[str, int] = {q: 0 for q in qnames if not callers[q]}
+    # iterate to convergence; bound iterations to break cycles safely
+    changed = True
+    passes = 0
+    while changed and passes < len(qnames) + 5:
+        changed = False
+        passes += 1
+        for q in qnames:
+            inbound = callers[q]
+            if not inbound:
+                continue
+            known_inbound = [p for p in inbound if p in depth]
+            if not known_inbound:
+                continue
+            new_d = 1 + max(depth[p] for p in known_inbound)
+            if q not in depth or depth[q] < new_d:
+                depth[q] = new_d
+                changed = True
+
+    # Any leftover (e.g. isolated cycle nodes): assign to 0
+    for q in qnames:
+        depth.setdefault(q, 0)
+    return depth
+
+
+def embed_and_project(functions: dict) -> tuple[dict[str, tuple[float, float]], int]:
+    from sentence_transformers import SentenceTransformer
+    import numpy as np
+    import umap
+
+    print(f"Loading {MODEL_NAME} on CPU...", flush=True)
+    model = SentenceTransformer(MODEL_NAME, trust_remote_code=True, device="cpu")
+
+    qnames = sorted(functions.keys())
+    # Truncate pathologically long sources — Jina v2 caps at 8192 tokens (~32k chars)
+    MAX_CHARS = 20000
+    texts = [functions[q].source[:MAX_CHARS] for q in qnames]
+    print(f"Embedding {len(qnames)} functions (CPU, batch=4)...", flush=True)
+    vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=True, batch_size=4)
+
+    print("UMAP → 2D...")
+    reducer = umap.UMAP(
+        n_components=2,
+        n_neighbors=min(15, len(qnames) - 1),
+        min_dist=0.15,
+        metric="cosine",
+        random_state=42,
+    )
+    vecs_np = np.asarray(vectors)
+    coords = reducer.fit_transform(vecs_np)
+    coords = _relax_overlap(coords, min_dist=1.3, iterations=200)
+    return (
+        {q: (float(coords[i, 0]), float(coords[i, 1])) for i, q in enumerate(qnames)},
+        {q: vecs_np[i].tolist() for i, q in enumerate(qnames)},
+        len(vectors[0]),
+    )
+
+
+def _relax_overlap(coords, min_dist: float = 1.3, iterations: int = 200):
+    """Vectorized push-apart relaxation so no two points sit closer than min_dist.
+    Preserves rough layout from UMAP but guarantees visibility from top-down."""
+    import numpy as np
+    pts = np.asarray(coords, dtype=float).copy()
+    for _ in range(iterations):
+        diffs = pts[:, None, :] - pts[None, :, :]
+        dists = np.sqrt((diffs ** 2).sum(-1))
+        np.fill_diagonal(dists, np.inf)
+        if dists.min() >= min_dist:
+            break
+        # For each overlapping pair, push apart along their vector
+        mask = dists < min_dist
+        unit = np.zeros_like(diffs)
+        nonzero = dists > 1e-8
+        unit[nonzero] = diffs[nonzero] / dists[nonzero, None]
+        push = np.where(mask[..., None], unit * ((min_dist - dists)[..., None] * 0.5), 0.0)
+        # Jitter coincident points
+        coincident = dists < 1e-6
+        if coincident.any():
+            jitter = np.random.default_rng(0).standard_normal(pts.shape) * 0.05
+            pts += jitter * coincident.any(axis=1)[:, None] * 0.01
+        pts += push.sum(axis=1)
+    return pts
+
+
+def _cos_sim(a: list[float] | None, b: list[float] | None) -> float:
+    if not a or not b:
+        return 0.0
+    num = sum(x * y for x, y in zip(a, b))
+    da = math.sqrt(sum(x * x for x in a))
+    db = math.sqrt(sum(y * y for y in b))
+    return num / (da * db) if da and db else 0.0
+
+
+def compute_semantic_density(qnames: list[str], embeddings: dict[str, list[float]], k: int = 10) -> dict[str, float]:
+    """For each node: avg cosine similarity to k nearest neighbors in embedding space.
+    High = in a dense concept neighborhood. Normalized to [0, 1]."""
+    import numpy as np
+    vecs = np.array([embeddings[q] for q in qnames])
+    norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+    norms[norms == 0] = 1
+    vecs_n = vecs / norms
+    sims = vecs_n @ vecs_n.T
+    np.fill_diagonal(sims, -np.inf)
+    kk = min(k, len(qnames) - 1)
+    if kk < 1:
+        return {q: 0.5 for q in qnames}
+    topk = np.sort(sims, axis=1)[:, -kk:]
+    avg = topk.mean(axis=1)
+    mn, mx = avg.min(), avg.max()
+    if mx > mn:
+        scaled = (avg - mn) / (mx - mn)
+    else:
+        scaled = np.full_like(avg, 0.5)
+    return {q: float(scaled[i]) for i, q in enumerate(qnames)}
+
+
+def radial_fan_layout(
+    qnames: list[str],
+    callees_of: dict[str, list[str]],
+    callers_of: dict[str, list[str]],
+    embeddings: dict[str, list[float]],
+    density: dict[str, float],
+) -> tuple[dict[str, tuple[float, float]], dict[str, float], list[str]]:
+    """Ski-slope layout: one virtual peak at origin, entire slope fans within 120° south.
+
+    A synthetic "__ROOT__" sits at origin with a 120° wedge aimed south. All real
+    entry-point functions (no callers in the parsed set) are placed as its children,
+    which means the whole codebase forms a single mountain with a single directional
+    slope. Orphan peaks (no callers and no callees) are moved behind the mountain so
+    they don't clutter the slope.
+
+    Sibling ordering inside every wedge uses greedy NN on embedding cosine similarity,
+    so semantically related subtrees sit angularly adjacent.
+    """
+    # Identify real peaks (no callers in the set).
+    real_peaks = [q for q in qnames if not callers_of.get(q)]
+    if not real_peaks:
+        real_peaks = [qnames[0]] if qnames else []
+
+    # Filter: peaks with ≥1 child form the mountain; peaks with no children
+    # are orphans (looks like dead code to the parser) and get stashed aside.
+    connected_peaks = [p for p in real_peaks if callees_of.get(p)]
+    orphan_peaks = [p for p in real_peaks if not callees_of.get(p)]
+    if not connected_peaks:
+        connected_peaks = real_peaks
+        orphan_peaks = []
+
+    # Inject a synthetic VIRTUAL root. All connected peaks become its children —
+    # forcing a single peak at origin and a single 120° slope south.
+    VIRTUAL = "__ROOT__"
+    L_callees: dict[str, list[str]] = {q: list(callees_of.get(q, [])) for q in qnames}
+    L_callers: dict[str, list[str]] = {q: list(callers_of.get(q, [])) for q in qnames}
+    L_callees[VIRTUAL] = list(connected_peaks)
+    L_callers[VIRTUAL] = []
+    for p in connected_peaks:
+        L_callers[p] = [VIRTUAL]
+    L_qnames = list(qnames) + [VIRTUAL]
+
+    # Primary-parent spanning tree rooted at VIRTUAL.
+    assigned: set[str] = {VIRTUAL}
+    primary_children: dict[str, list[str]] = {q: [] for q in L_qnames}
+    frontier = [VIRTUAL]
+    while frontier:
+        parent = frontier.pop(0)
+        for child in L_callees.get(parent, []):
+            if child in assigned:
+                continue
+            parent_candidates = sorted(c for c in L_callers.get(child, []) if c in assigned)
+            if parent_candidates and parent_candidates[0] == parent:
+                primary_children[parent].append(child)
+                assigned.add(child)
+                frontier.append(child)
+
+    # Cycle-only nodes → treat as orphans.
+    for q in qnames:
+        if q not in assigned:
+            orphan_peaks.append(q)
+            assigned.add(q)
+
+    # Subtree size (via primary-children tree = DAG-safe because we built a tree).
+    def subtree_size(q: str) -> int:
+        stack = [q]
+        seen: set[str] = set()
+        n = 0
+        while stack:
+            cur = stack.pop()
+            if cur in seen:
+                continue
+            seen.add(cur)
+            n += 1
+            stack.extend(primary_children.get(cur, []))
+        return n
+
+    max_wedge = math.radians(MAX_WEDGE_DEG)
+    positions: dict[str, tuple[float, float]] = {}
+
+    # Polar layout: every node's distance from origin = depth × STEP.
+    # Children are always further out than their parents — no backward edges.
+    # Each node owns an angular range within its parent's range; the whole tree
+    # lives inside a single 120° wedge aimed south from origin.
+    south = -math.pi / 2
+    angle_range: dict[str, tuple[float, float]] = {
+        VIRTUAL: (south - max_wedge / 2, south + max_wedge / 2),
+    }
+    radii: dict[str, float] = {VIRTUAL: 0.0}
+    # VIRTUAL is at origin; don't add to positions (it's only for angular bookkeeping)
+
+    def nn_chain(children: list[str], ref: str) -> list[str]:
+        """Greedy nearest-neighbor ordering by embedding cosine similarity."""
+        if not children:
+            return []
+        ref_emb = embeddings.get(ref)
+        remaining = list(children)
+        if ref_emb:
+            first = max(remaining, key=lambda c: _cos_sim(embeddings.get(c), ref_emb))
+        else:
+            first = remaining[0]
+        ordered = [first]
+        remaining.remove(first)
+        while remaining:
+            last_emb = embeddings.get(ordered[-1])
+            nxt = max(remaining, key=lambda c: _cos_sim(embeddings.get(c), last_emb))
+            ordered.append(nxt)
+            remaining.remove(nxt)
+        return ordered
+
+    # BFS from the virtual root. Each child gets a sub-slice of its parent's
+    # angular range, proportional to subtree size. Child's radius = parent's + STEP.
+    queue = [VIRTUAL]
+    while queue:
+        parent = queue.pop(0)
+        kids = primary_children[parent]
+        if not kids:
+            continue
+        a_min, a_max = angle_range[parent]
+        a_width = a_max - a_min
+        ordered = nn_chain(kids, parent)
+        sizes = [max(1, subtree_size(c)) for c in ordered]
+        total = sum(sizes)
+        parent_radius = radii[parent]
+        start = a_min
+        for k, s in zip(ordered, sizes):
+            slot_w = a_width * (s / total)
+            slot_min, slot_max = start, start + slot_w
+            angle_range[k] = (slot_min, slot_max)
+            k_angle = (slot_min + slot_max) / 2
+            k_radius = parent_radius + STEP
+            radii[k] = k_radius
+            positions[k] = (k_radius * math.cos(k_angle), k_radius * math.sin(k_angle))
+            queue.append(k)
+            start = slot_max
+
+    # Place orphan peaks behind the mountain (north of origin) so they don't
+    # clutter the south-facing slope. Arrange them in a compact grid.
+    placed_xs = [positions[q][0] for q in qnames if q in positions]
+    placed_ys = [positions[q][1] for q in qnames if q in positions]
+    mountain_south = min(placed_ys) if placed_ys else -10.0
+    orphan_offset_y = (max(placed_ys) if placed_ys else 5.0) + 4.0
+    side = max(1, math.ceil(math.sqrt(len(orphan_peaks))))
+    for i, p in enumerate(orphan_peaks):
+        row, col = i // side, i % side
+        positions[p] = ((col - side / 2) * 1.8, orphan_offset_y + row * 1.8)
+
+    # --- Relative-descent heights, clamped to [20°, 60°] slope range ---
+    # Every edge descends at least 20° (never level) and at most 60°. The density
+    # delta between parent and child decides where each edge lands in that range:
+    # the largest density drop in the graph = 60° slope, the smallest = 20°.
+    PEAK_HEIGHT = 18.0
+    density_lookup = {**density, VIRTUAL: 1.0}
+
+    # Pass 1: gather raw "signal" per primary edge (p_density - c_density, can be
+    # negative if child is denser). We use the full range so "denser child" still
+    # gets the minimum 20° slope; steepest density drop gets 60°.
+    raw_signals: list[float] = []
+    edges_list: list[tuple[str, str]] = []
+    for parent, kids in primary_children.items():
+        p_d = density_lookup.get(parent, 0.5)
+        for c in kids:
+            c_d = density_lookup.get(c, 0.0)
+            raw_signals.append(p_d - c_d)
+            edges_list.append((parent, c))
+
+    # Normalize: smallest signal → 0, largest → 1
+    if raw_signals:
+        smin = min(raw_signals)
+        smax = max(raw_signals)
+        srange = smax - smin if smax > smin else 1.0
+    else:
+        smin, srange = 0.0, 1.0
+
+    # Slope range: tan(20°) ≈ 0.364, tan(60°) ≈ 1.732
+    SLOPE_MIN = math.tan(math.radians(20))
+    SLOPE_MAX = math.tan(math.radians(60))
+
+    # Pass 2: BFS from virtual root, apply slope per edge
+    heights: dict[str, float] = {VIRTUAL: PEAK_HEIGHT}
+    origin = (0.0, 0.0)
+    desc_queue = [VIRTUAL]
+    while desc_queue:
+        p = desc_queue.pop(0)
+        p_d = density_lookup.get(p, 0.5)
+        p_h = heights[p]
+        p_pos = positions.get(p, origin) if p != VIRTUAL else origin
+        for c in primary_children.get(p, []):
+            c_pos = positions[c]
+            h_dist = math.hypot(c_pos[0] - p_pos[0], c_pos[1] - p_pos[1])
+            c_d = density_lookup.get(c, 0.0)
+            raw = p_d - c_d
+            t = (raw - smin) / srange  # 0..1 across the graph
+            slope_tan = SLOPE_MIN + t * (SLOPE_MAX - SLOPE_MIN)
+            heights[c] = p_h - slope_tan * h_dist
+            desc_queue.append(c)
+    # Orphans go to ground level (just below the lowest mountain node)
+    ground = min((h for q, h in heights.items() if q != VIRTUAL), default=0.0) - 1.0
+    for q in orphan_peaks:
+        heights.setdefault(q, ground)
+    # Any still-missing (shouldn't happen but safety net)
+    for q in qnames:
+        heights.setdefault(q, ground)
+
+    # Build set of primary-tree edges (parent, child) — these are the only
+    # edges that are guaranteed monotonic in radius and should be rendered as arcs.
+    primary_edges: set[tuple[str, str]] = set()
+    for parent, kids in primary_children.items():
+        if parent == VIRTUAL:
+            continue
+        for c in kids:
+            primary_edges.add((parent, c))
+
+    # Remove VIRTUAL from output
+    positions.pop(VIRTUAL, None)
+    heights.pop(VIRTUAL, None)
+    return positions, heights, connected_peaks, primary_edges
+
+
+def main() -> None:
+    root = Path(sys.argv[1] if len(sys.argv) > 1 else "../../packages/raw-indexer/src/raw_indexer")
+    out = Path(sys.argv[2] if len(sys.argv) > 2 else "graph.json")
+    entry = sys.argv[3] if len(sys.argv) > 3 else "main"
+
+    print(f"Parsing {root.resolve()}...")
+    functions = parse_directory(root)
+    print(f"  {len(functions)} functions/methods before filtering")
+
+    # Filter to functions reachable from the chosen entry (BFS forward on calls).
+    # This makes the view a single flow with a single real peak.
+    if entry not in functions:
+        matches = [q for q in functions if q == entry or q.endswith(f".{entry}")]
+        if not matches:
+            raise SystemExit(f"entry {entry!r} not found in parsed functions")
+        entry = matches[0]
+    print(f"  entry point: {entry}")
+
+    reachable: set[str] = {entry}
+    queue = [entry]
+    while queue:
+        cur = queue.pop(0)
+        for callee in functions[cur].calls:
+            if callee in functions and callee not in reachable:
+                reachable.add(callee)
+                queue.append(callee)
+
+    functions = {q: f for q, f in functions.items() if q in reachable}
+    print(f"  {len(functions)} functions reachable from {entry!r}")
+
+    calls_by_q = {q: [c for c in functions[q].calls if c in functions] for q, info in functions.items()}
+
+    qnames = sorted(functions.keys())
+    depths = compute_depths(qnames, calls_by_q)
+    max_depth = max(depths.values(), default=0)
+    print(f"  depth range: 0..{max_depth}")
+
+    umap_coords, embeddings, dim = embed_and_project(functions)
+
+    # Build callers/callees maps for layout
+    callees_of: dict[str, list[str]] = {q: list(functions[q].calls) for q in qnames}
+    callers_of: dict[str, list[str]] = {q: [] for q in qnames}
+    for q, outs in callees_of.items():
+        for c in outs:
+            if c in callers_of:
+                callers_of[c].append(q)
+
+    # Semantic density first — it feeds the fan layout's height computation
+    density = compute_semantic_density(qnames, embeddings)
+
+    # Radial fan (ski-slope) layout with relative-descent heights
+    fan_coords, fan_heights, peaks, primary_edges = radial_fan_layout(
+        qnames, callees_of, callers_of, embeddings, density
+    )
+    print(f"  connected peaks: {len(peaks)}")
+
+    # Orphans = real peaks with no children (isolated, dead-code looking). The
+    # layout moved them behind the mountain. Mark them so the renderer can skip
+    # them from the terrain mesh.
+    real_peaks_set = {q for q in qnames if not callers_of.get(q)}
+    orphan_set = {q for q in real_peaks_set if not callees_of.get(q)}
+    # Also flag cycle-only unreachable nodes as orphans (layout put them with orphans)
+    # Compute: any node whose fan position has y_fan > 0 is an orphan (mountain is south of origin).
+    for q, (_, y) in fan_coords.items():
+        if y > 0:
+            orphan_set.add(q)
+
+    # Importance retained for display only (no longer affects height)
+    importance = compute_importance(qnames, calls_by_q)
+
+    nodes = []
+    for q in qnames:
+        info = functions[q]
+        doc = info.docstring.strip().split("\n")[0] if info.docstring else ""
+        nodes.append({
+            "id": q,
+            "qname": q,
+            "label": q.split(".")[-1],
+            "file": info.file,
+            "class": info.class_name,
+            "depth": depths[q],
+            "x_fan": fan_coords[q][0],
+            "y_fan": fan_coords[q][1],
+            "height": fan_heights[q],
+            "x_umap": umap_coords[q][0],
+            "y_umap": umap_coords[q][1],
+            "importance": importance[q],
+            "semantic_density": density[q],
+            "is_orphan": q in orphan_set,
+            "description": doc,
+            "source_lines": info.source.count("\n") + 1,
+            "n_callees": len(info.calls),
+        })
+
+    edges = []
+    for q in qnames:
+        for callee in functions[q].calls:
+            if callee in functions:
+                edges.append({
+                    "from": q,
+                    "to": callee,
+                    "is_primary": (q, callee) in primary_edges,
+                })
+
+    payload = {
+        "root": str(root.resolve()),
+        "n_nodes": len(nodes),
+        "n_edges": len(edges),
+        "max_depth": max_depth,
+        "peaks": peaks,
+        "embedding_model": MODEL_NAME,
+        "embedding_dim": dim,
+        "nodes": nodes,
+        "edges": edges,
+    }
+    out.write_text(json.dumps(payload))
+    print(f"wrote {out}  ({len(nodes)} nodes, {len(edges)} edges, {len(peaks)} peaks, max_depth={max_depth})")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv
+.venv/
+
+# Cloned third-party repos used as test subjects (regeneratable via git clone)
+3d-layered/httpie-src/
+synthetic-flow/tinydb-src/
+
+# Large regeneratable artifacts
+synthetic-flow/function_embeddings.json
+synthetic-flow/tier_embeddings.json
+synthetic-flow/tier_embeddings_tinydb.json
+synthetic-flow/terrain_grid.npz
+synthetic-flow/terrain_coords.json

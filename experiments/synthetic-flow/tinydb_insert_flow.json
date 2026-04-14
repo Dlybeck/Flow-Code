@@ -1,0 +1,14 @@
+{
+  "description": "Hand-authored execution DAG for TinyDB's Table.insert() using the default JSONStorage. Shared node n3 (JSONStorage.read) has two parents because it's called both by _read_table and by _update_table. Kept intentionally small and faithful so the result is comparable to the toy.",
+  "codebase_root": "tinydb-src/tinydb",
+  "root": "n0",
+  "nodes": [
+    {"id": "n0", "qname": "Table.insert",       "children": ["n1", "n4"]},
+    {"id": "n1", "qname": "Table._get_next_id", "children": ["n2"]},
+    {"id": "n2", "qname": "Table._read_table",  "children": ["n3"]},
+    {"id": "n3", "qname": "JSONStorage.read",   "children": []},
+    {"id": "n4", "qname": "Table._update_table","children": ["n3", "n5"]},
+    {"id": "n5", "qname": "JSONStorage.write",  "children": []}
+  ],
+  "split_nodes": ["n0", "n4"]
+}

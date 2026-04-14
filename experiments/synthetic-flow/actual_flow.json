@@ -1,0 +1,38 @@
+{
+  "entry": "handle_signup",
+  "nodes": [
+    "handle_signup",
+    "check_user_exists",
+    "create_user",
+    "send_welcome_email",
+    "validate_input",
+    "log_invalid_input",
+    "return_conflict_error"
+  ],
+  "edges": [
+    {
+      "from": "handle_signup",
+      "to": "check_user_exists"
+    },
+    {
+      "from": "handle_signup",
+      "to": "create_user"
+    },
+    {
+      "from": "handle_signup",
+      "to": "send_welcome_email"
+    },
+    {
+      "from": "handle_signup",
+      "to": "validate_input"
+    },
+    {
+      "from": "handle_signup",
+      "to": "log_invalid_input"
+    },
+    {
+      "from": "handle_signup",
+      "to": "return_conflict_error"
+    }
+  ]
+}

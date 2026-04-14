@@ -1,0 +1,46 @@
+{
+  "entry": "handle_signup",
+  "nodes": [
+    "handle_signup",
+    "send_welcome_email",
+    "create_user"
+  ],
+  "edges": [
+    {
+      "from": "handle_signup",
+      "to": "send_welcome_email",
+      "confidence": 0.9,
+      "reason": "This function is called directly after user creation in the current function's flow."
+    },
+    {
+      "from": "send_welcome_email",
+      "to": "handle_signup",
+      "confidence": 0.8,
+      "reason": "As the entry point for user signup, it likely orchestrates the flow including sending the welcome email."
+    },
+    {
+      "from": "send_welcome_email",
+      "to": "create_user",
+      "confidence": 0.6,
+      "reason": "Creating the user record typically precedes sending a welcome email in a signup process."
+    },
+    {
+      "from": "create_user",
+      "to": "send_welcome_email",
+      "confidence": 0.8,
+      "reason": "After creating a user, sending a welcome email is a common follow-up action."
+    },
+    {
+      "from": "create_user",
+      "to": "handle_signup",
+      "confidence": 0.6,
+      "reason": "The create_user function is likely called within a signup flow, and handle_signup may orchestrate the next steps."
+    },
+    {
+      "from": "handle_signup",
+      "to": "create_user",
+      "confidence": 0.6,
+      "reason": "This function is called before send_welcome_email and is part of the successful signup sequence."
+    }
+  ]
+}

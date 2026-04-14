@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flow-Code experiments — results</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --panel: #171b22;
+    --fg: #e6e8ec;
+    --muted: #8b93a1;
+    --accent: #4c9aff;
+    --warn: #ffb454;
+    --ok: #7dd181;
+    --bad: #ff6b6b;
+    --border: #262c36;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Inter, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+  }
+  header {
+    padding: 2.5rem 2rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #161a21, #0f1216);
+  }
+  header h1 { margin: 0 0 .4rem; font-size: 1.7rem; font-weight: 600; letter-spacing: -.01em; }
+  header .sub { color: var(--muted); font-size: 0.95rem; }
+  main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  section {
+    margin: 2.5rem 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1.75rem;
+  }
+  section h2 {
+    margin: 0 0 .3rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -.005em;
+  }
+  section .tag {
+    display: inline-block;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: .5rem;
+  }
+  .tag.worked { color: var(--ok); border-color: rgba(125,209,129,.35); }
+  .tag.mixed { color: var(--warn); border-color: rgba(255,180,84,.35); }
+  .tag.retired { color: var(--bad); border-color: rgba(255,107,107,.35); }
+  section p { margin: .8rem 0; color: var(--fg); }
+  section .caption { color: var(--muted); font-size: .92rem; }
+  section img {
+    display: block;
+    width: 100%;
+    margin: 1rem 0 .6rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+  }
+  .lesson {
+    border-left: 3px solid var(--accent);
+    padding: .55rem .85rem;
+    margin-top: 1rem;
+    background: rgba(76,154,255,.07);
+    border-radius: 0 8px 8px 0;
+    font-size: .93rem;
+  }
+  .lesson b { color: var(--accent); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .pair figure { margin: 0; }
+  .pair img { margin: .4rem 0 .2rem; }
+  .pair figcaption { font-size: .85rem; color: var(--muted); text-align: center; }
+  code, .mono { font-family: var(--mono); background: rgba(255,255,255,.04); padding: 1px 6px; border-radius: 4px; font-size: .9em; }
+  nav {
+    position: sticky; top: 0;
+    background: rgba(15,18,22,.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: .75rem 1.5rem;
+    font-size: .85rem;
+    z-index: 10;
+  }
+  nav a { color: var(--muted); text-decoration: none; margin-right: 1.2rem; }
+  nav a:hover { color: var(--fg); }
+  .meta {
+    font-size: .85rem; color: var(--muted);
+    border: 1px dashed var(--border);
+    padding: .5rem .75rem;
+    border-radius: 6px;
+    background: rgba(255,255,255,.02);
+  }
+  .verdict { font-size: 1rem; margin-top: 1rem; }
+  .verdict .ok { color: var(--ok); }
+  .verdict .warn { color: var(--warn); }
+  .verdict .bad { color: var(--bad); }
+  footer { padding: 2rem 0 0; color: var(--muted); font-size: .85rem; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Flow-Code — terrain + water + score experiments</h1>
+  <div class="sub">Run on TinyDB (~2,200 LOC, 117 functions). Goal: validate whether embeddings + traces produce a legible visualization of code.</div>
+</header>
+<nav>
+  <a href="#context">context</a>
+  <a href="#terrain">terrain</a>
+  <a href="#water">water</a>
+  <a href="#divergence">divergence</a>
+  <a href="#score">score</a>
+  <a href="#duet">duet</a>
+  <a href="#lessons">lessons</a>
+  <a href="#v2">v2</a>
+</nav>
+<main>
+
+<section id="context">
+  <h2>Context</h2>
+  <p>
+    We tested the hypothesis that a codebase can be meaningfully visualized by combining
+    per-function code embeddings (where code lives <i>semantically</i>) with execution traces
+    (what actually runs <i>temporally</i>). TinyDB was the subject — small enough to verify by
+    eye, real enough to expose problems the toy codebase couldn't.
+  </p>
+  <div class="meta">
+    117 functions embedded with <code>jinaai/jina-embeddings-v2-base-code</code> →
+    UMAP to 2D → KDE → inverted elevation. Real trace from
+    <code>sys.settrace</code> on a representative TinyDB session
+    (insert / insert_multiple / search / get / all / contains / update / remove).
+    Predicted trace from DeepSeek, constrained to the 117 known qnames.
+  </div>
+</section>
+
+<section id="terrain">
+  <h2>Terrain <span class="tag worked">works</span></h2>
+  <p class="caption">
+    2D projection of 117 TinyDB functions. Inverted KDE: dense clusters = valleys (basins),
+    isolated code = peaks. Points colored by source file.
+  </p>
+  <img src="terrain.png" alt="terrain">
+  <p>
+    You can read the shape of the codebase at a glance. <code>operations.py</code>
+    one-liners (<code>increment</code>, <code>decrement</code>, etc.) stand apart as peaks.
+    Table CRUD methods cluster as a valley. Queries live in their own region.
+    This is the first visualization where a newcomer could form a working mental model
+    without reading any code.
+  </p>
+  <div class="lesson"><b>Lesson:</b> per-function embeddings + inverted density is the right spatial primitive. Style/domain signal still muddies the middle on general code; a code-specific embedding model matters.</div>
+</section>
+
+<section id="water">
+  <h2>Water — real vs predicted <span class="tag worked">works</span></h2>
+  <p class="caption">
+    Water pools where code ran. Blue = real trace (178 calls across 42 functions).
+    Orange = LLM's prediction of what would fire (84 calls across 30 functions).
+  </p>
+  <div class="pair">
+    <figure>
+      <img src="real_water.png" alt="real">
+      <figcaption>real — spreads across many basins; reality is noisier than the API surface suggests</figcaption>
+    </figure>
+    <figure>
+      <img src="predicted_water.png" alt="predicted">
+      <figcaption>predicted — concentrated in the "obvious" regions; the LLM under-predicts internal helpers</figcaption>
+    </figure>
+  </div>
+  <div class="lesson"><b>Lesson:</b> the two water patterns carry real signal. Reality touches machinery the summary misses — exactly the "hidden iceberg" a reviewer needs to see.</div>
+</section>
+
+<section id="divergence">
+  <h2>Divergence — the money shot <span class="tag worked">works</span></h2>
+  <p class="caption">
+    Both water colors on one map. Points colored: green = matched, red = real-only (surprise),
+    yellow = predicted-only (missed). Red dots are where reality diverges from the summary.
+  </p>
+  <img src="divergence.png" alt="divergence">
+  <p>
+    Red dots cluster at the bottom — <code>Query.__hash__</code>, <code>Query.__call__</code>,
+    <code>LRUCache.get</code>, <code>Document.__init__</code>, internal <code>_read_table</code>
+    and <code>_get_next_id</code>. These fire during normal TinyDB operations but a reader
+    (or an AI summary) wouldn't list them. <b>This is the diagnostic angle for "is this code
+    doing what I expect?"</b>
+  </p>
+  <div class="lesson"><b>Lesson:</b> divergence is a first-class feature, not a diagnostic afterthought. Red dots = surprises worth reviewing. Yellow dots = predictions that never happened (also worth reviewing).</div>
+</section>
+
+<section id="score">
+  <h2>Execution score — time &times; semantic <span class="tag worked">works</span></h2>
+  <p class="caption">
+    X = call index (time through the trace). Y = 1D semantic projection. Bottom = call depth.
+    You're seeing the "rhythm" of a TinyDB session.
+  </p>
+  <img src="execution_score.png" alt="execution_score">
+  <p>
+    Repeated operations draw the same shape. The three
+    <code>insert</code>-related runs early in the timeline create a repeating sawtooth.
+    Query operations later produce a different, lower-band signature. A future call
+    that <i>broke</i> the expected shape would stand out visually.
+  </p>
+  <div class="lesson"><b>Lesson:</b> the terrain shows <i>where</i>; the score shows <i>when</i>. Together they answer different questions about the same code.</div>
+</section>
+
+<section id="duet">
+  <h2>Duet — real vs predicted melody <span class="tag mixed">mixed</span></h2>
+  <p class="caption">
+    Same score, but with the predicted trace overlaid in orange, time-normalized so the
+    two sequences align proportionally.
+  </p>
+  <img src="execution_score_duet.png" alt="duet">
+  <p>
+    You can see the two melodies occupy the same semantic range (LLM roughly has the
+    right mental model) but real is much noisier (178 vs 84 calls, lots of helper
+    oscillation). The shapes diverge in texture, not in "concept."
+  </p>
+  <div class="lesson"><b>Lesson:</b> normalized-time comparison is fuzzy — same proportional moment isn't the same temporal moment. Divergence view needs a different rendering: event-aligned, or concept-level real (helpers filtered), or divergence bars at predicted anchors.</div>
+</section>
+
+<section id="lessons">
+  <h2>What we learned</h2>
+  <div class="verdict">
+    <p><span class="ok">✓ worked</span> — per-function embeddings → inverted terrain → water overlay → divergence view → execution score. All carry real signal.</p>
+    <p><span class="bad">✗ retired</span> — concat "tier" embeddings for flow encoding (passed on toy, failed on real code). Naive LLM next-step prediction (hallucinated, 20% agreement). General-purpose embeddings (style dominates domain). Normalized-time duet rendering (apples-to-oranges on timing).</p>
+    <p><span class="warn">~ needs rethink</span> — divergence rendering on the score; depth of predicted traces; scale-up past ~200 functions.</p>
+  </div>
+</section>
+
+<section id="v2">
+  <h2>v2 direction</h2>
+  <p>
+    Three guiding principles for v2:
+  </p>
+  <ol>
+    <li><b>Two views, linked</b> — map (terrain+water) and score (time+semantic) side by side. Click on one highlights on the other. Neither alone is sufficient.</li>
+    <li><b>Interactive by default</b> — scrub time, hover for code, click to jump to file:line, zoom to cluster. The product isn't a render — it's a surface.</li>
+    <li><b>Traces are first-class</b> — the entry-point picker (tests, routes, main) replaces the current brief-box. User picks what to run; the tool captures and tells the story.</li>
+  </ol>
+  <p>
+    <b>Open question:</b> does map+score alone work, or is a narrative/prose view still needed as a
+    third lens for "why"?
+  </p>
+</section>
+
+</main>
+<footer>
+  Generated from <code>experiments/synthetic-flow/</code> — 2026-04-13
+</footer>
+</body>
+</html>

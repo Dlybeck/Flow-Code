@@ -1,0 +1,188 @@
+{
+  "session": "A TinyDB session that does the following operations in order:\n1. TinyDB(db_path)  \u2014 open a JSON file as a DB\n2. db.insert({\"name\": \"alice\", \"age\": 30})\n3. db.insert({\"name\": \"bob\", \"age\": 25})\n4. db.insert_multiple([{\"name\": \"carol\", \"age\": 40}, {\"name\": \"dave\", \"age\": 22}])\n5. db.search(Query().age > 26)\n6. db.get(Query().name == \"alice\")\n7. db.all()\n8. db.contains(Query().name == \"bob\")\n9. db.update({\"age\": 31}, Query().name == \"alice\")\n10. db.remove(Query().name == \"dave\")\n11. db.close()\n",
+  "predictions": [
+    {
+      "qname": "TinyDB.__init__",
+      "approx_calls": 1,
+      "reason": "Initialize TinyDB instance"
+    },
+    {
+      "qname": "JSONStorage.__init__",
+      "approx_calls": 1,
+      "reason": "Initialize JSON storage for file-based DB"
+    },
+    {
+      "qname": "JSONStorage.read",
+      "approx_calls": 1,
+      "reason": "Read initial database state from file"
+    },
+    {
+      "qname": "Table.__init__",
+      "approx_calls": 1,
+      "reason": "Initialize default table"
+    },
+    {
+      "qname": "Table._read_table",
+      "approx_calls": 1,
+      "reason": "Read table data during initialization"
+    },
+    {
+      "qname": "Table.insert",
+      "approx_calls": 2,
+      "reason": "Called for each single insert (alice, bob)"
+    },
+    {
+      "qname": "Table._get_next_id",
+      "approx_calls": 4,
+      "reason": "Called for each document insert (4 total)"
+    },
+    {
+      "qname": "Table._update_table",
+      "approx_calls": 7,
+      "reason": "Called for each write operation (2 inserts + 1 insert_multiple + 1 update + 1 remove + 2 for initial reads?)"
+    },
+    {
+      "qname": "JSONStorage.write",
+      "approx_calls": 7,
+      "reason": "Write after each table update (matching _update_table calls)"
+    },
+    {
+      "qname": "Table.insert_multiple",
+      "approx_calls": 1,
+      "reason": "Insert multiple documents (carol, dave)"
+    },
+    {
+      "qname": "Query.__init__",
+      "approx_calls": 5,
+      "reason": "Create query objects for search, get, contains, update, remove"
+    },
+    {
+      "qname": "Query.__gt__",
+      "approx_calls": 1,
+      "reason": "Query().age > 26"
+    },
+    {
+      "qname": "Table.search",
+      "approx_calls": 1,
+      "reason": "Search with age > 26 query"
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "approx_calls": 5,
+      "reason": "Evaluate each query against documents (search, get, contains, update, remove)"
+    },
+    {
+      "qname": "Query.__eq__",
+      "approx_calls": 4,
+      "reason": "Query().name == 'alice' (get), Query().name == 'bob' (contains), Query().name == 'alice' (update), Query().name == 'dave' (remove)"
+    },
+    {
+      "qname": "Table.get",
+      "approx_calls": 1,
+      "reason": "Get document where name == 'alice'"
+    },
+    {
+      "qname": "Table.all",
+      "approx_calls": 1,
+      "reason": "Get all documents"
+    },
+    {
+      "qname": "Table.contains",
+      "approx_calls": 1,
+      "reason": "Check if document with name == 'bob' exists"
+    },
+    {
+      "qname": "Table.update",
+      "approx_calls": 1,
+      "reason": "Update age for document where name == 'alice'"
+    },
+    {
+      "qname": "Table.remove",
+      "approx_calls": 1,
+      "reason": "Remove document where name == 'dave'"
+    },
+    {
+      "qname": "TinyDB.close",
+      "approx_calls": 1,
+      "reason": "Close database"
+    },
+    {
+      "qname": "JSONStorage.close",
+      "approx_calls": 1,
+      "reason": "Close storage when database closes"
+    },
+    {
+      "qname": "Document.__init__",
+      "approx_calls": 4,
+      "reason": "Create Document objects for each inserted document"
+    },
+    {
+      "qname": "where",
+      "approx_calls": 5,
+      "reason": "Called implicitly for each Query() usage (search, get, contains, update, remove)"
+    },
+    {
+      "qname": "Query.__getattr__",
+      "approx_calls": 9,
+      "reason": "Access 'age' and 'name' attributes on query objects (age > 26, name == 'alice' x2, name == 'bob', name == 'dave')"
+    },
+    {
+      "qname": "Query._generate_test",
+      "approx_calls": 5,
+      "reason": "Generate test functions for each query operation"
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "approx_calls": 5,
+      "reason": "Create QueryInstance for each query operation"
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "approx_calls": 5,
+      "reason": "Check if query is cacheable during evaluation"
+    },
+    {
+      "qname": "Table.clear_cache",
+      "approx_calls": 1,
+      "reason": "Clear cache after update operation"
+    },
+    {
+      "qname": "set",
+      "approx_calls": 1,
+      "reason": "Update operation sets age field to 31"
+    }
+  ],
+  "visit_counts": {
+    "TinyDB.__init__": 1,
+    "JSONStorage.__init__": 1,
+    "JSONStorage.read": 1,
+    "Table.__init__": 1,
+    "Table._read_table": 1,
+    "Table.insert": 2,
+    "Table._get_next_id": 4,
+    "Table._update_table": 7,
+    "JSONStorage.write": 7,
+    "Table.insert_multiple": 1,
+    "Query.__init__": 5,
+    "Query.__gt__": 1,
+    "Table.search": 1,
+    "QueryInstance.__call__": 5,
+    "Query.__eq__": 4,
+    "Table.get": 1,
+    "Table.all": 1,
+    "Table.contains": 1,
+    "Table.update": 1,
+    "Table.remove": 1,
+    "TinyDB.close": 1,
+    "JSONStorage.close": 1,
+    "Document.__init__": 4,
+    "where": 5,
+    "Query.__getattr__": 9,
+    "Query._generate_test": 5,
+    "QueryInstance.__init__": 5,
+    "QueryInstance.is_cacheable": 5,
+    "Table.clear_cache": 1,
+    "set": 1
+  },
+  "dropped_unknown": []
+}

@@ -1,0 +1,805 @@
+{
+  "events": [
+    {
+      "qname": "TinyDB.__init__",
+      "depth": 0
+    },
+    {
+      "qname": "JSONStorage.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "touch",
+      "depth": 2
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "TinyDB.storage",
+      "depth": 2
+    },
+    {
+      "qname": "Table.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "LRUCache.__init__",
+      "depth": 3
+    },
+    {
+      "qname": "Table.insert",
+      "depth": 0
+    },
+    {
+      "qname": "Table._get_next_id",
+      "depth": 1
+    },
+    {
+      "qname": "Table._read_table",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 3
+    },
+    {
+      "qname": "Table._update_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.write",
+      "depth": 2
+    },
+    {
+      "qname": "Table.clear_cache",
+      "depth": 2
+    },
+    {
+      "qname": "LRUCache.clear",
+      "depth": 3
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Table.insert",
+      "depth": 0
+    },
+    {
+      "qname": "Table._get_next_id",
+      "depth": 1
+    },
+    {
+      "qname": "Table._update_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.write",
+      "depth": 2
+    },
+    {
+      "qname": "Table.clear_cache",
+      "depth": 2
+    },
+    {
+      "qname": "LRUCache.clear",
+      "depth": 3
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Table.insert_multiple",
+      "depth": 0
+    },
+    {
+      "qname": "Table._update_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "Table._get_next_id",
+      "depth": 2
+    },
+    {
+      "qname": "Table._get_next_id",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.write",
+      "depth": 2
+    },
+    {
+      "qname": "Table.clear_cache",
+      "depth": 2
+    },
+    {
+      "qname": "LRUCache.clear",
+      "depth": 3
+    },
+    {
+      "qname": "Query.__init__",
+      "depth": 0
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "Query.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__gt__",
+      "depth": 0
+    },
+    {
+      "qname": "Query._generate_test",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.search",
+      "depth": 0
+    },
+    {
+      "qname": "LRUCache.get",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__hash__",
+      "depth": 2
+    },
+    {
+      "qname": "Table._read_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 1
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 1
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 1
+    },
+    {
+      "qname": "LRUCache.__setitem__",
+      "depth": 1
+    },
+    {
+      "qname": "LRUCache.set",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__hash__",
+      "depth": 3
+    },
+    {
+      "qname": "QueryInstance.__hash__",
+      "depth": 3
+    },
+    {
+      "qname": "LRUCache.length",
+      "depth": 3
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "Query.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__eq__",
+      "depth": 0
+    },
+    {
+      "qname": "freeze",
+      "depth": 1
+    },
+    {
+      "qname": "Query._generate_test",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.get",
+      "depth": 0
+    },
+    {
+      "qname": "Table._read_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "Table._read_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 1
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Table.all",
+      "depth": 0
+    },
+    {
+      "qname": "Table.__iter__",
+      "depth": 1
+    },
+    {
+      "qname": "Table._read_table",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 3
+    },
+    {
+      "qname": "Table.name",
+      "depth": 3
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.__iter__",
+      "depth": 1
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.__iter__",
+      "depth": 1
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.__iter__",
+      "depth": 1
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.__iter__",
+      "depth": 1
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "Query.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__eq__",
+      "depth": 0
+    },
+    {
+      "qname": "freeze",
+      "depth": 1
+    },
+    {
+      "qname": "Query._generate_test",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.contains",
+      "depth": 0
+    },
+    {
+      "qname": "Table.get",
+      "depth": 1
+    },
+    {
+      "qname": "Table._read_table",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 3
+    },
+    {
+      "qname": "Table.name",
+      "depth": 3
+    },
+    {
+      "qname": "Table._read_table",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 3
+    },
+    {
+      "qname": "Table.name",
+      "depth": 3
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "Document.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "Query.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__eq__",
+      "depth": 0
+    },
+    {
+      "qname": "freeze",
+      "depth": 1
+    },
+    {
+      "qname": "Query._generate_test",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.update",
+      "depth": 0
+    },
+    {
+      "qname": "Table._update_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.write",
+      "depth": 2
+    },
+    {
+      "qname": "Table.clear_cache",
+      "depth": 2
+    },
+    {
+      "qname": "LRUCache.clear",
+      "depth": 3
+    },
+    {
+      "qname": "TinyDB.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.table",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__getattr__",
+      "depth": 0
+    },
+    {
+      "qname": "Query.__init__",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 1
+    },
+    {
+      "qname": "Query.__eq__",
+      "depth": 0
+    },
+    {
+      "qname": "freeze",
+      "depth": 1
+    },
+    {
+      "qname": "Query._generate_test",
+      "depth": 1
+    },
+    {
+      "qname": "QueryInstance.is_cacheable",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__init__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.remove",
+      "depth": 0
+    },
+    {
+      "qname": "Table._update_table",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.read",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "QueryInstance.__call__",
+      "depth": 2
+    },
+    {
+      "qname": "Table.name",
+      "depth": 2
+    },
+    {
+      "qname": "JSONStorage.write",
+      "depth": 2
+    },
+    {
+      "qname": "Table.clear_cache",
+      "depth": 2
+    },
+    {
+      "qname": "LRUCache.clear",
+      "depth": 3
+    },
+    {
+      "qname": "TinyDB.close",
+      "depth": 0
+    },
+    {
+      "qname": "TinyDB.storage",
+      "depth": 1
+    },
+    {
+      "qname": "JSONStorage.close",
+      "depth": 1
+    }
+  ],
+  "visit_counts": {
+    "TinyDB.__init__": 1,
+    "JSONStorage.__init__": 1,
+    "touch": 1,
+    "TinyDB.__getattr__": 9,
+    "TinyDB.table": 9,
+    "TinyDB.storage": 2,
+    "Table.__init__": 1,
+    "LRUCache.__init__": 1,
+    "Table.insert": 2,
+    "Table._get_next_id": 4,
+    "Table._read_table": 7,
+    "JSONStorage.read": 12,
+    "Table._update_table": 5,
+    "Table.name": 16,
+    "JSONStorage.write": 5,
+    "Table.clear_cache": 5,
+    "LRUCache.clear": 5,
+    "Table.insert_multiple": 1,
+    "Query.__init__": 6,
+    "QueryInstance.__init__": 11,
+    "Query.__getattr__": 5,
+    "QueryInstance.is_cacheable": 11,
+    "Query.__gt__": 1,
+    "Query._generate_test": 5,
+    "Table.search": 1,
+    "LRUCache.get": 1,
+    "QueryInstance.__hash__": 3,
+    "QueryInstance.__call__": 15,
+    "Document.__init__": 8,
+    "LRUCache.__setitem__": 1,
+    "LRUCache.set": 1,
+    "LRUCache.length": 1,
+    "Query.__eq__": 4,
+    "freeze": 4,
+    "Table.get": 2,
+    "Table.all": 1,
+    "Table.__iter__": 5,
+    "Table.contains": 1,
+    "Table.update": 1,
+    "Table.remove": 1,
+    "TinyDB.close": 1,
+    "JSONStorage.close": 1
+  },
+  "in_embedding_set": {
+    "TinyDB.__init__": 1,
+    "JSONStorage.__init__": 1,
+    "touch": 1,
+    "TinyDB.__getattr__": 9,
+    "TinyDB.table": 9,
+    "TinyDB.storage": 2,
+    "Table.__init__": 1,
+    "LRUCache.__init__": 1,
+    "Table.insert": 2,
+    "Table._get_next_id": 4,
+    "Table._read_table": 7,
+    "JSONStorage.read": 12,
+    "Table._update_table": 5,
+    "Table.name": 16,
+    "JSONStorage.write": 5,
+    "Table.clear_cache": 5,
+    "LRUCache.clear": 5,
+    "Table.insert_multiple": 1,
+    "Query.__init__": 6,
+    "QueryInstance.__init__": 11,
+    "Query.__getattr__": 5,
+    "QueryInstance.is_cacheable": 11,
+    "Query.__gt__": 1,
+    "Query._generate_test": 5,
+    "Table.search": 1,
+    "LRUCache.get": 1,
+    "QueryInstance.__hash__": 3,
+    "QueryInstance.__call__": 15,
+    "Document.__init__": 8,
+    "LRUCache.__setitem__": 1,
+    "LRUCache.set": 1,
+    "LRUCache.length": 1,
+    "Query.__eq__": 4,
+    "freeze": 4,
+    "Table.get": 2,
+    "Table.all": 1,
+    "Table.__iter__": 5,
+    "Table.contains": 1,
+    "Table.update": 1,
+    "Table.remove": 1,
+    "TinyDB.close": 1,
+    "JSONStorage.close": 1
+  },
+  "outside_embedding_set": {}
+}

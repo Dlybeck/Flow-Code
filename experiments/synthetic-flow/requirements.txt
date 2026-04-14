@@ -1,0 +1,5 @@
+sentence-transformers>=3.0.0
+transformers<4.45
+umap-learn>=0.5
+matplotlib>=3.7
+scipy>=1.11
