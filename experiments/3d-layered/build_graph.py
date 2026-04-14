@@ -477,7 +477,7 @@ def radial_fan_layout(
 
 
 def main() -> None:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "../../packages/raw-indexer/src/raw_indexer")
+    root = Path(sys.argv[1] if len(sys.argv) > 1 else "../../src/flowcode")
     out = Path(sys.argv[2] if len(sys.argv) > 2 else "graph.json")
     entry = sys.argv[3] if len(sys.argv) > 3 else "main"
 
