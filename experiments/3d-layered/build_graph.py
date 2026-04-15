@@ -542,13 +542,35 @@ def radial_fan_layout(
             slope_tan = max(RIDGE_SLOPE_MIN, min(slope_tan, SLOPE_MAX))
             heights[c] = p_h - slope_tan * h_dist
             desc_queue.append(c)
-    # Orphans go to ground level (just below the lowest mountain node)
-    ground = min((h for q, h in heights.items() if q != VIRTUAL), default=0.0) - 1.0
+    # Orphans go just ABOVE the lowest mountain node (not below) — otherwise
+    # they sink under the ground-plane disc in the renderer.
+    lowest_real = min((h for q, h in heights.items() if q != VIRTUAL), default=0.0)
+    orphan_level = lowest_real + 0.1
     for q in orphan_peaks:
-        heights.setdefault(q, ground)
+        heights.setdefault(q, orphan_level)
     # Any still-missing (shouldn't happen but safety net)
     for q in qnames:
-        heights.setdefault(q, ground)
+        heights.setdefault(q, orphan_level)
+
+    # Normalize the height span across the entire mountain so different codebases
+    # produce consistently-tall mountains. Per-step normalization would erase the
+    # ridge/ravine signal; per-route would erase cross-path comparisons. Global
+    # rescaling preserves all relative shapes and just fits them into a target
+    # span.
+    TARGET_SPAN = 28.0
+    mountain_heights = [h for q, h in heights.items() if q != VIRTUAL]
+    if mountain_heights:
+        h_lo = min(mountain_heights)
+        h_hi = max(mountain_heights)
+        actual_span = h_hi - h_lo
+        if actual_span > 0.01:
+            scale = TARGET_SPAN / actual_span
+            # Anchor: keep the peak at PEAK_HEIGHT, stretch everything below it.
+            peak = h_hi
+            for q in list(heights.keys()):
+                if q == VIRTUAL:
+                    continue
+                heights[q] = peak - (peak - heights[q]) * scale
 
     # Build set of primary-tree edges (parent, child) — these are the only
     # edges that are guaranteed monotonic in radius and should be rendered as arcs.

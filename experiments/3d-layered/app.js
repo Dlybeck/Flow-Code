@@ -345,7 +345,7 @@ let currentHeights = new Map();
 
 // ---------- helpers ----------
 const DEPTH_H = 10;
-const LIFT = 0.28;
+const LIFT = 0.55;
 
 function xyFor(n) {
   return state.layout === 'fan' ? [n.x_fan, n.y_fan] : [n.x_umap, n.y_umap];
@@ -496,9 +496,14 @@ function rebuild() {
   for (const e of edges) {
     if (e.is_primary) hasPrimaryChild.add(e.from);
   }
-  // Ground level aligned EXACTLY with the disc (set below via groundMesh.position.y)
-  // so the outermost skirt arc is coplanar with it — no visible seam.
-  const groundY = hMin - 0.3;
+  // Ground level drops below the lowest mountain node. The outermost arcs
+  // sit at groundY; inner arcs are lifted closer to leaf-height so the slope
+  // from leaf to ground is gradual rather than a vertical cliff — otherwise
+  // leaves at the perimeter end up on a near-vertical wedge of terrain and
+  // the grass behind them reads as "floating on ground" to the eye.
+  const groundY = hMin - 2.5;
+  const apronHigh = hMin - 0.6;  // just below the lowest leaf
+  const apronMid  = hMin - 1.5;
   const groundingPositions = [];
 
   // Continuous skirt: three densely-populated arcs at progressively larger radii
@@ -519,12 +524,12 @@ function rebuild() {
   // All grounding arcs are at true ground Y — Delaunay forms the slope from
   // leaves directly to ground with no intermediate lip/ridge.
   const arcs = [
-    { r: maxR + 1.5,  h: groundY, yJitter: 0.22 },
-    { r: maxR + 4.0,  h: groundY, yJitter: 0.18 },
-    { r: maxR + 9.0,  h: groundY, yJitter: 0.15 },
-    { r: maxR + 20.0, h: groundY, yJitter: 0.12 },
-    { r: maxR + 45.0, h: groundY, yJitter: 0.06 },
-    { r: maxR + 80.0, h: groundY, yJitter: 0.0  },
+    { r: maxR + 1.2,  h: apronHigh, yJitter: 0.18 },
+    { r: maxR + 3.5,  h: apronMid,  yJitter: 0.15 },
+    { r: maxR + 8.0,  h: groundY,   yJitter: 0.15 },
+    { r: maxR + 18.0, h: groundY,   yJitter: 0.12 },
+    { r: maxR + 40.0, h: groundY,   yJitter: 0.06 },
+    { r: maxR + 80.0, h: groundY,   yJitter: 0.0  },
   ];
   let gIdx = 0;
   for (const { r: rad, h, yJitter } of arcs) {
@@ -574,10 +579,21 @@ function rebuild() {
 
   // Centroid subdivision: add each triangle's 3D centroid as a new vertex.
   // This roughly 4× the triangle count on pass 2, smoothing the mountain body.
+  // Skip triangles that span from mountain into the ground-apron: averaging a
+  // high ridge vertex with two ground-arc vertices creates a centroid at
+  // mid-height, which the second Delaunay wraps into a neighboring triangle as
+  // a false valley between the ridge and its natural slope. Indices
+  // ≥ nNode+nSteiner are ground-arc vertices, so require all three to be on
+  // the mountain for a centroid to be emitted.
+  const mountainThreshold = nNode + nSteiner;
   for (let t = 0; t < triangles.length; t += 3) {
-    const a = positions3D[triangles[t]];
-    const b = positions3D[triangles[t + 1]];
-    const c = positions3D[triangles[t + 2]];
+    const ia = triangles[t], ib = triangles[t + 1], ic = triangles[t + 2];
+    if (ia >= mountainThreshold || ib >= mountainThreshold || ic >= mountainThreshold) {
+      continue; // mixed-type triangle — skip subdivision
+    }
+    const a = positions3D[ia];
+    const b = positions3D[ib];
+    const c = positions3D[ic];
     const cx = (a[0] + b[0] + c[0]) / 3;
     const cy = (a[1] + b[1] + c[1]) / 3;
     const cz = (a[2] + b[2] + c[2]) / 3;
@@ -677,6 +693,8 @@ function rebuild() {
     vertexColors: true, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide,
   }));
   scene.add(terrainMesh);
+  // Debug handle for inspection via chrome MCP.
+  window.__debug = { scene, terrainMesh, camera, THREE };
   // Wireframe overlay removed — edges are drawn explicitly below so the
   // visible line network matches the actual call graph, not Delaunay triangulation.
   wireMesh = null;
