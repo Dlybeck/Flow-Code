@@ -29,56 +29,43 @@ SHRINK = 0.9        # wedge shrink factor per level
 def compute_importance(
     qnames: list[str],
     calls_by_q: dict[str, list[str]],
-    embeddings: dict[str, list[float]] | None = None,
+    functions: dict | None = None,
     density: dict[str, float] | None = None,
 ) -> dict[str, float]:
-    """Architectural importance = geometric mean of structural centrality and
-    embedding novelty. Both signals must be non-trivial for a node to score high.
+    """Architectural importance = embedding novelty × substance.
 
-    - centrality: betweenness centrality on the call graph (Brandes' algorithm).
-      High = many shortest paths pass through → architectural spine / bridge.
-    - novelty: 1 − semantic_density = how unlike the rest of the codebase.
-      High = a conceptually distinct function; low = generic utility-shaped code.
+    - novelty: 1 − semantic_density. How unlike the rest of the codebase this
+      function's embedding is. High = a conceptually distinct idea expressed
+      here (not boilerplate).
+    - substance: log(LOC + 1), normalized. Size proxy for "there's real work
+      in this function." Without it, a 2-line novelty outlier (an obscure
+      edge-case helper) can outrank a substantive one.
 
-    geometric mean filters out boring utility hubs (high centrality, low novelty)
-    and one-off helpers (high novelty, low centrality). What's left: novel
-    concepts the code actually revolves around → the architectural backbone.
-
-    Falls back to the ancestors×descendants proxy if embeddings aren't supplied."""
-    import networkx as nx
-
-    G = nx.DiGraph()
-    G.add_nodes_from(qnames)
-    for q in qnames:
-        for c in calls_by_q.get(q, []):
-            if c in G and c != q:
-                G.add_edge(q, c)
-
-    # Brandes' betweenness. On call graphs this is cheap enough (<~1k nodes).
-    # endpoints=True: each node gets credit for paths where it's an endpoint,
-    # so the CLI entrypoint (a source, no inbound edges) isn't zeroed out.
-    try:
-        bc = nx.betweenness_centrality(G, normalized=True, endpoints=True)
-    except Exception:
-        bc = {q: 0.0 for q in qnames}
-
-    # Centrality = sqrt-compressed betweenness, normalized.
-    # sqrt compresses the long tail so more than just the top 2 nodes are
-    # visible; real codebases have a few spine nodes with much higher bc
-    # than the rest, which would otherwise flatten everything else to ~0.
-    bc_max = max(bc.values(), default=1.0) or 1.0
-    centrality = {q: math.sqrt(bc.get(q, 0.0) / bc_max) for q in qnames}
-
-    # Novelty from embedding density. Applied as a multiplicative bonus in
-    # [0.5, 1.0] rather than a hard geometric-mean factor — a very central
-    # but semantically-generic node (e.g. a thin `main` wrapper) still
-    # deserves to show up as a ridge.
+    Deliberately DROPS graph-centrality (betweenness, fan-in) — those signals
+    reward hot-path utilities (loggers, setup, error paths) that run often
+    but aren't conceptually what the code is about. A reader pointing at the
+    map would flag "the novel concept with real code behind it" as important,
+    not "the function every stack trace passes through."
+    """
     if density:
-        novelty_bonus = {q: 0.5 + 0.5 * (1.0 - density.get(q, 0.5)) for q in qnames}
+        novelty = {q: max(0.0, 1.0 - density.get(q, 0.5)) for q in qnames}
     else:
-        novelty_bonus = {q: 0.75 for q in qnames}
+        novelty = {q: 0.5 for q in qnames}
 
-    raw = {q: centrality[q] * novelty_bonus[q] for q in qnames}
+    if functions:
+        # source_lines is already attached to each FuncInfo; use it directly.
+        loc = {q: max(1, getattr(functions[q], "source", "").count("\n") + 1) for q in qnames}
+    else:
+        loc = {q: 10 for q in qnames}  # neutral fallback
+    log_loc = {q: math.log(loc[q] + 1) for q in qnames}
+    ll_min = min(log_loc.values(), default=0.0)
+    ll_max = max(log_loc.values(), default=1.0)
+    ll_range = ll_max - ll_min if ll_max > ll_min else 1.0
+    # Normalize substance to [0, 1] but floor at 0.15 — a novel 5-line function
+    # still deserves *some* prominence, just not the full ridge treatment.
+    substance = {q: 0.15 + 0.85 * (log_loc[q] - ll_min) / ll_range for q in qnames}
+
+    raw = {q: novelty[q] * substance[q] for q in qnames}
     max_raw = max(raw.values(), default=1.0) or 1.0
     return {q: raw[q] / max_raw for q in qnames}
 
@@ -628,10 +615,10 @@ def main() -> None:
     # Semantic density first — it feeds the fan layout's height computation
     density = compute_semantic_density(qnames, embeddings)
 
-    # Architectural importance (betweenness × novelty) — needed before the fan
-    # layout so it can scale per-edge slope: important chains stay high longer
-    # (ridges), unimportant chains descend steeply (ravines).
-    importance = compute_importance(qnames, calls_by_q, embeddings, density)
+    # Architectural importance = novelty × substance. Drives ridge formation
+    # in radial_fan_layout: high-importance chains descend shallowly (ridges),
+    # low-importance chains descend steeply (ravines).
+    importance = compute_importance(qnames, calls_by_q, functions, density)
 
     # Radial fan (ski-slope) layout with relative-descent heights
     fan_coords, fan_heights, peaks, primary_edges = radial_fan_layout(
