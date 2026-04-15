@@ -288,6 +288,7 @@ def radial_fan_layout(
     callers_of: dict[str, list[str]],
     embeddings: dict[str, list[float]],
     density: dict[str, float],
+    importance: dict[str, float] | None = None,
 ) -> tuple[dict[str, tuple[float, float]], dict[str, float], list[str]]:
     """Ski-slope layout: one virtual peak at origin, entire slope fans within 120° south.
 
@@ -510,11 +511,22 @@ def radial_fan_layout(
     else:
         smin, srange = 0.0, 1.0
 
-    # Slope range: tan(20°) ≈ 0.364, tan(60°) ≈ 1.732
+    # Slope range. Regular terrain clamps to 10°–60°.
+    # Important chains may drop as low as 3° so architectural spines read as
+    # visible ridges — a chain of near-flat links between two otherwise-steep
+    # slopes is the visual definition of a ridge on a mountain.
     SLOPE_MIN = math.tan(math.radians(10))
     SLOPE_MAX = math.tan(math.radians(60))
+    RIDGE_SLOPE_MIN = math.tan(math.radians(3))
+    SHALLOW_PULL = 0.75  # how much importance pulls slope toward flat
 
-    # Pass 2: BFS from virtual root, apply slope per edge
+    imp = importance or {q: 0.0 for q in qnames}
+
+    # Pass 2: BFS from virtual root, apply slope per edge.
+    # An edge p→c has "ridge-ness" = min(imp[p], imp[c]) — both endpoints must
+    # be architecturally important for the link between them to sit on a ridge.
+    # (If only one side matters the descent stays normal; isolated important
+    # nodes become bumps, not spines.)
     heights: dict[str, float] = {VIRTUAL: PEAK_HEIGHT}
     origin = (0.0, 0.0)
     desc_queue = [VIRTUAL]
@@ -523,13 +535,21 @@ def radial_fan_layout(
         p_d = density_lookup.get(p, 0.5)
         p_h = heights[p]
         p_pos = positions.get(p, origin) if p != VIRTUAL else origin
+        # Virtual root has no importance of its own; use its child's value so
+        # the very first link into the true entry point can still be shallow.
+        p_imp = 1.0 if p == VIRTUAL else imp.get(p, 0.0)
         for c in primary_children.get(p, []):
             c_pos = positions[c]
             h_dist = math.hypot(c_pos[0] - p_pos[0], c_pos[1] - p_pos[1])
             c_d = density_lookup.get(c, 0.0)
             raw = p_d - c_d
             t = (raw - smin) / srange  # 0..1 across the graph
-            slope_tan = SLOPE_MIN + t * (SLOPE_MAX - SLOPE_MIN)
+            base_slope = SLOPE_MIN + t * (SLOPE_MAX - SLOPE_MIN)
+            # Ridge modulation: shrink slope when both endpoints are important.
+            chain_imp = min(p_imp, imp.get(c, 0.0))
+            slope_tan = base_slope * (1.0 - SHALLOW_PULL * chain_imp)
+            # Clamp: ridges floor at 3°, never exceed 60°.
+            slope_tan = max(RIDGE_SLOPE_MIN, min(slope_tan, SLOPE_MAX))
             heights[c] = p_h - slope_tan * h_dist
             desc_queue.append(c)
     # Orphans go to ground level (just below the lowest mountain node)
@@ -605,9 +625,14 @@ def main() -> None:
     # Semantic density first — it feeds the fan layout's height computation
     density = compute_semantic_density(qnames, embeddings)
 
+    # Architectural importance (betweenness × novelty) — needed before the fan
+    # layout so it can scale per-edge slope: important chains stay high longer
+    # (ridges), unimportant chains descend steeply (ravines).
+    importance = compute_importance(qnames, calls_by_q, embeddings, density)
+
     # Radial fan (ski-slope) layout with relative-descent heights
     fan_coords, fan_heights, peaks, primary_edges = radial_fan_layout(
-        qnames, callees_of, callers_of, embeddings, density
+        qnames, callees_of, callers_of, embeddings, density, importance
     )
 
     # Measure crossings in the 2D fan layout (purely informational)
@@ -646,8 +671,9 @@ def main() -> None:
         if y > 0:
             orphan_set.add(q)
 
-    # Architectural importance (centrality × novelty). Drives ridge heights in JS.
-    importance = compute_importance(qnames, calls_by_q, embeddings, density)
+    # importance was computed above (before the fan layout) and already used
+    # to scale per-edge slopes into ridges/ravines. Kept on each node for
+    # the tooltip / debug panel.
 
     nodes = []
     for q in qnames:

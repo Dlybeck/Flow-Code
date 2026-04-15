@@ -596,77 +596,11 @@ function rebuild() {
     posArr[i * 3] = x; posArr[i * 3 + 1] = y; posArr[i * 3 + 2] = z;
   }
 
-  // Architectural ridges: lift vertices near high-importance nodes and along
-  // primary edges between them. Falloff is narrow and the contribution is
-  // max()-combined (not summed) so ridges read as crisp linear spines rather
-  // than blobby plateaus. The mountain still descends from root to leaves;
-  // ridges just add distinguishing anatomy on top.
-  // Adaptive threshold: top ~30% of nodes by importance qualify as ridge
-  // sources. Adaptive rather than absolute so the same visual density of
-  // ridges emerges on a 30-node CLI tool and a 1000-node framework.
-  const sortedImp = terrainNodes.map(n => n.importance ?? 0).sort((a, b) => b - a);
-  const pctIdx = Math.max(0, Math.floor(sortedImp.length * 0.30) - 1);
-  const RIDGE_THRESHOLD = Math.max(0.12, sortedImp[pctIdx] ?? 0.25);
-  const RIDGE_RADIUS    = 1.6;                  // gaussian sigma in graph units (tighter = crisper ridge)
-  const RIDGE_AMP       = Math.max(2.5, hRange * 0.55); // peak lift at centerline
-  const ridgeSources = []; // { x, z, s } — s scales amp in [0,1]
-  const nodeDataById = new Map(nodes.map(n => [n.id, n]));
-  const RIDGE_EDGE_SAMPLES = 14;
-  for (const n of terrainNodes) {
-    const imp = n.importance ?? 0;
-    if (imp < RIDGE_THRESHOLD) continue;
-    const [x, , z] = currentPositions.get(n.id);
-    ridgeSources.push({ x, z, s: imp });
-  }
-  for (const e of edges) {
-    if (!e.is_primary) continue;
-    const a = nodeDataById.get(e.from);
-    const b = nodeDataById.get(e.to);
-    if (!a || !b) continue;
-    const ia = a.importance ?? 0, ib = b.importance ?? 0;
-    // Sample the edge if EITHER endpoint is important — this way a spine node's
-    // ridge continues down to its most-important child even if the child alone
-    // wouldn't cross the threshold.
-    if (Math.max(ia, ib) < RIDGE_THRESHOLD) continue;
-    const pa = currentPositions.get(a.id);
-    const pb = currentPositions.get(b.id);
-    if (!pa || !pb) continue;
-    for (let k = 1; k < RIDGE_EDGE_SAMPLES; k++) {
-      const t = k / RIDGE_EDGE_SAMPLES;
-      ridgeSources.push({
-        x: pa[0] * (1 - t) + pb[0] * t,
-        z: pa[2] * (1 - t) + pb[2] * t,
-        s: ia * (1 - t) + ib * t,
-      });
-    }
-  }
-  const twoSigSq = 2 * RIDGE_RADIUS * RIDGE_RADIUS;
-  const maxDistSq = (RIDGE_RADIUS * 2.5) ** 2;
-  const groundYLevel = hMin - 0.25; // anything at/below this is terrain apron — don't lift
-  function ridgeLiftAt(x, z, vy) {
-    if (vy <= groundYLevel) return 0;
-    const heightBlend = Math.min(1, (vy - groundYLevel) / Math.max(0.8, hRange * 0.15));
-    let peak = 0;
-    for (const s of ridgeSources) {
-      const dx = x - s.x, dz = z - s.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 > maxDistSq) continue;
-      const contrib = s.s * Math.exp(-d2 / twoSigSq);
-      if (contrib > peak) peak = contrib;
-    }
-    return peak * RIDGE_AMP * heightBlend;
-  }
-  for (let i = 0; i < finalCount; i++) {
-    posArr[i * 3 + 1] += ridgeLiftAt(posArr[i * 3], posArr[i * 3 + 2], posArr[i * 3 + 1]);
-  }
-  // Also lift the stored node positions so spheres & edges ride on the ridged surface.
-  for (const n of terrainNodes) {
-    const p = currentPositions.get(n.id);
-    if (!p) continue;
-    const lift = ridgeLiftAt(p[0], p[2], p[1]);
-    p[1] += lift;
-    currentHeights.set(n.id, p[1]);
-  }
+  // Architectural ridges are baked into the heights themselves by the Python
+  // build step: per-edge slope is scaled by (1 − α·min(imp_parent, imp_child)),
+  // so important chains stay high longer (visible ridges) and unimportant
+  // chains descend steeply (ravines). No additive JS lift needed — the terrain
+  // already encodes the spine via the y-values we just read from graph.json.
 
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
