@@ -397,8 +397,8 @@ const TERRAIN_STOPS = [
   [1.00, new THREE.Color(0xf8f5ef)], // summit
 ];
 // Rock tiers: bare → dark (near-cliff) → shadow
-const ROCK = new THREE.Color(0x6a5c4f);
-const ROCK_DARK = new THREE.Color(0x3a3530);
+const ROCK = new THREE.Color(0x7d7366);      // cool gray-brown — contrasts the warm slope
+const ROCK_DARK = new THREE.Color(0x2e2a25);  // near-black cliff tone
 
 // Sharpens u: plateau near 0, plateau near 1, narrow transition in the middle.
 // Produces distinct zones with visible boundaries instead of a continuous gradient.
@@ -629,12 +629,13 @@ function rebuild() {
     const t = (y - hMin) / hRange;
     let mixed = terrainColor(t);
 
-    // Tier 1 — moderate slopes bleed toward plain rock
-    const rockMix = Math.min(1, Math.max(0, (steep - 0.04) * 3.0));
-    mixed = mixed.clone().lerp(ROCK, rockMix * 0.72);
-    // Tier 2 — genuinely steep faces (≥ ~45°) go to dark rock / cliff tone
-    const cliffMix = Math.min(1, Math.max(0, (steep - 0.30) * 2.4));
-    mixed.lerp(ROCK_DARK, cliffMix * 0.65);
+    // Tier 1 — any perceptible slope picks up cool-gray rock tint so the eye
+    // can distinguish slope from flat ground.
+    const rockMix = Math.min(1, Math.max(0, (steep - 0.02) * 3.5));
+    mixed = mixed.clone().lerp(ROCK, rockMix * 0.90);
+    // Tier 2 — genuinely steep faces (≥ ~30°) go to near-black cliff tone
+    const cliffMix = Math.min(1, Math.max(0, (steep - 0.20) * 3.0));
+    mixed.lerp(ROCK_DARK, cliffMix * 0.85);
     // Shadow tint: darken anything facing away from sun
     const shadow = new THREE.Color(0x2a2f36);
     mixed.lerp(shadow, shadowT * 0.35);
@@ -655,7 +656,11 @@ function rebuild() {
   geom.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
 
   terrainMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide,
+    vertexColors: true,
+    roughness: 0.85,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+    flatShading: true,   // each triangle shows its own normal → facets & indents read distinctly
   }));
   scene.add(terrainMesh);
   // Debug handle for inspection via chrome MCP.
