@@ -367,31 +367,85 @@ def radial_fan_layout(
             remaining.remove(nxt)
         return ordered
 
-    # BFS from the virtual root. Each child gets a sub-slice of its parent's
-    # angular range, proportional to subtree size. Child's radius = parent's + STEP.
-    queue = [VIRTUAL]
-    while queue:
-        parent = queue.pop(0)
-        kids = primary_children[parent]
-        if not kids:
-            continue
+    angles: dict[str, float] = {}  # node → polar angle of final position
+
+    def _clamp_to_wedge(angle: float, a_min: float, a_max: float) -> float:
+        """Wrap `angle` onto the same 2π cycle as the wedge, then clamp."""
+        mid = (a_min + a_max) / 2
+        while angle < mid - math.pi:
+            angle += 2 * math.pi
+        while angle > mid + math.pi:
+            angle -= 2 * math.pi
+        return max(a_min, min(a_max, angle))
+
+    def barycenter_order(parent: str, kids: list[str]) -> list[str]:
+        """Sibling order that minimizes edge crossings: sort by the circular
+        mean of each child's non-parent neighbors' angles."""
+        if len(kids) < 2:
+            return list(kids)
         a_min, a_max = angle_range[parent]
-        a_width = a_max - a_min
-        ordered = nn_chain(kids, parent)
-        sizes = [max(1, subtree_size(c)) for c in ordered]
-        total = sum(sizes)
-        parent_radius = radii[parent]
-        start = a_min
-        for k, s in zip(ordered, sizes):
-            slot_w = a_width * (s / total)
-            slot_min, slot_max = start, start + slot_w
-            angle_range[k] = (slot_min, slot_max)
-            k_angle = (slot_min + slot_max) / 2
-            k_radius = parent_radius + STEP
-            radii[k] = k_radius
-            positions[k] = (k_radius * math.cos(k_angle), k_radius * math.sin(k_angle))
-            queue.append(k)
-            start = slot_max
+        kid_pref: dict[str, float] = {}
+        for k in kids:
+            neighbor_angles: list[float] = []
+            for n in callers_of.get(k, []):
+                if n != parent and n in angles:
+                    neighbor_angles.append(angles[n])
+            for n in callees_of.get(k, []):
+                if n in angles:
+                    neighbor_angles.append(angles[n])
+            if neighbor_angles:
+                s = sum(math.sin(a) for a in neighbor_angles)
+                c = sum(math.cos(a) for a in neighbor_angles)
+                pref = math.atan2(s, c)
+            else:
+                pref = angles.get(k, (a_min + a_max) / 2)
+            kid_pref[k] = _clamp_to_wedge(pref, a_min, a_max)
+        return sorted(kids, key=lambda k: kid_pref[k])
+
+    def place_tree(order_fn) -> None:
+        """Run a BFS from VIRTUAL, placing children in the order returned by order_fn.
+        Writes into `positions`, `angles`, `angle_range`, `radii`."""
+        # Reset mutable state (preserves VIRTUAL's initial wedge / radius)
+        angles.clear()
+        positions.clear()
+        angle_range_local = {VIRTUAL: angle_range[VIRTUAL]}
+        radii_local = {VIRTUAL: 0.0}
+        queue = [VIRTUAL]
+        while queue:
+            parent = queue.pop(0)
+            kids = primary_children[parent]
+            if not kids:
+                continue
+            a_min, a_max = angle_range_local[parent]
+            a_width = a_max - a_min
+            parent_radius = radii_local[parent]
+            # Update the outer angle_range so order_fn can read parent's wedge
+            angle_range[parent] = (a_min, a_max)
+            ordered = order_fn(parent, kids)
+            sizes = [max(1, subtree_size(c)) for c in ordered]
+            total = sum(sizes)
+            start = a_min
+            for k, s in zip(ordered, sizes):
+                slot_w = a_width * (s / total)
+                slot_min, slot_max = start, start + slot_w
+                angle_range_local[k] = (slot_min, slot_max)
+                angle_range[k] = (slot_min, slot_max)
+                k_angle = (slot_min + slot_max) / 2
+                k_radius = parent_radius + STEP
+                radii_local[k] = k_radius
+                radii[k] = k_radius
+                positions[k] = (k_radius * math.cos(k_angle), k_radius * math.sin(k_angle))
+                angles[k] = k_angle
+                queue.append(k)
+                start = slot_max
+
+    # Pass 0: seed with NN-chain ordering so we have initial angles
+    place_tree(lambda parent, kids: nn_chain(kids, parent))
+
+    # Passes 1..N: barycenter reorder, using fresh angles each time
+    BARYCENTER_ITERATIONS = 10
+    for _ in range(BARYCENTER_ITERATIONS):
+        place_tree(barycenter_order)
 
     # Place orphan peaks behind the mountain (north of origin) so they don't
     # clutter the south-facing slope. Arrange them in a compact grid.
@@ -432,7 +486,7 @@ def radial_fan_layout(
         smin, srange = 0.0, 1.0
 
     # Slope range: tan(20°) ≈ 0.364, tan(60°) ≈ 1.732
-    SLOPE_MIN = math.tan(math.radians(20))
+    SLOPE_MIN = math.tan(math.radians(10))
     SLOPE_MAX = math.tan(math.radians(60))
 
     # Pass 2: BFS from virtual root, apply slope per edge
@@ -530,6 +584,30 @@ def main() -> None:
     fan_coords, fan_heights, peaks, primary_edges = radial_fan_layout(
         qnames, callees_of, callers_of, embeddings, density
     )
+
+    # Measure crossings in the 2D fan layout (purely informational)
+    def _segments_cross(p1, p2, p3, p4):
+        def ccw(a, b, c):
+            return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
+        return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
+
+    edge_segments = []
+    for q in qnames:
+        if q not in fan_coords:
+            continue
+        for c in functions[q].calls:
+            if c in fan_coords and q != c:
+                edge_segments.append((q, c, fan_coords[q], fan_coords[c]))
+    crossings = 0
+    for i in range(len(edge_segments)):
+        for j in range(i + 1, len(edge_segments)):
+            a, b, p1, p2 = edge_segments[i]
+            c, d, p3, p4 = edge_segments[j]
+            if len({a, b, c, d}) < 4:
+                continue  # share an endpoint, not a true crossing
+            if _segments_cross(p1, p2, p3, p4):
+                crossings += 1
+    print(f"  2D edge crossings: {crossings}")
     print(f"  connected peaks: {len(peaks)}")
 
     # Orphans = real peaks with no children (isolated, dead-code looking). The

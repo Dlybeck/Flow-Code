@@ -80,7 +80,7 @@
   </div>
   <div class="group">
     <div class="label">Height rule</div>
-    <div style="font-size:11px; color:var(--muted)">Relative descent: drop = (parent_density − child_density) × distance. Child stays level if its density ≥ parent. Slope ≤ 45°.</div>
+    <div style="font-size:11px; color:var(--muted)">Relative descent driven by embedding-density delta between parent and child. Slopes clamped to 10°–60°.</div>
   </div>
 </div>
 
@@ -104,6 +104,9 @@
   }
 }
 </script>
-<script type="module" src="./app.js"></script>
+<script type="module">
+  const v = new URL(location.href).searchParams.get('v') || Date.now();
+  import(`./app.js?v=${v}`);
+</script>
 </body>
 </html>
