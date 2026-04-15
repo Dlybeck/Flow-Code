@@ -552,25 +552,43 @@ def radial_fan_layout(
     for q in qnames:
         heights.setdefault(q, orphan_level)
 
-    # Normalize the height span across the entire mountain so different codebases
-    # produce consistently-tall mountains. Per-step normalization would erase the
-    # ridge/ravine signal; per-route would erase cross-path comparisons. Global
-    # rescaling preserves all relative shapes and just fits them into a target
-    # span.
-    TARGET_SPAN = 28.0
-    mountain_heights = [h for q, h in heights.items() if q != VIRTUAL]
-    if mountain_heights:
-        h_lo = min(mountain_heights)
-        h_hi = max(mountain_heights)
-        actual_span = h_hi - h_lo
-        if actual_span > 0.01:
-            scale = TARGET_SPAN / actual_span
-            # Anchor: keep the peak at PEAK_HEIGHT, stretch everything below it.
-            peak = h_hi
+    # Robust normalization: map the 10th–90th percentile of heights to the
+    # TARGET_SPAN range. Both tails get soft-clipped — the mountain's
+    # outlier peak (often a single entry wrapper) gets saturated at the top,
+    # and the 2–3 deepest leaves get saturated at the bottom. The meaningful
+    # ~80% of nodes fill the full vertical span instead of being crushed
+    # into a thin middle band by unlucky extremes.
+    # TARGET_SPAN kept modest relative to the horizontal footprint so visual
+    # aspect stays mountain-like (≤ ~30° average slope). The per-edge slope
+    # cap is 60° but that's per call-graph link; adjacent Delaunay triangles
+    # between a high ridge vertex and a low ravine vertex would otherwise
+    # form near-vertical cliffs if TARGET_SPAN were too aggressive.
+    TARGET_SPAN = 14.0
+    OUT_HEAD = 1.5
+    mountain_heights = sorted(h for q, h in heights.items() if q != VIRTUAL)
+    if mountain_heights and len(mountain_heights) >= 4:
+        n = len(mountain_heights)
+        p_hi = mountain_heights[int(n * 0.90)]
+        p_lo = mountain_heights[int(n * 0.10)]
+        core_span = p_hi - p_lo
+        if core_span > 0.01:
+            scale = TARGET_SPAN / core_span
+            # Anchor so p_lo → 0 and p_hi → TARGET_SPAN.
+            top_clip = TARGET_SPAN + OUT_HEAD
+            bot_clip = -OUT_HEAD
             for q in list(heights.keys()):
                 if q == VIRTUAL:
                     continue
-                heights[q] = peak - (peak - heights[q]) * scale
+                y_new = (heights[q] - p_lo) * scale
+                # Soft-clip both tails
+                if y_new > TARGET_SPAN:
+                    # Tanh-like ease-off toward top_clip
+                    excess = (y_new - TARGET_SPAN) / (y_new - TARGET_SPAN + OUT_HEAD)
+                    y_new = TARGET_SPAN + OUT_HEAD * excess
+                elif y_new < 0:
+                    excess = (-y_new) / (-y_new + OUT_HEAD)
+                    y_new = -OUT_HEAD * excess
+                heights[q] = y_new
 
     # Build set of primary-tree edges (parent, child) — these are the only
     # edges that are guaranteed monotonic in radius and should be rendered as arcs.

@@ -463,29 +463,10 @@ function rebuild() {
   }
 
   // --- Terrain mesh --- (orphans excluded — they don't belong to the mountain).
-  // To prevent triangle faces from bulging above straight edges (which would
-  // create a misleading visual ridge), we inject Steiner points at the 1/3 and
-  // 2/3 marks of every primary edge. Delaunay includes these as vertices, so
-  // the mesh is forced to conform to the edge paths rather than crossing over
-  // them.
+  // Minimal mesh: nodes + grounding arcs, no Steiner subdivision. Keeps
+  // facets readable — you can tell which triangle belongs to which edge.
   const terrainNodes = nodes.filter(n => !n.is_orphan);
-  const orphanIds = new Set(nodes.filter(n => n.is_orphan).map(n => n.id));
-
-  const steinerPositions = [];  // [x, y, z] triples
-  for (const e of edges) {
-    if (!e.is_primary) continue;
-    if (orphanIds.has(e.from) || orphanIds.has(e.to)) continue;
-    const a = currentPositions.get(e.from);
-    const b = currentPositions.get(e.to);
-    if (!a || !b) continue;
-    for (const t of [1 / 3, 2 / 3]) {
-      steinerPositions.push([
-        a[0] * (1 - t) + b[0] * t,
-        a[1] * (1 - t) + b[1] * t,
-        a[2] * (1 - t) + b[2] * t,
-      ]);
-    }
-  }
+  const steinerPositions = [];
 
   // --- Grounding points ---
   // Connect the mountain to the surrounding ground with a skirt of points at
@@ -577,29 +558,13 @@ function rebuild() {
     positions3D[nNode + nSteiner + i] = groundingPositions[i];
   }
 
-  // Centroid subdivision: add each triangle's 3D centroid as a new vertex.
-  // This roughly 4× the triangle count on pass 2, smoothing the mountain body.
-  // Skip triangles that span from mountain into the ground-apron: averaging a
-  // high ridge vertex with two ground-arc vertices creates a centroid at
-  // mid-height, which the second Delaunay wraps into a neighboring triangle as
-  // a false valley between the ridge and its natural slope. Indices
-  // ≥ nNode+nSteiner are ground-arc vertices, so require all three to be on
-  // the mountain for a centroid to be emitted.
-  const mountainThreshold = nNode + nSteiner;
-  for (let t = 0; t < triangles.length; t += 3) {
-    const ia = triangles[t], ib = triangles[t + 1], ic = triangles[t + 2];
-    if (ia >= mountainThreshold || ib >= mountainThreshold || ic >= mountainThreshold) {
-      continue; // mixed-type triangle — skip subdivision
-    }
-    const a = positions3D[ia];
-    const b = positions3D[ib];
-    const c = positions3D[ic];
-    const cx = (a[0] + b[0] + c[0]) / 3;
-    const cy = (a[1] + b[1] + c[1]) / 3;
-    const cz = (a[2] + b[2] + c[2]) / 3;
-    pts2d.push([cx, cz]);
-    positions3D.push([cx, cy, cz]);
-  }
+  // Centroid subdivision DISABLED. Any triangle with meaningful vertical range
+  // produces a centroid at the arithmetic-mean height — which the second
+  // Delaunay then wraps into a neighboring triangle as a LOWER vertex between
+  // higher ones, creating visible craters on ridges and pinched bowls on
+  // slopes. Primary-tree Steiner points (already added above) give enough
+  // mesh density for smooth-looking slopes; we accept slightly more visible
+  // Delaunay faceting in exchange for a crater-free surface.
 
   // Pass 2 Delaunay on the augmented point set
   delaunay = Delaunay.from(pts2d);
