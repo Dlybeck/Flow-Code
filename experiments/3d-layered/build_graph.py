@@ -26,35 +26,60 @@ MAX_WEDGE_DEG = 120 # max fan-out per node
 SHRINK = 0.9        # wedge shrink factor per level
 
 
-def compute_importance(qnames: list[str], calls_by_q: dict[str, list[str]]) -> dict[str, float]:
-    """Flow width per node: count of distinct ancestors × distinct descendants.
-    A node on many paths → high value → should rise as a ridge.
-    A node on a lone path → low value → sits in a ravine.
-    Output normalized to [0, 1]."""
-    callees: dict[str, set[str]] = {q: set(calls_by_q.get(q, [])) for q in qnames}
-    callers: dict[str, set[str]] = {q: set() for q in qnames}
-    for q, outs in callees.items():
-        for c in outs:
-            if c in callers:
-                callers[c].add(q)
+def compute_importance(
+    qnames: list[str],
+    calls_by_q: dict[str, list[str]],
+    embeddings: dict[str, list[float]] | None = None,
+    density: dict[str, float] | None = None,
+) -> dict[str, float]:
+    """Architectural importance = geometric mean of structural centrality and
+    embedding novelty. Both signals must be non-trivial for a node to score high.
 
-    def reachable(start: str, adj: dict[str, set[str]]) -> set[str]:
-        seen: set[str] = set()
-        stack = [start]
-        while stack:
-            cur = stack.pop()
-            for n in adj.get(cur, ()):
-                if n not in seen:
-                    seen.add(n)
-                    stack.append(n)
-        return seen
+    - centrality: betweenness centrality on the call graph (Brandes' algorithm).
+      High = many shortest paths pass through → architectural spine / bridge.
+    - novelty: 1 − semantic_density = how unlike the rest of the codebase.
+      High = a conceptually distinct function; low = generic utility-shaped code.
 
-    raw: dict[str, float] = {}
+    geometric mean filters out boring utility hubs (high centrality, low novelty)
+    and one-off helpers (high novelty, low centrality). What's left: novel
+    concepts the code actually revolves around → the architectural backbone.
+
+    Falls back to the ancestors×descendants proxy if embeddings aren't supplied."""
+    import networkx as nx
+
+    G = nx.DiGraph()
+    G.add_nodes_from(qnames)
     for q in qnames:
-        ancestors = reachable(q, callers) | {q}
-        descendants = reachable(q, callees) | {q}
-        raw[q] = len(ancestors) * len(descendants)
-    max_raw = max(raw.values(), default=1) or 1
+        for c in calls_by_q.get(q, []):
+            if c in G and c != q:
+                G.add_edge(q, c)
+
+    # Brandes' betweenness. On call graphs this is cheap enough (<~1k nodes).
+    # endpoints=True: each node gets credit for paths where it's an endpoint,
+    # so the CLI entrypoint (a source, no inbound edges) isn't zeroed out.
+    try:
+        bc = nx.betweenness_centrality(G, normalized=True, endpoints=True)
+    except Exception:
+        bc = {q: 0.0 for q in qnames}
+
+    # Centrality = sqrt-compressed betweenness, normalized.
+    # sqrt compresses the long tail so more than just the top 2 nodes are
+    # visible; real codebases have a few spine nodes with much higher bc
+    # than the rest, which would otherwise flatten everything else to ~0.
+    bc_max = max(bc.values(), default=1.0) or 1.0
+    centrality = {q: math.sqrt(bc.get(q, 0.0) / bc_max) for q in qnames}
+
+    # Novelty from embedding density. Applied as a multiplicative bonus in
+    # [0.5, 1.0] rather than a hard geometric-mean factor — a very central
+    # but semantically-generic node (e.g. a thin `main` wrapper) still
+    # deserves to show up as a ridge.
+    if density:
+        novelty_bonus = {q: 0.5 + 0.5 * (1.0 - density.get(q, 0.5)) for q in qnames}
+    else:
+        novelty_bonus = {q: 0.75 for q in qnames}
+
+    raw = {q: centrality[q] * novelty_bonus[q] for q in qnames}
+    max_raw = max(raw.values(), default=1.0) or 1.0
     return {q: raw[q] / max_raw for q in qnames}
 
 
@@ -621,8 +646,8 @@ def main() -> None:
         if y > 0:
             orphan_set.add(q)
 
-    # Importance retained for display only (no longer affects height)
-    importance = compute_importance(qnames, calls_by_q)
+    # Architectural importance (centrality × novelty). Drives ridge heights in JS.
+    importance = compute_importance(qnames, calls_by_q, embeddings, density)
 
     nodes = []
     for q in qnames:
