@@ -517,8 +517,11 @@ def radial_fan_layout(
     # slopes is the visual definition of a ridge on a mountain.
     SLOPE_MIN = math.tan(math.radians(10))
     SLOPE_MAX = math.tan(math.radians(60))
-    RIDGE_SLOPE_MIN = math.tan(math.radians(3))
-    SHALLOW_PULL = 0.75  # how much importance pulls slope toward flat
+    RIDGE_SLOPE_MIN = math.tan(math.radians(5))
+    SHALLOW_PULL = 0.55  # how much importance pulls slope toward flat
+    # Rationale: at 0.75 the spine barely drops at all — mountain becomes a
+    # wide mesa. 0.55 keeps ridges visibly shallower than normal terrain while
+    # the overall mountain profile still reads as a mountain, not a plateau.
 
     imp = importance or {q: 0.0 for q in qnames}
 

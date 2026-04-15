@@ -765,8 +765,10 @@ function rebuild() {
     // peak. Height slightly below peak gives a classic "standing at base
     // looking up" view that shows the full slope shape.
     const zSouth = Math.min(...xy.map(p => p[1]));  // most-negative world Z
-    // Higher + further back so the snow summit sits visibly in the initial frame.
-    camera.position.set(xMid, hMax * 1.05, zSouth - 55);
+    // Higher + closer in so the mountain fills the frame. With shallow ridges
+    // the mountain is wider than tall; pulling the camera in makes the vertical
+    // profile read more clearly against the horizon.
+    camera.position.set(xMid, hMax * 1.1, zSouth - 32);
     camera.lookAt(xMid, yMid, zMid);
     initialCameraPlacement = false;
   }

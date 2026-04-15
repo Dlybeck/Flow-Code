@@ -29,6 +29,23 @@ def _source(lines: list[str], node: ast.AST) -> str:
     return "\n".join(lines[start:end])
 
 
+# Method names that are almost always dict / stdlib / third-party calls in Python.
+# If one of these appears on a non-self receiver we refuse to match it even if it's
+# unique in the known set — otherwise a single user-defined `MyClass.get` gets linked
+# to every `dict.get()`, `config.get()`, `os.environ.get()` in the whole codebase,
+# creating phantom architectural spines.
+_GENERIC_METHOD_NAMES = frozenset({
+    "get", "set", "update", "pop", "popitem", "keys", "values", "items", "setdefault",
+    "append", "extend", "insert", "remove", "index", "count", "clear", "copy", "sort",
+    "add", "discard", "union", "intersection", "difference",
+    "load", "loads", "dump", "dumps", "save", "read", "write", "close", "open",
+    "encode", "decode", "strip", "split", "join", "format", "replace", "startswith",
+    "endswith", "lower", "upper", "find", "rfind",
+    "send", "recv", "start", "stop", "run", "execute", "call", "apply",
+    "next", "iter", "__init__", "__enter__", "__exit__",
+})
+
+
 def _collect_callees(fn_node: ast.FunctionDef, class_name: str | None, known: set[str]) -> list[str]:
     out: set[str] = set()
     for node in ast.walk(fn_node):
@@ -49,8 +66,11 @@ def _collect_callees(fn_node: ast.FunctionDef, class_name: str | None, known: se
                 and f"{class_name}.{f.attr}" in known
             ):
                 candidate = f"{class_name}.{f.attr}"
-            else:
-                # unique .foo match across all known qnames
+            elif isinstance(f.value, ast.Name) and f.attr not in _GENERIC_METHOD_NAMES:
+                # Simple-receiver call like `parser.add_argument()` or `env.log_error()`.
+                # We require the receiver to be a plain Name (not a chained Attribute like
+                # `env.config.get()`) — chains usually traverse into third-party types,
+                # where matching against the user's codebase creates phantom edges.
                 matches = [k for k in known if k.endswith(f".{f.attr}") or k == f.attr]
                 if len(matches) == 1:
                     candidate = matches[0]
