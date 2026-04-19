@@ -571,7 +571,7 @@ def radial_fan_layout(
     # below p10 clips to the bottom edge, everything above p90 clips to the
     # top edge. The meaningful 80% of nodes now fills 80% of the vertical
     # range — ridge variation becomes legible.
-    TARGET_SPAN = 10.0
+    TARGET_SPAN = 18.0
     INNER_FRAC = 0.80     # fraction of TARGET_SPAN allocated to the p10–p90 band
     LO_PCT, HI_PCT = 0.10, 0.90
     mountain_heights = sorted(h for q, h in heights.items() if q != VIRTUAL)
