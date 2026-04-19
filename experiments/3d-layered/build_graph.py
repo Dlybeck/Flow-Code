@@ -561,28 +561,40 @@ def radial_fan_layout(
     for q in qnames:
         heights.setdefault(q, orphan_level)
 
-    # Simple min-max normalization: map actual min/max heights to [0, TARGET_SPAN].
-    # NOTE: we used to run a radial-monotonicity post-pass here that lifted
-    # any node whose nearby neighbors were higher, but it over-corrected —
-    # nearly every low-importance node has SOME higher neighbor, so every
-    # low node got lifted and the whole mountain flattened into a uniform
-    # cone with no visible ridges. Dropped. The per-link drop cap above is
-    # sufficient for the worst pockets (e.g. _sha256_bytes dropping 9 units
-    # from its parent); residual 1-2 unit rises remain tolerable and keep
-    # the ridge/ravine distinction readable.
+    # Percentile normalization with hard clipping.
+    # Problem we're solving: min-max scaling crams the middle 80-90% of nodes
+    # into a narrow vertical band because one outlier peak (usually `main`)
+    # and one outlier valley (usually a deep low-importance leaf) stretch the
+    # range. The middle ends up indistinguishable.
+    #
+    # Fix: map the p10–p90 band to the middle 80% of TARGET_SPAN. Everything
+    # below p10 clips to the bottom edge, everything above p90 clips to the
+    # top edge. The meaningful 80% of nodes now fills 80% of the vertical
+    # range — ridge variation becomes legible.
     TARGET_SPAN = 10.0
-    mountain_heights = [h for q, h in heights.items() if q != VIRTUAL]
-    if mountain_heights and len(mountain_heights) >= 2:
-        h_lo = min(mountain_heights)
-        h_hi = max(mountain_heights)
-        core_span = h_hi - h_lo
+    INNER_FRAC = 0.80     # fraction of TARGET_SPAN allocated to the p10–p90 band
+    LO_PCT, HI_PCT = 0.10, 0.90
+    mountain_heights = sorted(h for q, h in heights.items() if q != VIRTUAL)
+    n = len(mountain_heights)
+    if n >= 4:
+        p_lo = mountain_heights[int(n * LO_PCT)]
+        p_hi = mountain_heights[int(n * HI_PCT)]
+        core_span = p_hi - p_lo
         if core_span > 0.01:
-            scale = TARGET_SPAN / core_span
+            inner_span = TARGET_SPAN * INNER_FRAC
+            inner_lo = TARGET_SPAN * (1 - INNER_FRAC) / 2    # e.g. 1.0
+            inner_hi = inner_lo + inner_span                  # e.g. 9.0
+            scale = inner_span / core_span
             for q in list(heights.keys()):
                 if q == VIRTUAL:
                     continue
-                y_new = (heights[q] - h_lo) * scale
-                heights[q] = y_new
+                h = heights[q]
+                if h <= p_lo:
+                    heights[q] = max(0.0, inner_lo - (p_lo - h) * 0.3)  # soft pull-down below p10
+                elif h >= p_hi:
+                    heights[q] = min(TARGET_SPAN, inner_hi + (h - p_hi) * 0.3)  # soft pull-up above p90
+                else:
+                    heights[q] = inner_lo + (h - p_lo) * scale
 
     # Build set of primary-tree edges (parent, child) — these are the only
     # edges that are guaranteed monotonic in radius and should be rendered as arcs.
