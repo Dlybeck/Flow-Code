@@ -561,6 +561,39 @@ def radial_fan_layout(
     for q in qnames:
         heights.setdefault(q, orphan_level)
 
+    # Radial-monotonicity pass: enforce that for any two nearby nodes P and Q,
+    # if r(Q) > r(P) then h(Q) <= h(P). Fixes the visual "walking outward
+    # past a node, the mountain rises again" bug. We LOWER outer violators
+    # (not lift inner lows) so ridges and ravines at the SAME radial
+    # distance still vary — variation is only forbidden across radial depth.
+    # Primary-tree monotonicity is already guaranteed by the fan BFS; this
+    # pass handles the cross-branch case the primary tree doesn't cover.
+    node_r: dict[str, float] = {}
+    for q, (x, y) in positions.items():
+        node_r[q] = math.hypot(x, y)
+    mono_nodes = sorted((q for q in heights if q != VIRTUAL), key=lambda q: node_r[q])
+    NEAR_DIST_MONO = STEP * 1.5   # fan-space proximity window
+    for _it in range(6):
+        changed = False
+        for i, q in enumerate(mono_nodes):
+            rq = node_r[q]
+            qx, qy = positions.get(q, (0.0, 0.0))
+            cap = float("inf")
+            for j in range(i):
+                p = mono_nodes[j]
+                if node_r[p] >= rq - 1e-6:
+                    continue
+                px, py = positions.get(p, (0.0, 0.0))
+                if math.hypot(px - qx, py - qy) > NEAR_DIST_MONO:
+                    continue
+                if heights[p] < cap:
+                    cap = heights[p]
+            if cap != float("inf") and heights[q] > cap:
+                heights[q] = cap
+                changed = True
+        if not changed:
+            break
+
     # Percentile normalization with hard clipping.
     # Problem we're solving: min-max scaling crams the middle 80-90% of nodes
     # into a narrow vertical band because one outlier peak (usually `main`)
