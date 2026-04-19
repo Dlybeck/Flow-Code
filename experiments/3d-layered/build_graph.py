@@ -503,12 +503,21 @@ def radial_fan_layout(
     # visible ridges — a chain of near-flat links between two otherwise-steep
     # slopes is the visual definition of a ridge on a mountain.
     SLOPE_MIN = math.tan(math.radians(10))
-    SLOPE_MAX = math.tan(math.radians(60))
+    SLOPE_MAX = math.tan(math.radians(45))  # per-link cap; also bounds visual
+                                              # slope between siblings in the mesh
     RIDGE_SLOPE_MIN = math.tan(math.radians(5))
     SHALLOW_PULL = 0.55  # how much importance pulls slope toward flat
     # Rationale: at 0.75 the spine barely drops at all — mountain becomes a
     # wide mesa. 0.55 keeps ridges visibly shallower than normal terrain while
     # the overall mountain profile still reads as a mountain, not a plateau.
+
+    # Per-link hard-cap: no single parent→child link may drop more than
+    # MAX_LINK_DROP units, regardless of slope × h_dist. Without this cap, a
+    # low-importance 2-LOC leaf hanging off a high-importance substantial
+    # parent plummets to an isolated valley pocket surrounded by higher
+    # angular neighbors — violating the user's invariant "only down as we
+    # move away from the root" when read across branches.
+    MAX_LINK_DROP = PEAK_HEIGHT * 0.25
 
     imp = importance or {q: 0.0 for q in qnames}
 
@@ -538,9 +547,9 @@ def radial_fan_layout(
             # Ridge modulation: shrink slope when both endpoints are important.
             chain_imp = min(p_imp, imp.get(c, 0.0))
             slope_tan = base_slope * (1.0 - SHALLOW_PULL * chain_imp)
-            # Clamp: ridges floor at 3°, never exceed 60°.
             slope_tan = max(RIDGE_SLOPE_MIN, min(slope_tan, SLOPE_MAX))
-            heights[c] = p_h - slope_tan * h_dist
+            drop = min(slope_tan * h_dist, MAX_LINK_DROP)
+            heights[c] = p_h - drop
             desc_queue.append(c)
     # Orphans go just ABOVE the lowest mountain node (not below) — otherwise
     # they sink under the ground-plane disc in the renderer.
@@ -552,42 +561,76 @@ def radial_fan_layout(
     for q in qnames:
         heights.setdefault(q, orphan_level)
 
-    # Robust normalization: map the 10th–90th percentile of heights to the
-    # TARGET_SPAN range. Both tails get soft-clipped — the mountain's
-    # outlier peak (often a single entry wrapper) gets saturated at the top,
-    # and the 2–3 deepest leaves get saturated at the bottom. The meaningful
-    # ~80% of nodes fill the full vertical span instead of being crushed
-    # into a thin middle band by unlucky extremes.
-    # TARGET_SPAN kept modest relative to the horizontal footprint so visual
-    # aspect stays mountain-like (≤ ~30° average slope). The per-edge slope
-    # cap is 60° but that's per call-graph link; adjacent Delaunay triangles
-    # between a high ridge vertex and a low ravine vertex would otherwise
-    # form near-vertical cliffs if TARGET_SPAN were too aggressive.
-    TARGET_SPAN = 14.0
-    OUT_HEAD = 1.5
-    mountain_heights = sorted(h for q, h in heights.items() if q != VIRTUAL)
-    if mountain_heights and len(mountain_heights) >= 4:
-        n = len(mountain_heights)
-        p_hi = mountain_heights[int(n * 0.90)]
-        p_lo = mountain_heights[int(n * 0.10)]
-        core_span = p_hi - p_lo
+    # Radial-monotonicity post-pass: raise any node whose nearby-outward
+    # neighbors sit higher than it. Without this, a low-importance leaf
+    # close in (x,z) to a high-importance cross-branch node produces a
+    # visible pocket — the mesh rises past the leaf as you walk radially
+    # outward, violating the user's "only down as we move away from the
+    # root" invariant. We lift the low node to match the outward neighbor,
+    # clamped by its primary parent's height to preserve tree monotonicity.
+    node_r: dict[str, float] = {}
+    for q, (x, y) in positions.items():
+        node_r[q] = math.hypot(x, y)
+    # Build primary-parent lookup so we can clamp each node below its parent
+    primary_parent: dict[str, str] = {}
+    for par, kids in primary_children.items():
+        for c in kids:
+            primary_parent[c] = par
+    # Proximity threshold — cross-branch neighbors must be within this fan-space
+    # distance to count as "nearby" for monotonicity purposes.
+    NEAR_DIST = STEP * 1.3
+    # Iterate a few times so lifts propagate: lifting A may reveal A's other
+    # neighbor B must also lift. Converges fast.
+    for _ in range(4):
+        changed = False
+        for q in list(heights.keys()):
+            if q == VIRTUAL:
+                continue
+            rx, ry = positions.get(q, (0.0, 0.0))
+            r_q = node_r.get(q, 0.0)
+            h_q = heights[q]
+            # Cap we can ever raise to: primary parent's height (or VIRTUAL peak).
+            par = primary_parent.get(q)
+            h_cap = heights.get(par, PEAK_HEIGHT) if par else PEAK_HEIGHT
+            # Find nearby neighbors that are higher; treat same-r as outward too.
+            # A node at equal or greater radial distance that's higher would
+            # create a visible uphill when walking outward (or sideways) from q,
+            # so we lift q to match.
+            max_outward_h = h_q
+            for p, (px, py) in positions.items():
+                if p == q or p == VIRTUAL:
+                    continue
+                # Only consider neighbors at r ≥ r(q) - small tolerance.
+                # Nodes strictly closer to peak are ancestors or cousins-closer-in
+                # — their heights already bound q via primary invariants.
+                if node_r.get(p, 0.0) < r_q - 1e-6:
+                    continue
+                d = math.hypot(px - rx, py - ry)
+                if d > NEAR_DIST:
+                    continue
+                if heights[p] > max_outward_h:
+                    max_outward_h = heights[p]
+            if max_outward_h > h_q:
+                new_h = min(max_outward_h, h_cap)
+                if new_h > h_q + 1e-6:
+                    heights[q] = new_h
+                    changed = True
+        if not changed:
+            break
+
+    # Simple min-max normalization: map actual min/max heights to [0, TARGET_SPAN].
+    TARGET_SPAN = 10.0
+    mountain_heights = [h for q, h in heights.items() if q != VIRTUAL]
+    if mountain_heights and len(mountain_heights) >= 2:
+        h_lo = min(mountain_heights)
+        h_hi = max(mountain_heights)
+        core_span = h_hi - h_lo
         if core_span > 0.01:
             scale = TARGET_SPAN / core_span
-            # Anchor so p_lo → 0 and p_hi → TARGET_SPAN.
-            top_clip = TARGET_SPAN + OUT_HEAD
-            bot_clip = -OUT_HEAD
             for q in list(heights.keys()):
                 if q == VIRTUAL:
                     continue
-                y_new = (heights[q] - p_lo) * scale
-                # Soft-clip both tails
-                if y_new > TARGET_SPAN:
-                    # Tanh-like ease-off toward top_clip
-                    excess = (y_new - TARGET_SPAN) / (y_new - TARGET_SPAN + OUT_HEAD)
-                    y_new = TARGET_SPAN + OUT_HEAD * excess
-                elif y_new < 0:
-                    excess = (-y_new) / (-y_new + OUT_HEAD)
-                    y_new = -OUT_HEAD * excess
+                y_new = (heights[q] - h_lo) * scale
                 heights[q] = y_new
 
     # Build set of primary-tree edges (parent, child) — these are the only

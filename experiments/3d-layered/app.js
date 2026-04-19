@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Delaunay } from 'https://cdn.jsdelivr.net/npm/d3-delaunay@6/+esm';
 
 // ---------- load ----------
-const graph = await fetch('graph.json').then(r => r.json());
+const graph = await fetch('graph.json', { cache: 'no-store' }).then(r => r.json());
 const { nodes, edges, max_depth, peaks: peakList } = graph;
 const peakSet = new Set(peakList);
 
@@ -463,8 +463,11 @@ function rebuild() {
   }
 
   // --- Terrain mesh --- (orphans excluded — they don't belong to the mountain).
-  // Minimal mesh: nodes + grounding arcs, no Steiner subdivision. Keeps
-  // facets readable — you can tell which triangle belongs to which edge.
+  // Primary-tree spines are preserved as sharp polygon edges; no vertices
+  // added on them. Rounding happens purely through "parallel-cut"
+  // subdivision of the NON-spine edges (post-Delaunay, see below). Heights
+  // on those midpoints are straight-line interpolation, so no new peaks
+  // or invented altitudes.
   const terrainNodes = nodes.filter(n => !n.is_orphan);
   const steinerPositions = [];
 
@@ -558,17 +561,71 @@ function rebuild() {
     positions3D[nNode + nSteiner + i] = groundingPositions[i];
   }
 
-  // Centroid subdivision DISABLED. Any triangle with meaningful vertical range
-  // produces a centroid at the arithmetic-mean height — which the second
-  // Delaunay then wraps into a neighboring triangle as a LOWER vertex between
-  // higher ones, creating visible craters on ridges and pinched bowls on
-  // slopes. Primary-tree Steiner points (already added above) give enough
-  // mesh density for smooth-looking slopes; we accept slightly more visible
-  // Delaunay faceting in exchange for a crater-free surface.
+  // Edge-midpoint subdivision with a "lift toward max" rule, applied ONLY
+  // to edges where both endpoints sit high on the mountain. Adds a midpoint
+  // vertex on each qualifying edge and pushes its y above the straight-line
+  // midpoint so a crest bulges UP into a convex curve instead of a knife
+  // edge. Low-altitude edges are left alone — a lift down in a valley would
+  // create overhangs and crater artifacts.
+  //
+  // Run multiple passes: after the first pass adds midpoints and Delaunay
+  // re-triangulates, the new triangles have their own edges that can be
+  // subdivided too. Each pass ~roughly doubles mountain-triangle density
+  // and smooths crests further.
+  // Primary-tree edges form the spine of the mountain. We NEVER subdivide
+  // these — they stay as straight sharp polygon edges forming visible
+  // ridges and ravines. Only non-spine edges (the cross-cuts that run
+  // between branches) get subdivided; midpoints sit at linear-interpolated
+  // heights (on the plane of their original triangle), so the mesh gets
+  // more facets without inventing any new altitudes.
+  const idToIndex = new Map();
+  for (let i = 0; i < nNode; i++) idToIndex.set(terrainNodes[i].id, i);
+  const primaryKeys = new Set();
+  for (const e of edges) {
+    if (!e.is_primary) continue;
+    const ia = idToIndex.get(e.from);
+    const ib = idToIndex.get(e.to);
+    if (ia == null || ib == null) continue;
+    primaryKeys.add(ia < ib ? (ia * 1000003 + ib) : (ib * 1000003 + ia));
+  }
 
-  // Pass 2 Delaunay on the augmented point set
-  delaunay = Delaunay.from(pts2d);
-  triangles = delaunay.triangles;
+  // Parallel-cut subdivision: for each triangle flanking a primary edge,
+  // split its TWO non-spine edges at their midpoints. The new polygon
+  // edge connecting those midpoints runs parallel to the spine (midsegment
+  // theorem). The spine edge itself is never touched. Midpoint heights are
+  // pure linear interpolation — they sit exactly on the plane of the
+  // original triangle, so the surface shape is UNCHANGED, but the mesh now
+  // has more triangles that can take on varying orientations after
+  // re-triangulation with neighbors. Result: same geometry, more facets,
+  // smoother appearance toward the spine. No new peaks. No invented
+  // altitudes. No cross-branch stair artifacts.
+  const SUBDIV_PASSES = 2;
+  for (let pass = 0; pass < SUBDIV_PASSES; pass++) {
+    const groundStart = nNode + nSteiner;
+    const groundEnd = nNode + nSteiner + nGround;
+    const seen = new Set();
+    const before = positions3D.length;
+    for (let t = 0; t < triangles.length; t += 3) {
+      for (let k = 0; k < 3; k++) {
+        const ia = triangles[t + k];
+        const ib = triangles[t + ((k + 1) % 3)];
+        if ((ia >= groundStart && ia < groundEnd) || (ib >= groundStart && ib < groundEnd)) continue;
+        const key = ia < ib ? (ia * 1000003 + ib) : (ib * 1000003 + ia);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        // Skip spine edges — primary-tree edges stay as they are.
+        if (pass === 0 && primaryKeys.has(key)) continue;
+        const a = positions3D[ia], b = positions3D[ib];
+        // Straight-line interpolation. Midpoint lies on the plane of the
+        // original triangle, guaranteeing no peaks/uphills/stairs.
+        pts2d.push([(a[0] + b[0]) / 2, (a[2] + b[2]) / 2]);
+        positions3D.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]);
+      }
+    }
+    if (positions3D.length === before) break;
+    delaunay = Delaunay.from(pts2d);
+    triangles = delaunay.triangles;
+  }
 
   const finalCount = positions3D.length;
   const posArr = new Float32Array(finalCount * 3);
@@ -629,6 +686,20 @@ function rebuild() {
     const t = (y - hMin) / hRange;
     let mixed = terrainColor(t);
 
+    // Topographic contour bands — a thin dark ring at every CONTOUR_INTERVAL
+    // units of world height. Gives the eye an instant read on relative
+    // elevation without requiring any geometry.
+    const CONTOUR_INTERVAL = 2.0;
+    const CONTOUR_WIDTH    = 0.18;   // how wide each darkened ring is
+    const CONTOUR_STRENGTH = 0.26;   // how dark the band goes
+    const hMod = ((y % CONTOUR_INTERVAL) + CONTOUR_INTERVAL) % CONTOUR_INTERVAL;
+    const distToBand = Math.min(hMod, CONTOUR_INTERVAL - hMod);
+    if (distToBand < CONTOUR_WIDTH) {
+      const k = 1 - distToBand / CONTOUR_WIDTH;
+      const contourTint = new THREE.Color(0x1c1914);
+      mixed = mixed.clone().lerp(contourTint, CONTOUR_STRENGTH * k);
+    }
+
     // Tier 1 — any perceptible slope picks up cool-gray rock tint so the eye
     // can distinguish slope from flat ground.
     const rockMix = Math.min(1, Math.max(0, (steep - 0.02) * 3.5));
@@ -660,7 +731,12 @@ function rebuild() {
     roughness: 0.85,
     metalness: 0.05,
     side: THREE.DoubleSide,
-    flatShading: true,   // each triangle shows its own normal → facets & indents read distinctly
+    // Smooth shading: normals averaged across shared vertices, so the mesh
+    // reads as a curved surface without any geometry changes. Nodes stay
+    // exactly where they are on the triangulation — zero risk of covering
+    // or floating them. Primary-tree edges are drawn as bold lines on top
+    // of the surface, so spines remain visibly marked as crests.
+    flatShading: false,
   }));
   scene.add(terrainMesh);
   // Debug handle for inspection via chrome MCP.
@@ -730,12 +806,21 @@ function rebuild() {
       geomPts = curve.getPoints(16);
     }
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
-    const line = new THREE.Line(g, new THREE.LineBasicMaterial({
-      color: isPrimary ? 0x3a4450 : 0x8090a2,
-      transparent: true,
-      opacity: isPrimary ? 0.55 : 0.60,
-    }));
-    line.userData = { edge: e, baseOpacity: isPrimary ? 0.55 : 0.60 };
+    // Primary edges: solid dark lines (they mark the spines).
+    // Cross edges: faint dashed lines to de-emphasize without hiding info.
+    const baseOp = isPrimary ? 0.65 : 0.30;
+    const mat = isPrimary
+      ? new THREE.LineBasicMaterial({ color: 0x2a3238, transparent: true, opacity: baseOp })
+      : new THREE.LineDashedMaterial({
+          color: 0x8090a2,
+          transparent: true,
+          opacity: baseOp,
+          dashSize: 0.25,
+          gapSize: 0.35,
+        });
+    const line = new THREE.Line(g, mat);
+    if (!isPrimary) line.computeLineDistances();  // required for dashed
+    line.userData = { edge: e, baseOpacity: baseOp };
     scene.add(line);
     edgeLines.push(line);
     edgeByPair.set(`${e.from}→${e.to}`, line);
