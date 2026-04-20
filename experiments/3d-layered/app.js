@@ -853,6 +853,10 @@ let initialCameraPlacement = true;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let hoveredId = null;
+let pinnedId = null;   // when set, the family tree of this node stays highlighted
+                       // regardless of hover. Click the same node again (or the
+                       // background) to unpin. Hover still updates the info panel
+                       // so you can inspect other nodes without losing your pin.
 
 function bfsCone(startId, adj) {
   const seen = new Set([startId]);
@@ -876,8 +880,10 @@ const descEl = document.getElementById('i-desc');
 const statsEl = document.getElementById('i-stats');
 const conesEl = document.getElementById('i-cones');
 
-function setHover(id) {
-  hoveredId = id;
+// Visual highlighting (node colors + edge colors) separated from info-panel
+// updates so the panel can track hover while the highlighted family tree
+// stays pinned to a clicked node.
+function paintFamilyTree(id) {
   if (!id) {
     for (const m of nodeMeshes) {
       m.material.color.copy(m.userData.baseColor);
@@ -888,13 +894,11 @@ function setHover(id) {
       l.material.color.setHex(0x2a3240);
       l.material.opacity = l.userData.baseOpacity;
     }
-    infoEl.classList.remove('visible');
     return;
   }
   const up = bfsCone(id, callers);
   const down = bfsCone(id, callees);
   up.delete(id); down.delete(id);
-
   for (const m of nodeMeshes) {
     const nid = m.userData.node.id;
     let color, emit, opac;
@@ -909,9 +913,9 @@ function setHover(id) {
   }
   for (const l of edgeLines) {
     const { from, to } = l.userData.edge;
-    const touchesHover = from === id || to === id;
+    const touchesRoot = from === id || to === id;
     let color = 0x1a2028, opac = 0.08;
-    if (touchesHover) {
+    if (touchesRoot) {
       if (to === id || up.has(from)) { color = 0x7dd181; opac = 0.95; }
       if (from === id || down.has(to)) { color = 0xffb454; opac = 0.95; }
     } else if (up.has(from) && up.has(to)) { color = 0x7dd181; opac = 0.55; }
@@ -919,11 +923,19 @@ function setHover(id) {
     l.material.color.setHex(color);
     l.material.opacity = opac;
   }
+}
 
-  const n = nodeById.get(id).userData.node;
+function showInfoPanel(id) {
+  if (!id) { infoEl.classList.remove('visible'); return; }
+  const mesh = nodeById.get(id);
+  if (!mesh) { infoEl.classList.remove('visible'); return; }
+  const n = mesh.userData.node;
   const peakTag = peakSet.has(id) ? ' · PEAK' : '';
+  const pinnedTag = id === pinnedId ? ' · PINNED' : '';
+  const up = bfsCone(id, callers); up.delete(id);
+  const down = bfsCone(id, callees); down.delete(id);
   qEl.textContent = n.displayName || n.label || n.qname;
-  subEl.textContent = `${n.qname} · ${n.file} · depth ${n.depth}${peakTag}`;
+  subEl.textContent = `${n.qname} · ${n.file} · depth ${n.depth}${peakTag}${pinnedTag}`;
   descEl.textContent = n.description || '(no description)';
   statsEl.innerHTML = `
     <span>source lines</span><b>${n.source_lines}</b>
@@ -939,13 +951,62 @@ function setHover(id) {
   infoEl.classList.add('visible');
 }
 
+// Unified hover handler: info panel always tracks hovered node; highlight
+// coloring only tracks hover when nothing is pinned (otherwise pinned node's
+// family tree remains lit).
+function setHover(id) {
+  hoveredId = id;
+  showInfoPanel(id || pinnedId);
+  if (!pinnedId) paintFamilyTree(id);
+}
+
+function setPinned(id) {
+  if (pinnedId === id) {
+    // Clicking the pinned node again unpins it.
+    pinnedId = null;
+    paintFamilyTree(hoveredId);
+    showInfoPanel(hoveredId);
+  } else {
+    pinnedId = id;
+    paintFamilyTree(id);
+    showInfoPanel(id);
+  }
+}
+
 window.addEventListener('pointermove', (e) => {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(nodeMeshes, false);
-  if (hits.length) setHover(hits[0].object.userData.node.id);
-  else if (hoveredId) setHover(null);
+  const nextId = hits.length ? hits[0].object.userData.node.id : null;
+  if (nextId !== hoveredId) setHover(nextId);
+});
+
+// Click handler: if we hit a node, pin its family tree (toggle if same).
+// If we hit nothing, unpin so the map returns to pure hover mode.
+// OrbitControls uses pointerdown to start orbit/pan, so we only treat a
+// release as a click when the pointer moved less than CLICK_SLOP pixels
+// between down and up — otherwise it was a camera drag, leave things alone.
+let clickDownX = 0, clickDownY = 0, clickDownT = 0;
+const CLICK_SLOP = 5;
+const CLICK_MAX_MS = 400;
+window.addEventListener('pointerdown', (e) => {
+  clickDownX = e.clientX; clickDownY = e.clientY; clickDownT = e.timeStamp;
+});
+window.addEventListener('pointerup', (e) => {
+  const dx = e.clientX - clickDownX, dy = e.clientY - clickDownY;
+  if (Math.hypot(dx, dy) > CLICK_SLOP) return;       // camera drag
+  if (e.timeStamp - clickDownT > CLICK_MAX_MS) return; // long-press / no-op
+  if (e.target && e.target.closest && e.target.closest('#hud, #controls, #info, #legend')) return;
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes, false);
+  if (hits.length) {
+    setPinned(hits[0].object.userData.node.id);
+  } else if (pinnedId) {
+    setPinned(pinnedId);  // same-id branch toggles off
+  }
 });
 
 window.addEventListener('resize', () => {
