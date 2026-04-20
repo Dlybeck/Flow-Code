@@ -1,8 +1,12 @@
 # flowcode
 
-Static analysis graph generation for Python and TypeScript repositories.
+**A visualization layer that sits alongside your AI coding assistant** (Claude Code, OpenCode, Cursor — anything that speaks MCP). It shows your codebase as a 3D execution terrain: peak at the entry point, height encoding architectural importance, ridges tracing the substantive call spine. You and the AI share the map as a pointing surface — select a branch and ask a question, and the AI gets both your functional intent and the underlying source; when the AI references something back, it highlights the region for you. You stay in functionality-space instead of translating every question into file paths.
 
-Produces an **execution IR** — a call graph of functions as nodes and calls/contains as edges — from source code using only the standard library (Python) or tree-sitter (TypeScript). No language server required.
+Under the hood, flowcode is a Python + TypeScript static analysis pipeline that produces an **execution IR** — a call graph of functions as nodes and calls/contains as edges — using only the standard library (Python) or tree-sitter (TypeScript). No language server required.
+
+**Status:** library + indexer are working and tested. 3D mountain viz is active iteration. MCP server is the next milestone.
+
+See [`docs/product-vision/goal.md`](docs/product-vision/goal.md) for the full framing.
 
 ## Installation
 

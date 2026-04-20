@@ -2,6 +2,8 @@
 
 **Status:** Consolidated from extended planning (2025-03-21). **Source of nuance:** `docs/planning/brainstorming.md` (§8–§10, §9.10–§9.19).
 
+> **Read [goal.md](./goal.md) first for the current product framing.** This spec is engineering-level detail on the RAW/overlay pipeline, language adapters, and validation gates — all still accurate. The higher-level "what is flowcode for" narrative has evolved: flowcode is an **execution-space navigator and shared pointing surface between the user and their AI coding assistant** (via MCP), not a standalone orchestration environment. Read this document assuming that framing.
+
 ---
 
 ## 0. Coherent vision (single spine)
