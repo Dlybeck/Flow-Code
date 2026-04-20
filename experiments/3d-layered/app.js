@@ -838,7 +838,7 @@ function rebuild() {
           color: baseColor,
           transparent: true,
           opacity: baseOp,
-          depthTest: false,
+          // depthTest on: edges behind the mountain are correctly occluded.
         })
       : new THREE.LineDashedMaterial({
           color: baseColor,
@@ -848,7 +848,6 @@ function rebuild() {
           gapSize: 0.42,
         });
     const line = new THREE.Line(g, mat);
-    if (isPrimary) line.renderOrder = 2;  // ensure primaries draw after terrain
     if (!isPrimary) line.computeLineDistances();  // required for dashed
     line.userData = { edge: e, baseOpacity: baseOp, baseColor };
     scene.add(line);
