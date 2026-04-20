@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Delaunay } from 'https://cdn.jsdelivr.net/npm/d3-delaunay@6/+esm';
 
@@ -703,50 +702,30 @@ function rebuild() {
     const sunDot = nx * SUN.x + ny * SUN.y + nz * SUN.z;
     const shadowT = Math.max(0, Math.min(1, (0.25 - sunDot) / 0.55)); // 0 in sun, 1 in shadow
 
+    // Minimal dark low-poly: flat shading does the visual work. Each polygon
+    // gets a slightly different dark shade based on its height so the form
+    // reads through lighting + facet orientation, no contour lines, no glow.
     const t = (y - hMin) / hRange;
     let mixed = terrainColor(t);
-
-    // Neon contour lines. Every CONTOUR_INTERVAL units of world height gets a
-    // glowing cyan band baked into the vertex color. Stronger than before
-    // because bloom will pick them up as luminous lines. The dark body lets
-    // these rings dominate the visual read, making the mountain feel like a
-    // holographic topographic map.
-    const CONTOUR_INTERVAL = 1.6;
-    const CONTOUR_WIDTH    = 0.11;
-    const hMod = ((y % CONTOUR_INTERVAL) + CONTOUR_INTERVAL) % CONTOUR_INTERVAL;
-    const distToBand = Math.min(hMod, CONTOUR_INTERVAL - hMod);
-    if (distToBand < CONTOUR_WIDTH) {
-      const k = 1 - distToBand / CONTOUR_WIDTH;
-      // Higher-altitude contours shift toward warm magenta so the peak
-      // "cooks" in a different hue than the valleys.
-      const lowColor  = new THREE.Color(0x00d4ff);  // cyan
-      const highColor = new THREE.Color(0xff4fd4);  // magenta
-      const neon = lowColor.clone().lerp(highColor, Math.min(1, t * 1.1));
-      mixed = mixed.clone().lerp(neon, k * 0.95);
-    }
-
-    // Very subtle fine-grain noise so the surface isn't a flat gradient —
-    // just enough to prevent banding in the dark body.
-    const fine = (hash(i * 7) - 0.5) * 0.015;
+    // Tiny grain to break up dead-uniform triangles, but nothing textured.
+    const fine = (hash(i * 7) - 0.5) * 0.008;
     mixed.r = Math.max(0, Math.min(1, mixed.r + fine));
     mixed.g = Math.max(0, Math.min(1, mixed.g + fine));
     mixed.b = Math.max(0, Math.min(1, mixed.b + fine));
-    // Ignore slope/shadow/snow logic — contour lines carry the structural
-    // read in this style, and we want the surface to stay near-black
-    // everywhere except where neon passes through.
     void steep; void shadowT;
     colArr[i * 3] = mixed.r; colArr[i * 3 + 1] = mixed.g; colArr[i * 3 + 2] = mixed.b;
   }
   geom.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
 
-  // Neon aesthetic: unlit material. The vertex colors (dark body + bright
-  // neon contour bands) become the final pixel output directly, so contours
-  // survive bloom thresholding and glow into the fog. No shadows, no
-  // lighting — the shape is carried by the contour lines and the floor
-  // grid rather than by surface lighting.
-  terrainMesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({
+  // Minimal low-poly dark: flat shading on MeshStandardMaterial so the
+  // facet orientations catch the dim hemisphere / rim light and the form
+  // reads through shading contrast rather than texture or contour glow.
+  terrainMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
     vertexColors: true,
+    roughness: 1.0,
+    metalness: 0.0,
     side: THREE.DoubleSide,
+    flatShading: true,
     fog: true,
   }));
   scene.add(terrainMesh);
@@ -768,23 +747,8 @@ function rebuild() {
   // Position the floor grid at apron level so it reads as the ground.
   grid.position.y = hMin - 2.5;
 
-  // Peak beacon: warm PointLight sitting slightly above the summit. Picks up
-  // bloom into a soft halo that marks the entry point from any angle.
-  {
-    let peakPos = null;
-    for (const pid of peakList) {
-      const p = currentPositions.get(pid);
-      if (p) { peakPos = p; break; }
-    }
-    if (peakPos) {
-      peakBeacon = new THREE.PointLight(0xffd9a0, 2.2, 35, 2.0);
-      peakBeacon.position.set(peakPos[0], peakPos[1] + 2.5, peakPos[2]);
-      scene.add(peakBeacon);
-    }
-  }
-
-  // (dust motes were distracting — removed)
-
+  // Minimal aesthetic: no peak beacon, no dust, no bloom. The peak is
+  // marked by the entry node's emissive color only.
 
   // --- Nodes ---
   const sphereGeo = new THREE.SphereGeometry(0.3, 14, 10);
@@ -792,12 +756,12 @@ function rebuild() {
     const isPeak = peakSet.has(n.id);
     const isOrphan = !!n.is_orphan;
     const base = isOrphan ? new THREE.Color(0x4c5a80) : fileColor(n.file).clone();
-    // Neon orbs: material is basic-lit by emissive only, so nodes glow into
-    // the bloom. Peak is brighter than leaves. Orphans dim and faded.
-    const emissiveStrength = isOrphan ? 0.4 : (isPeak ? 2.8 : 1.4);
+    // Minimal node: solid neon color, no halo/bloom. Peak gets slightly
+    // brighter than leaves via emissiveIntensity, but no glow around it.
+    const emissiveStrength = isOrphan ? 0.1 : (isPeak ? 0.8 : 0.5);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x050510,
-      roughness: 0.6,
+      color: base,
+      roughness: 0.8,
       metalness: 0.0,
       emissive: base.clone(),
       emissiveIntensity: emissiveStrength,
@@ -805,8 +769,6 @@ function rebuild() {
       opacity: isOrphan ? 0.5 : 1.0,
     });
     const mesh = new THREE.Mesh(sphereGeo, mat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
     const [x, y, z] = currentPositions.get(n.id);
     mesh.position.set(x, y + LIFT, z);
     const s = isOrphan ? 0.7 : (isPeak ? 1.6 : 1 + Math.min(1.2, (n.n_callees || 0) * 0.1));
@@ -1069,25 +1031,16 @@ for (const r of document.querySelectorAll('input[name="layout"]')) {
 
 rebuild();
 
-// Post-processing pipeline: bloom softens the peak's warm glow and emissive
-// highlights on pinned/peak spheres. Without bloom the rendering looks flat;
-// with bloom it picks up a subtle haze that matches the dusk atmosphere.
+// Minimal dark/neon aesthetic: no bloom. Composer kept only so we can add
+// a passthrough in case we want a subtle post-pass later.
 const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
 composer.setPixelRatio(window.devicePixelRatio);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight),
-  1.10,  // strength — heavy for neon glow
-  1.00,  // radius — wide halo around bright pixels
-  0.55,  // threshold — lower so contours + edges all bloom
-);
-composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
-  bloom.setSize(window.innerWidth, window.innerHeight);
 });
 
 function animate() {
