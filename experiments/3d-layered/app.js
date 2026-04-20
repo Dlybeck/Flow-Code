@@ -741,9 +741,9 @@ function rebuild() {
   wireMesh = new THREE.LineSegments(
     edgesGeom,
     new THREE.LineBasicMaterial({
-      color: 0x4fe3ff,
+      color: 0x2a7da8,   // muted cyan so it reads as structure, not accent
       transparent: true,
-      opacity: 0.32,
+      opacity: 0.14,     // subtle \u2014 lets the call-graph edges win the foreground
       fog: true,
     }),
   );
@@ -830,14 +830,15 @@ function rebuild() {
       geomPts = curve.getPoints(16);
     }
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
-    // Neon edges: primaries get bright cyan (bloom fodder, they’re the
-    // structural spine). Cross edges are dim dashed magenta so they read
-    // as secondary references without competing with the spine.
-    const baseOp = isPrimary ? 0.95 : 0.40;
+    // Neon edges: primaries bright cyan (the structural spine), cross edges
+    // brighter magenta than before so they also register as neon accents
+    // against the muted wireframe. Both opacities raised now that the
+    // mountain wireframe is subtler \u2014 edges should own the foreground.
+    const baseOp = isPrimary ? 1.0 : 0.75;
     const mat = isPrimary
-      ? new THREE.LineBasicMaterial({ color: 0x4fe3ff, transparent: true, opacity: baseOp })
+      ? new THREE.LineBasicMaterial({ color: 0x6aeaff, transparent: true, opacity: baseOp })
       : new THREE.LineDashedMaterial({
-          color: 0xff6fd9,
+          color: 0xff7ce0,
           transparent: true,
           opacity: baseOp,
           dashSize: 0.22,
