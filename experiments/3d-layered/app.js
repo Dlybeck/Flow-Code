@@ -535,8 +535,10 @@ function rebuild() {
     const [x, , z] = currentPositions.get(n.id);
     maxR = Math.max(maxR, Math.hypot(x, z));
   }
-  const rimStart = -Math.PI - 0.25;
-  const rimEnd = 0.25;
+  // Full-circle grounding: arcs wrap all the way around the mountain so the
+  // terrain mesh is continuous regardless of viewing angle.
+  const rimStart = -Math.PI;
+  const rimEnd = Math.PI;
   const arcPoints = 42;
   // Arcs:
   //   inner — just past the furthest leaves, half-height (start of the drop)

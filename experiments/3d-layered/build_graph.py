@@ -22,7 +22,8 @@ from parse_calls import parse_directory
 
 MODEL_NAME = "jinaai/jina-embeddings-v2-base-code"
 STEP = 3.5          # radial distance per depth level
-MAX_WEDGE_DEG = 120 # max fan-out per node
+MAX_WEDGE_DEG = 340 # max fan-out per node (340 = nearly full 360° circle
+                    # with a small gap so wedge clamping stays well-defined)
 SHRINK = 0.9        # wedge shrink factor per level
 
 
