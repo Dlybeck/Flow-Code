@@ -951,26 +951,27 @@ function showInfoPanel(id) {
   infoEl.classList.add('visible');
 }
 
-// Unified hover handler: info panel always tracks hovered node; highlight
-// coloring only tracks hover when nothing is pinned (otherwise pinned node's
-// family tree remains lit).
+// Unified hover handler: info panel ONLY appears while hovering a node.
+// Highlight coloring tracks hover when nothing is pinned; when pinned, the
+// pinned node's family tree stays lit regardless of hover.
 function setHover(id) {
   hoveredId = id;
-  showInfoPanel(id || pinnedId);
+  showInfoPanel(id);  // hides panel when id is null, even if something is pinned
   if (!pinnedId) paintFamilyTree(id);
 }
 
 function setPinned(id) {
   if (pinnedId === id) {
-    // Clicking the pinned node again unpins it.
     pinnedId = null;
     paintFamilyTree(hoveredId);
-    showInfoPanel(hoveredId);
   } else {
     pinnedId = id;
     paintFamilyTree(id);
-    showInfoPanel(id);
   }
+  // Keep the panel aligned with whatever the mouse is currently over,
+  // regardless of pin state. A click on a node implicitly means the mouse
+  // is over that node, so showInfoPanel(hoveredId) lands on it naturally.
+  showInfoPanel(hoveredId);
 }
 
 window.addEventListener('pointermove', (e) => {
@@ -983,20 +984,17 @@ window.addEventListener('pointermove', (e) => {
 });
 
 // Click handler: if we hit a node, pin its family tree (toggle if same).
-// If we hit nothing, unpin so the map returns to pure hover mode.
-// OrbitControls uses pointerdown to start orbit/pan, so we only treat a
-// release as a click when the pointer moved less than CLICK_SLOP pixels
-// between down and up — otherwise it was a camera drag, leave things alone.
-let clickDownX = 0, clickDownY = 0, clickDownT = 0;
+// If we hit nothing, unpin. We track mousedown position and only treat the
+// click as valid if the pointer stayed within CLICK_SLOP pixels — otherwise
+// it was a camera drag by OrbitControls, leave things alone.
+let clickDownX = 0, clickDownY = 0;
 const CLICK_SLOP = 5;
-const CLICK_MAX_MS = 400;
-window.addEventListener('pointerdown', (e) => {
-  clickDownX = e.clientX; clickDownY = e.clientY; clickDownT = e.timeStamp;
+window.addEventListener('mousedown', (e) => {
+  clickDownX = e.clientX; clickDownY = e.clientY;
 });
-window.addEventListener('pointerup', (e) => {
+window.addEventListener('click', (e) => {
   const dx = e.clientX - clickDownX, dy = e.clientY - clickDownY;
-  if (Math.hypot(dx, dy) > CLICK_SLOP) return;       // camera drag
-  if (e.timeStamp - clickDownT > CLICK_MAX_MS) return; // long-press / no-op
+  if (Math.hypot(dx, dy) > CLICK_SLOP) return;  // was a drag, not a click
   if (e.target && e.target.closest && e.target.closest('#hud, #controls, #info, #legend')) return;
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
