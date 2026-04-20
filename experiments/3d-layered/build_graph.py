@@ -471,86 +471,47 @@ def radial_fan_layout(
         row, col = i // side, i % side
         positions[p] = ((col - side / 2) * 1.8, orphan_offset_y + row * 1.8)
 
-    # --- Relative-descent heights, clamped to [20°, 60°] slope range ---
-    # Every edge descends at least 20° (never level) and at most 60°. The density
-    # delta between parent and child decides where each edge lands in that range:
-    # the largest density drop in the graph = 60° slope, the smallest = 20°.
-    PEAK_HEIGHT = 18.0
-    density_lookup = {**density, VIRTUAL: 1.0}
-
-    # Pass 1: gather raw "signal" per primary edge (p_density - c_density, can be
-    # negative if child is denser). We use the full range so "denser child" still
-    # gets the minimum 20° slope; steepest density drop gets 60°.
-    raw_signals: list[float] = []
-    edges_list: list[tuple[str, str]] = []
-    for parent, kids in primary_children.items():
-        p_d = density_lookup.get(parent, 0.5)
-        for c in kids:
-            c_d = density_lookup.get(c, 0.0)
-            raw_signals.append(p_d - c_d)
-            edges_list.append((parent, c))
-
-    # Normalize: smallest signal → 0, largest → 1
-    if raw_signals:
-        smin = min(raw_signals)
-        smax = max(raw_signals)
-        srange = smax - smin if smax > smin else 1.0
-    else:
-        smin, srange = 0.0, 1.0
-
-    # Slope range. Regular terrain clamps to 10°–60°.
-    # Important chains may drop as low as 3° so architectural spines read as
-    # visible ridges — a chain of near-flat links between two otherwise-steep
-    # slopes is the visual definition of a ridge on a mountain.
-    SLOPE_MIN = math.tan(math.radians(10))
-    SLOPE_MAX = math.tan(math.radians(45))  # per-link cap; also bounds visual
-                                              # slope between siblings in the mesh
-    RIDGE_SLOPE_MIN = math.tan(math.radians(5))
-    SHALLOW_PULL = 0.55  # how much importance pulls slope toward flat
-    # Rationale: at 0.75 the spine barely drops at all — mountain becomes a
-    # wide mesa. 0.55 keeps ridges visibly shallower than normal terrain while
-    # the overall mountain profile still reads as a mountain, not a plateau.
-
-    # Per-link hard-cap: no single parent→child link may drop more than
-    # MAX_LINK_DROP units, regardless of slope × h_dist. Without this cap, a
-    # low-importance 2-LOC leaf hanging off a high-importance substantial
-    # parent plummets to an isolated valley pocket surrounded by higher
-    # angular neighbors — violating the user's invariant "only down as we
-    # move away from the root" when read across branches.
-    MAX_LINK_DROP = PEAK_HEIGHT * 0.25
+    # --- Per-edge slope driven by the CHILD's own importance ---
+    #
+    # Simple rule: each primary edge descends at an angle determined by the
+    # child node's importance. Important children → shallow slope (stays
+    # high, forms a ridge). Unimportant children → steep slope (drops fast,
+    # forms a ravine). No chain logic, no density-delta, no clamping based
+    # on parent. Just: steeper if unimportant, shallower if important.
+    #
+    # Height computation: BFS from the virtual root starting at h=0 and
+    # subtracting drops. All heights end up ≤ 0. Once done, shift every
+    # height up so the deepest node sits at 0 (touching the ground). The
+    # peak ends up at whatever height the path structure dictates.
+    SLOPE_SHALLOW_DEG = 10.0   # top-importance node: this angle from its parent
+    SLOPE_STEEP_DEG   = 60.0   # zero-importance node: this angle from its parent
 
     imp = importance or {q: 0.0 for q in qnames}
 
-    # Pass 2: BFS from virtual root, apply slope per edge.
-    # An edge p→c has "ridge-ness" = min(imp[p], imp[c]) — both endpoints must
-    # be architecturally important for the link between them to sit on a ridge.
-    # (If only one side matters the descent stays normal; isolated important
-    # nodes become bumps, not spines.)
-    heights: dict[str, float] = {VIRTUAL: PEAK_HEIGHT}
+    heights: dict[str, float] = {VIRTUAL: 0.0}
     origin = (0.0, 0.0)
     desc_queue = [VIRTUAL]
     while desc_queue:
         p = desc_queue.pop(0)
-        p_d = density_lookup.get(p, 0.5)
         p_h = heights[p]
         p_pos = positions.get(p, origin) if p != VIRTUAL else origin
-        # Virtual root has no importance of its own; use its child's value so
-        # the very first link into the true entry point can still be shallow.
-        p_imp = 1.0 if p == VIRTUAL else imp.get(p, 0.0)
         for c in primary_children.get(p, []):
             c_pos = positions[c]
             h_dist = math.hypot(c_pos[0] - p_pos[0], c_pos[1] - p_pos[1])
-            c_d = density_lookup.get(c, 0.0)
-            raw = p_d - c_d
-            t = (raw - smin) / srange  # 0..1 across the graph
-            base_slope = SLOPE_MIN + t * (SLOPE_MAX - SLOPE_MIN)
-            # Ridge modulation: shrink slope when both endpoints are important.
-            chain_imp = min(p_imp, imp.get(c, 0.0))
-            slope_tan = base_slope * (1.0 - SHALLOW_PULL * chain_imp)
-            slope_tan = max(RIDGE_SLOPE_MIN, min(slope_tan, SLOPE_MAX))
-            drop = min(slope_tan * h_dist, MAX_LINK_DROP)
-            heights[c] = p_h - drop
+            c_imp = max(0.0, min(1.0, imp.get(c, 0.0)))
+            slope_deg = SLOPE_STEEP_DEG - c_imp * (SLOPE_STEEP_DEG - SLOPE_SHALLOW_DEG)
+            slope_tan = math.tan(math.radians(slope_deg))
+            heights[c] = p_h - slope_tan * h_dist
             desc_queue.append(c)
+    # Shift every height so the deepest node sits at y=0. The peak ends up
+    # at whatever positive value falls out of the structure — no normalization,
+    # no stretching, just "deepest touches ground."
+    real_heights = [h for q, h in heights.items() if q != VIRTUAL]
+    if real_heights:
+        shift = -min(real_heights)
+        for q in list(heights.keys()):
+            heights[q] += shift
+
     # Orphans go just ABOVE the lowest mountain node (not below) — otherwise
     # they sink under the ground-plane disc in the renderer.
     lowest_real = min((h for q, h in heights.items() if q != VIRTUAL), default=0.0)
@@ -641,7 +602,7 @@ def main() -> None:
 
     # Radial fan (ski-slope) layout with relative-descent heights
     fan_coords, fan_heights, peaks, primary_edges = radial_fan_layout(
-        qnames, callees_of, callers_of, embeddings, density, importance
+        qnames, callees_of, callers_of, embeddings, density, importance,
     )
 
     # Measure crossings in the 2D fan layout (purely informational)
