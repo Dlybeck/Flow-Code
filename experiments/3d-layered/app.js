@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Delaunay } from 'https://cdn.jsdelivr.net/npm/d3-delaunay@6/+esm';
 
 // ---------- load ----------
@@ -21,8 +25,34 @@ const state = {
 
 // ---------- scene ----------
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a2230);
-scene.fog = new THREE.Fog(0x3a3f48, 55, 160);
+// Cinematic sky: gradient from warm dusk horizon up to deep cool zenith.
+// A huge inverted sphere with per-vertex colors gives us a cheap dome — no
+// shader code needed. Fog then matches the horizon so distant terrain
+// dissolves into sky instead of into a flat color.
+const SKY_HORIZON = new THREE.Color(0x5a4a52);   // warm dusk
+const SKY_ZENITH  = new THREE.Color(0x0e1822);   // deep night-blue
+const skyGeo = new THREE.SphereGeometry(400, 32, 24);
+const skyColors = new Float32Array(skyGeo.attributes.position.count * 3);
+for (let i = 0; i < skyGeo.attributes.position.count; i++) {
+  const y = skyGeo.attributes.position.getY(i);
+  const r = Math.hypot(
+    skyGeo.attributes.position.getX(i),
+    skyGeo.attributes.position.getY(i),
+    skyGeo.attributes.position.getZ(i),
+  ) || 1;
+  const t = (y / r + 0.25) / 1.25;     // 0 near bottom, 1 near top
+  const tt = Math.max(0, Math.min(1, t));
+  const c = SKY_HORIZON.clone().lerp(SKY_ZENITH, tt);
+  skyColors[i * 3] = c.r; skyColors[i * 3 + 1] = c.g; skyColors[i * 3 + 2] = c.b;
+}
+skyGeo.setAttribute('color', new THREE.BufferAttribute(skyColors, 3));
+const skyMesh = new THREE.Mesh(
+  skyGeo,
+  new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }),
+);
+scene.add(skyMesh);
+scene.background = SKY_HORIZON.clone();  // fallback color when sky mesh is clipped
+scene.fog = new THREE.Fog(SKY_HORIZON.getHex(), 55, 180);
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 700);
 
@@ -320,15 +350,19 @@ controls.dampingFactor = 0.08;
 controls.minPolarAngle = 0.05;
 controls.maxPolarAngle = Math.PI * 0.48;
 
-// Deeper ambient + warmer key + cooler fill = sharper contrast between lit
-// and shaded slopes, more "alpine" feel.
-scene.add(new THREE.AmbientLight(0xffffff, 0.30));
-const sun = new THREE.DirectionalLight(0xfff3d8, 1.15);
-sun.position.set(20, 50, 20);
+// Three-point-ish lighting: warm key (low-angle dusk sun), cool fill, and a
+// subtle rim from behind the mountain to etch the silhouette against the
+// darker zenith of the sky dome.
+scene.add(new THREE.AmbientLight(0xffffff, 0.28));
+const sun = new THREE.DirectionalLight(0xffdfb0, 1.25);   // warmer than before
+sun.position.set(28, 40, 18);                               // lower angle = longer shadows
 scene.add(sun);
-const fill = new THREE.DirectionalLight(0x7aa5ff, 0.18);
-fill.position.set(-25, 20, -20);
+const fill = new THREE.DirectionalLight(0x7aa5ff, 0.32);   // cooler fill stronger for dusk feel
+fill.position.set(-30, 18, -15);
 scene.add(fill);
+const rim = new THREE.DirectionalLight(0xb9c8dc, 0.55);    // back-light from peak direction
+rim.position.set(0, 35, 55);
+scene.add(rim);
 
 // No separate ground plane — the terrain mesh extends far enough via its
 // outermost grounding arc to cover the whole visible ground. One mesh = no seam.
@@ -1020,11 +1054,32 @@ for (const r of document.querySelectorAll('input[name="layout"]')) {
 
 rebuild();
 
+// Post-processing pipeline: bloom softens the peak's warm glow and emissive
+// highlights on pinned/peak spheres. Without bloom the rendering looks flat;
+// with bloom it picks up a subtle haze that matches the dusk atmosphere.
+const composer = new EffectComposer(renderer);
+composer.setSize(window.innerWidth, window.innerHeight);
+composer.setPixelRatio(window.devicePixelRatio);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.45,  // strength
+  0.85,  // radius
+  0.78,  // threshold (only pixels above this glow)
+);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+window.addEventListener('resize', () => {
+  composer.setSize(window.innerWidth, window.innerHeight);
+  bloom.setSize(window.innerWidth, window.innerHeight);
+});
+
 function animate() {
   requestAnimationFrame(animate);
   if (contextLost) return;
   controls.update();
-  renderer.render(scene, camera);
+  composer.render();
 }
 animate();
 
