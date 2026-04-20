@@ -561,73 +561,13 @@ def radial_fan_layout(
     for q in qnames:
         heights.setdefault(q, orphan_level)
 
-    # Radial-monotonicity pass: enforce that for any two nearby nodes P and Q,
-    # if r(Q) > r(P) then h(Q) <= h(P). Fixes the visual "walking outward
-    # past a node, the mountain rises again" bug. We LOWER outer violators
-    # (not lift inner lows) so ridges and ravines at the SAME radial
-    # distance still vary — variation is only forbidden across radial depth.
-    # Primary-tree monotonicity is already guaranteed by the fan BFS; this
-    # pass handles the cross-branch case the primary tree doesn't cover.
-    node_r: dict[str, float] = {}
-    for q, (x, y) in positions.items():
-        node_r[q] = math.hypot(x, y)
-    mono_nodes = sorted((q for q in heights if q != VIRTUAL), key=lambda q: node_r[q])
-    NEAR_DIST_MONO = STEP * 1.5   # fan-space proximity window
-    for _it in range(6):
-        changed = False
-        for i, q in enumerate(mono_nodes):
-            rq = node_r[q]
-            qx, qy = positions.get(q, (0.0, 0.0))
-            cap = float("inf")
-            for j in range(i):
-                p = mono_nodes[j]
-                if node_r[p] >= rq - 1e-6:
-                    continue
-                px, py = positions.get(p, (0.0, 0.0))
-                if math.hypot(px - qx, py - qy) > NEAR_DIST_MONO:
-                    continue
-                if heights[p] < cap:
-                    cap = heights[p]
-            if cap != float("inf") and heights[q] > cap:
-                heights[q] = cap
-                changed = True
-        if not changed:
-            break
-
-    # Percentile normalization with hard clipping.
-    # Problem we're solving: min-max scaling crams the middle 80-90% of nodes
-    # into a narrow vertical band because one outlier peak (usually `main`)
-    # and one outlier valley (usually a deep low-importance leaf) stretch the
-    # range. The middle ends up indistinguishable.
-    #
-    # Fix: map the p10–p90 band to the middle 80% of TARGET_SPAN. Everything
-    # below p10 clips to the bottom edge, everything above p90 clips to the
-    # top edge. The meaningful 80% of nodes now fills 80% of the vertical
-    # range — ridge variation becomes legible.
-    TARGET_SPAN = 18.0
-    INNER_FRAC = 0.80     # fraction of TARGET_SPAN allocated to the p10–p90 band
-    LO_PCT, HI_PCT = 0.10, 0.90
-    mountain_heights = sorted(h for q, h in heights.items() if q != VIRTUAL)
-    n = len(mountain_heights)
-    if n >= 4:
-        p_lo = mountain_heights[int(n * LO_PCT)]
-        p_hi = mountain_heights[int(n * HI_PCT)]
-        core_span = p_hi - p_lo
-        if core_span > 0.01:
-            inner_span = TARGET_SPAN * INNER_FRAC
-            inner_lo = TARGET_SPAN * (1 - INNER_FRAC) / 2    # e.g. 1.0
-            inner_hi = inner_lo + inner_span                  # e.g. 9.0
-            scale = inner_span / core_span
-            for q in list(heights.keys()):
-                if q == VIRTUAL:
-                    continue
-                h = heights[q]
-                if h <= p_lo:
-                    heights[q] = max(0.0, inner_lo - (p_lo - h) * 0.3)  # soft pull-down below p10
-                elif h >= p_hi:
-                    heights[q] = min(TARGET_SPAN, inner_hi + (h - p_hi) * 0.3)  # soft pull-up above p90
-                else:
-                    heights[q] = inner_lo + (h - p_lo) * scale
+    # Heights are determined entirely by primary-tree descent from the root:
+    # h(child) = h(parent) − drop(parent, child), where drop is small for
+    # important chains and large for unimportant ones (set during the BFS
+    # above). No normalization, no ring caps, no percentile rescaling — each
+    # node's height is relative to its parent's height, and that's the whole
+    # mental model. Ridges and valleys emerge naturally from the drops,
+    # bounded only by MAX_LINK_DROP and the ridge-slope floor.
 
     # Build set of primary-tree edges (parent, child) — these are the only
     # edges that are guaranteed monotonic in radius and should be rendered as arcs.
