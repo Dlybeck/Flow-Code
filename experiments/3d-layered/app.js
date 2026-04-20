@@ -808,36 +808,8 @@ function rebuild() {
     }
   }
 
-  // Dust motes: sparse drifting points around the mountain. Tiny and dim,
-  // but add a sense of atmospheric scale — something hangs in the air.
-  {
-    const dustN = 260;
-    const dustPositions = new Float32Array(dustN * 3);
-    const dustSeeds = new Float32Array(dustN * 3);  // baseline x/y/z for drift
-    const mountainR = (typeof maxR !== 'undefined' && maxR) ? maxR : 30;
-    const baseY = hMin;
-    const topY = hMax + 4;
-    for (let i = 0; i < dustN; i++) {
-      const theta = (hash(i * 7 + 1) * 2 - 1) * Math.PI;
-      const r = mountainR * (0.4 + hash(i * 11 + 3) * 0.9);
-      const y = baseY + (topY - baseY) * hash(i * 13 + 5);
-      const x = Math.cos(theta) * r;
-      const z = Math.sin(theta) * r;
-      dustPositions[i * 3] = x; dustPositions[i * 3 + 1] = y; dustPositions[i * 3 + 2] = z;
-      dustSeeds[i * 3] = x; dustSeeds[i * 3 + 1] = y; dustSeeds[i * 3 + 2] = z;
-    }
-    const dustGeo = new THREE.BufferGeometry();
-    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-    dustGeo.userData = { seeds: dustSeeds };
-    dustParticles = new THREE.Points(
-      dustGeo,
-      new THREE.PointsMaterial({
-        color: 0xdccfb6, size: 0.35, transparent: true, opacity: 0.28,
-        sizeAttenuation: true, depthWrite: false, fog: true,
-      }),
-    );
-    scene.add(dustParticles);
-  }
+  // (dust motes were distracting — removed)
+
 
   // --- Nodes ---
   const sphereGeo = new THREE.SphereGeometry(0.3, 14, 10);
@@ -1139,20 +1111,6 @@ function animate() {
   requestAnimationFrame(animate);
   if (contextLost) return;
   controls.update();
-  // Drift dust motes so the scene isn't frozen — slow sinusoidal sway per axis.
-  if (dustParticles) {
-    const t = performance.now() * 0.00028;
-    const pos = dustParticles.geometry.attributes.position;
-    const seeds = dustParticles.geometry.userData.seeds;
-    for (let i = 0; i < pos.count; i++) {
-      const sx = seeds[i * 3], sy = seeds[i * 3 + 1], sz = seeds[i * 3 + 2];
-      const phase = (i % 17) * 0.37;
-      pos.array[i * 3]     = sx + Math.sin(t + phase) * 0.9;
-      pos.array[i * 3 + 1] = sy + Math.sin(t * 0.7 + phase * 1.3) * 0.4;
-      pos.array[i * 3 + 2] = sz + Math.cos(t * 0.9 + phase) * 0.9;
-    }
-    pos.needsUpdate = true;
-  }
   composer.render();
 }
 animate();
