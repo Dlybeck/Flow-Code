@@ -4,6 +4,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Delaunay } from 'https://cdn.jsdelivr.net/npm/d3-delaunay@6/+esm';
+import cdt2d from 'https://esm.sh/cdt2d@1.0.0';
 
 // ---------- load ----------
 const graph = await fetch('graph.json', { cache: 'no-store' }).then(r => r.json());
@@ -562,9 +563,37 @@ function rebuild() {
     pts2d.push([p[0], p[2]]);
   }
 
-  // Pass 1 Delaunay — coarse triangulation used to locate centroids
-  let delaunay = Delaunay.from(pts2d);
-  let triangles = delaunay.triangles;
+  // Index mapping + primary-edge sets, built BEFORE the first triangulation
+  // so we can pass primary edges as CDT constraints. idToIndex maps node id
+  // to its slot in pts2d (first nNode slots are terrainNodes in order).
+  // primaryKeys is the dedup'd set of primary edges used later to skip
+  // subdivision on the spine. constraintEdges is the list of [ia, ib] pairs
+  // that cdt2d must preserve as polygon edges.
+  const idToIndex = new Map();
+  for (let i = 0; i < nNode; i++) idToIndex.set(terrainNodes[i].id, i);
+  const primaryKeys = new Set();
+  const constraintEdges = [];
+  for (const e of edges) {
+    if (!e.is_primary) continue;
+    const ia = idToIndex.get(e.from);
+    const ib = idToIndex.get(e.to);
+    if (ia == null || ib == null || ia === ib) continue;
+    primaryKeys.add(ia < ib ? (ia * 1000003 + ib) : (ib * 1000003 + ia));
+    constraintEdges.push([ia, ib]);
+  }
+
+  // Pass 1 — Constrained Delaunay Triangulation. Every primary call edge is
+  // passed as a required edge, so the 2D segment between two connected
+  // nodes is guaranteed to be shared between two polygons of the mesh.
+  // That means the straight cyan line we draw on top of each primary edge
+  // sits flush on the surface instead of clipping into a terrain bulge.
+  let cdtTris = cdt2d(pts2d, constraintEdges, { exterior: true });
+  let triangles = new Uint32Array(cdtTris.length * 3);
+  for (let t = 0; t < cdtTris.length; t++) {
+    triangles[t * 3]     = cdtTris[t][0];
+    triangles[t * 3 + 1] = cdtTris[t][1];
+    triangles[t * 3 + 2] = cdtTris[t][2];
+  }
 
   // Build a parallel 3D array so we can look up each 2D point's full position
   const positions3D = new Array(nTotal);
@@ -579,33 +608,7 @@ function rebuild() {
     positions3D[nNode + nSteiner + i] = groundingPositions[i];
   }
 
-  // Edge-midpoint subdivision with a "lift toward max" rule, applied ONLY
-  // to edges where both endpoints sit high on the mountain. Adds a midpoint
-  // vertex on each qualifying edge and pushes its y above the straight-line
-  // midpoint so a crest bulges UP into a convex curve instead of a knife
-  // edge. Low-altitude edges are left alone — a lift down in a valley would
-  // create overhangs and crater artifacts.
-  //
-  // Run multiple passes: after the first pass adds midpoints and Delaunay
-  // re-triangulates, the new triangles have their own edges that can be
-  // subdivided too. Each pass ~roughly doubles mountain-triangle density
-  // and smooths crests further.
-  // Primary-tree edges form the spine of the mountain. We NEVER subdivide
-  // these — they stay as straight sharp polygon edges forming visible
-  // ridges and ravines. Only non-spine edges (the cross-cuts that run
-  // between branches) get subdivided; midpoints sit at linear-interpolated
-  // heights (on the plane of their original triangle), so the mesh gets
-  // more facets without inventing any new altitudes.
-  const idToIndex = new Map();
-  for (let i = 0; i < nNode; i++) idToIndex.set(terrainNodes[i].id, i);
-  const primaryKeys = new Set();
-  for (const e of edges) {
-    if (!e.is_primary) continue;
-    const ia = idToIndex.get(e.from);
-    const ib = idToIndex.get(e.to);
-    if (ia == null || ib == null) continue;
-    primaryKeys.add(ia < ib ? (ia * 1000003 + ib) : (ib * 1000003 + ia));
-  }
+  // Parallel-cut subdivision notes and primary-edge skip logic live below.
 
   // Parallel-cut subdivision: for each triangle flanking a primary edge,
   // split its TWO non-spine edges at their midpoints. The new polygon
@@ -641,8 +644,15 @@ function rebuild() {
       }
     }
     if (positions3D.length === before) break;
-    delaunay = Delaunay.from(pts2d);
-    triangles = delaunay.triangles;
+    // Re-triangulate with the SAME primary-edge constraints after midpoints
+    // were added, so primary edges remain mesh edges even after subdivision.
+    cdtTris = cdt2d(pts2d, constraintEdges, { exterior: true });
+    triangles = new Uint32Array(cdtTris.length * 3);
+    for (let t = 0; t < cdtTris.length; t++) {
+      triangles[t * 3]     = cdtTris[t][0];
+      triangles[t * 3 + 1] = cdtTris[t][1];
+      triangles[t * 3 + 2] = cdtTris[t][2];
+    }
   }
 
   const finalCount = positions3D.length;
