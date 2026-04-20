@@ -402,15 +402,16 @@ function computeHeights() {
   return h;
 }
 
-// Neon / dataviz palette: dark body with a slight cool-to-warm vertical
-// gradient, so height still reads faintly but the surface stays near-black.
-// Contour bands (bright cyan) and glowing edges do the real visual work.
+// Minimal low-poly palette: dark but NOT black — pure black eats all facet
+// shading, leaving the mountain as an unreadable silhouette. Lifted the
+// values into the mid-slate range so flat-shading contrast actually reads,
+// with a cool vertical gradient for a little height signal.
 const TERRAIN_STOPS = [
-  [0.00, new THREE.Color(0x070a18)], // near-black base
-  [0.30, new THREE.Color(0x0a1030)], // deep indigo
-  [0.60, new THREE.Color(0x12143d)], // dim violet
-  [0.85, new THREE.Color(0x1b1e55)], // upper indigo
-  [1.00, new THREE.Color(0x2a2d72)], // summit indigo (very dim)
+  [0.00, new THREE.Color(0x1a2036)], // slate base
+  [0.30, new THREE.Color(0x222a45)], // slate indigo
+  [0.60, new THREE.Color(0x2e3660)], // mid indigo
+  [0.85, new THREE.Color(0x3a4488)], // upper indigo
+  [1.00, new THREE.Color(0x4c5aaa)], // summit indigo
 ];
 // Rock tiers: bare → dark (near-cliff) → shadow
 const ROCK = new THREE.Color(0x7d7366);      // cool gray-brown — contrasts the warm slope
@@ -456,7 +457,7 @@ function fileColor(file) {
 function rebuild() {
   // Clear existing
   if (terrainMesh) { scene.remove(terrainMesh); terrainMesh.geometry.dispose(); terrainMesh.material.dispose(); }
-  if (wireMesh) { scene.remove(wireMesh); wireMesh.material.dispose(); }
+  if (wireMesh) { scene.remove(wireMesh); wireMesh.geometry.dispose(); wireMesh.material.dispose(); wireMesh = null; }
   for (const m of nodeMeshes) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
   nodeMeshes.length = 0; nodeById.clear();
   for (const l of edgeLines) { scene.remove(l); l.geometry.dispose(); l.material.dispose(); }
@@ -731,9 +732,22 @@ function rebuild() {
   scene.add(terrainMesh);
   // Debug handle for inspection via chrome MCP.
   window.__debug = { scene, terrainMesh, camera, THREE };
-  // Wireframe overlay removed — edges are drawn explicitly below so the
-  // visible line network matches the actual call graph, not Delaunay triangulation.
-  wireMesh = null;
+
+  // Neon wireframe overlay: thin cyan lines along every polygon edge. Core
+  // of the low-poly-dark aesthetic — the dark facets provide the form and
+  // the wireframe lights up the geometry. EdgesGeometry with a small angle
+  // threshold keeps smooth-looking neighbors from doubling up on edges.
+  const edgesGeom = new THREE.EdgesGeometry(geom, 1);
+  wireMesh = new THREE.LineSegments(
+    edgesGeom,
+    new THREE.LineBasicMaterial({
+      color: 0x4fe3ff,
+      transparent: true,
+      opacity: 0.32,
+      fog: true,
+    }),
+  );
+  scene.add(wireMesh);
 
   // Clean up any beacon/dust from a prior rebuild (layout toggle).
   if (peakBeacon) { scene.remove(peakBeacon); peakBeacon = null; }
