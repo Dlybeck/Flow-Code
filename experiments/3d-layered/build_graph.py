@@ -631,16 +631,16 @@ def main() -> None:
     print(f"  2D edge crossings: {crossings}")
     print(f"  connected peaks: {len(peaks)}")
 
-    # Orphans = real peaks with no children (isolated, dead-code looking). The
-    # layout moved them behind the mountain. Mark them so the renderer can skip
-    # them from the terrain mesh.
+    # Orphans = real peaks with no callers AND no callees (isolated, dead-code
+    # looking). Marked so the renderer can skip them from the terrain mesh.
+    #
+    # NOTE: we used to also flag any node with y_fan > 0 as an orphan — that
+    # heuristic was a crutch for the old 120° south-facing fan ("anything
+    # behind origin was an orphan pushed there by the layout"). With the
+    # current ≥ 340° wedge the positive-y half is normal terrain, so that
+    # rule is wrong and would exclude half the mountain from the mesh.
     real_peaks_set = {q for q in qnames if not callers_of.get(q)}
     orphan_set = {q for q in real_peaks_set if not callees_of.get(q)}
-    # Also flag cycle-only unreachable nodes as orphans (layout put them with orphans)
-    # Compute: any node whose fan position has y_fan > 0 is an orphan (mountain is south of origin).
-    for q, (_, y) in fan_coords.items():
-        if y > 0:
-            orphan_set.add(q)
 
     # importance was computed above (before the fan layout) and already used
     # to scale per-edge slopes into ridges/ravines. Kept on each node for
