@@ -25,34 +25,14 @@ const state = {
 
 // ---------- scene ----------
 const scene = new THREE.Scene();
-// Cinematic sky: gradient from warm dusk horizon up to deep cool zenith.
-// A huge inverted sphere with per-vertex colors gives us a cheap dome — no
-// shader code needed. Fog then matches the horizon so distant terrain
-// dissolves into sky instead of into a flat color.
-const SKY_HORIZON = new THREE.Color(0x5a4a52);   // warm dusk
-const SKY_ZENITH  = new THREE.Color(0x0e1822);   // deep night-blue
-const skyGeo = new THREE.SphereGeometry(400, 32, 24);
-const skyColors = new Float32Array(skyGeo.attributes.position.count * 3);
-for (let i = 0; i < skyGeo.attributes.position.count; i++) {
-  const y = skyGeo.attributes.position.getY(i);
-  const r = Math.hypot(
-    skyGeo.attributes.position.getX(i),
-    skyGeo.attributes.position.getY(i),
-    skyGeo.attributes.position.getZ(i),
-  ) || 1;
-  const t = (y / r + 0.25) / 1.25;     // 0 near bottom, 1 near top
-  const tt = Math.max(0, Math.min(1, t));
-  const c = SKY_HORIZON.clone().lerp(SKY_ZENITH, tt);
-  skyColors[i * 3] = c.r; skyColors[i * 3 + 1] = c.g; skyColors[i * 3 + 2] = c.b;
-}
-skyGeo.setAttribute('color', new THREE.BufferAttribute(skyColors, 3));
-const skyMesh = new THREE.Mesh(
-  skyGeo,
-  new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }),
-);
-scene.add(skyMesh);
-scene.background = SKY_HORIZON.clone();  // fallback color when sky mesh is clipped
-scene.fog = new THREE.Fog(SKY_HORIZON.getHex(), 55, 180);
+// Neon / dataviz aesthetic: deep indigo-black void with subtle gradient,
+// heavy fog for atmospheric falloff so distant geometry dissolves into
+// darkness. The mountain will render as a dark body with luminous
+// contour lines, glowing edges, and emissive node orbs — bloom does the
+// heavy lifting.
+const NEON_BG = new THREE.Color(0x04060f);
+scene.background = NEON_BG.clone();
+scene.fog = new THREE.FogExp2(NEON_BG.getHex(), 0.012);
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 700);
 
@@ -108,10 +88,9 @@ if (!webglOK) {
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-// Enable shadow mapping so the sun actually casts shadows — gives the
-// mountain real depth instead of a flat shaded look.
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Shadows are disabled in the neon aesthetic — depth comes from emissive
+// contour lines and fog falloff, not from cast shadows.
+renderer.shadowMap.enabled = false;
 document.body.appendChild(renderer.domElement);
 renderer.domElement.addEventListener('webglcontextlost', (ev) => {
   ev.preventDefault();
@@ -354,30 +333,21 @@ controls.dampingFactor = 0.08;
 controls.minPolarAngle = 0.05;
 controls.maxPolarAngle = Math.PI * 0.48;
 
-// Three-point-ish lighting: warm key (low-angle dusk sun), cool fill, and a
-// subtle rim from behind the mountain to etch the silhouette against the
-// darker zenith of the sky dome.
-scene.add(new THREE.AmbientLight(0xffffff, 0.28));
-const sun = new THREE.DirectionalLight(0xffdfb0, 1.25);   // warmer than before
-sun.position.set(28, 40, 18);                               // lower angle = longer shadows
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-// Shadow camera needs to enclose the mountain. Expand the ortho frustum.
-sun.shadow.camera.left = -45;
-sun.shadow.camera.right = 45;
-sun.shadow.camera.top = 45;
-sun.shadow.camera.bottom = -45;
-sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 150;
-sun.shadow.bias = -0.0005;
-sun.shadow.radius = 2;
-scene.add(sun);
-const fill = new THREE.DirectionalLight(0x7aa5ff, 0.32);   // cooler fill stronger for dusk feel
-fill.position.set(-30, 18, -15);
-scene.add(fill);
-const rim = new THREE.DirectionalLight(0xb9c8dc, 0.55);    // back-light from peak direction
-rim.position.set(0, 35, 55);
+// Neon aesthetic: minimal lighting. Emissive orbs + vertex-colored contour
+// lines carry the visual weight. A weak rim light touches node spheres so
+// they aren't flat silhouettes.
+scene.add(new THREE.HemisphereLight(0x152040, 0x020408, 0.35));
+const rim = new THREE.DirectionalLight(0x6a7aff, 0.45);
+rim.position.set(15, 30, -25);
 scene.add(rim);
+
+// Neon floor grid: provides spatial reference below the apron. Positioned
+// per rebuild() so it tracks the mountain's apron height.
+const grid = new THREE.GridHelper(400, 80, 0x1d3a5c, 0x0a1528);
+grid.material.transparent = true;
+grid.material.opacity = 0.55;
+grid.material.fog = true;
+scene.add(grid);
 
 // No separate ground plane — the terrain mesh extends far enough via its
 // outermost grounding arc to cover the whole visible ground. One mesh = no seam.
@@ -433,21 +403,15 @@ function computeHeights() {
   return h;
 }
 
-// Higher-contrast alpine palette with saturated greens, clear dirt/rock
-// zones, and a bright snow line. The smooth-shaded surface was blurring the
-// bands into one muddy brown; stronger saturation per band + multi-octave
-// vertex noise gives the terrain a rocky feel instead of plastic.
+// Neon / dataviz palette: dark body with a slight cool-to-warm vertical
+// gradient, so height still reads faintly but the surface stays near-black.
+// Contour bands (bright cyan) and glowing edges do the real visual work.
 const TERRAIN_STOPS = [
-  [0.00, new THREE.Color(0x1d3d22)], // deep forest
-  [0.10, new THREE.Color(0x2d6336)], // forest
-  [0.22, new THREE.Color(0x4e8a3f)], // saturated meadow
-  [0.34, new THREE.Color(0x8a9d4a)], // dry grass
-  [0.46, new THREE.Color(0xaf8b52)], // scrub tundra
-  [0.58, new THREE.Color(0x7f6748)], // scree
-  [0.70, new THREE.Color(0x5a4b3e)], // exposed rock (darker)
-  [0.82, new THREE.Color(0x948a7d)], // upper rock
-  [0.88, new THREE.Color(0xe6e1d4)], // alpine snow starts
-  [1.00, new THREE.Color(0xffffff)], // summit
+  [0.00, new THREE.Color(0x070a18)], // near-black base
+  [0.30, new THREE.Color(0x0a1030)], // deep indigo
+  [0.60, new THREE.Color(0x12143d)], // dim violet
+  [0.85, new THREE.Color(0x1b1e55)], // upper indigo
+  [1.00, new THREE.Color(0x2a2d72)], // summit indigo (very dim)
 ];
 // Rock tiers: bare → dark (near-cliff) → shadow
 const ROCK = new THREE.Color(0x7d7366);      // cool gray-brown — contrasts the warm slope
@@ -718,14 +682,15 @@ function rebuild() {
   for (let i = 0; i < finalCount; i++) {
     const vy = posArr[i * 3 + 1];
     if (i >= nMountain && vy <= groundThreshold) {
-      // Slight darkening toward outer edge so distant ground reads as horizon fade
+      // Apron stays near-black so the grid mesh (added separately as floor)
+      // carries the ground plane's visual reference. Slight darkening with
+      // radial distance for fog-falloff feel.
       const r2d = Math.hypot(posArr[i * 3], posArr[i * 3 + 2]);
       const fade = Math.min(1, Math.max(0, (r2d - 30) / 60));
-      const baseGround = new THREE.Color(0x4a5a3c).lerp(new THREE.Color(0x2c3528), fade * 0.65);
-      const noise = (hash(i * 11) - 0.5) * 0.06;
-      colArr[i * 3] = Math.max(0, Math.min(1, baseGround.r + noise));
-      colArr[i * 3 + 1] = Math.max(0, Math.min(1, baseGround.g + noise));
-      colArr[i * 3 + 2] = Math.max(0, Math.min(1, baseGround.b + noise));
+      const baseGround = new THREE.Color(0x070a16).lerp(new THREE.Color(0x04060d), fade * 0.8);
+      colArr[i * 3] = baseGround.r;
+      colArr[i * 3 + 1] = baseGround.g;
+      colArr[i * 3 + 2] = baseGround.b;
       continue;
     }
     const y = posArr[i * 3 + 1];
@@ -741,67 +706,49 @@ function rebuild() {
     const t = (y - hMin) / hRange;
     let mixed = terrainColor(t);
 
-    // Topographic contour bands — a thin dark ring at every CONTOUR_INTERVAL
-    // units of world height. Gives the eye an instant read on relative
-    // elevation without requiring any geometry.
-    const CONTOUR_INTERVAL = 2.0;
-    const CONTOUR_WIDTH    = 0.18;   // how wide each darkened ring is
-    const CONTOUR_STRENGTH = 0.26;   // how dark the band goes
+    // Neon contour lines. Every CONTOUR_INTERVAL units of world height gets a
+    // glowing cyan band baked into the vertex color. Stronger than before
+    // because bloom will pick them up as luminous lines. The dark body lets
+    // these rings dominate the visual read, making the mountain feel like a
+    // holographic topographic map.
+    const CONTOUR_INTERVAL = 1.6;
+    const CONTOUR_WIDTH    = 0.11;
     const hMod = ((y % CONTOUR_INTERVAL) + CONTOUR_INTERVAL) % CONTOUR_INTERVAL;
     const distToBand = Math.min(hMod, CONTOUR_INTERVAL - hMod);
     if (distToBand < CONTOUR_WIDTH) {
       const k = 1 - distToBand / CONTOUR_WIDTH;
-      const contourTint = new THREE.Color(0x1c1914);
-      mixed = mixed.clone().lerp(contourTint, CONTOUR_STRENGTH * k);
+      // Higher-altitude contours shift toward warm magenta so the peak
+      // "cooks" in a different hue than the valleys.
+      const lowColor  = new THREE.Color(0x00d4ff);  // cyan
+      const highColor = new THREE.Color(0xff4fd4);  // magenta
+      const neon = lowColor.clone().lerp(highColor, Math.min(1, t * 1.1));
+      mixed = mixed.clone().lerp(neon, k * 0.95);
     }
 
-    // Tier 1 — any perceptible slope picks up cool-gray rock tint so the eye
-    // can distinguish slope from flat ground.
-    const rockMix = Math.min(1, Math.max(0, (steep - 0.02) * 3.5));
-    mixed = mixed.clone().lerp(ROCK, rockMix * 0.90);
-    // Tier 2 — genuinely steep faces (≥ ~30°) go to near-black cliff tone
-    const cliffMix = Math.min(1, Math.max(0, (steep - 0.20) * 3.0));
-    mixed.lerp(ROCK_DARK, cliffMix * 0.85);
-    // Shadow tint: darken anything facing away from sun
-    const shadow = new THREE.Color(0x2a2f36);
-    mixed.lerp(shadow, shadowT * 0.35);
-
-    // Spatially-coherent multi-octave noise baked into vertex colors so the
-    // smooth-shaded surface still reads as rocky/grainy. Uses world-space
-    // (x, z) coordinates so neighboring vertices see correlated noise — the
-    // result reads as weathering rather than pixel-noise.
-    const vx = posArr[i * 3], vz = posArr[i * 3 + 2];
-    const n1 = Math.sin(vx * 1.7 + vz * 1.1) * Math.cos(vx * 0.9 - vz * 1.3);
-    const n2 = Math.sin(vx * 3.8 + vz * 4.3) * Math.cos(vx * 2.7 + vz * 3.1);
-    const n3 = (hash(i * 23) - 0.5) * 2.0;
-    const tex = (n1 * 0.55 + n2 * 0.30 + n3 * 0.15) * 0.11;
-    // Darken low-frequency dips slightly more than highlights to simulate
-    // ambient occlusion in crevices.
-    const aoShade = Math.max(0, -n1) * 0.08;
-    mixed.r = Math.max(0, Math.min(1, mixed.r + tex - aoShade));
-    mixed.g = Math.max(0, Math.min(1, mixed.g + tex - aoShade));
-    mixed.b = Math.max(0, Math.min(1, mixed.b + tex - aoShade));
-    // Snow cap — but bare cliffs shed snow
-    if (t > 0.78) {
-      // Crisp snow line above t=0.82 — cliffs still shed snow so exposed
-      // rock stays visible on vertical faces.
-      const snow = new THREE.Color(0xfbfaf5);
-      const snowMix = Math.pow(Math.max(0, (t - 0.82) / 0.18), 0.7);
-      mixed.lerp(snow, Math.min(1, snowMix * (1 - rockMix * 0.35 - cliffMix * 0.75)));
-    }
+    // Very subtle fine-grain noise so the surface isn't a flat gradient —
+    // just enough to prevent banding in the dark body.
+    const fine = (hash(i * 7) - 0.5) * 0.015;
+    mixed.r = Math.max(0, Math.min(1, mixed.r + fine));
+    mixed.g = Math.max(0, Math.min(1, mixed.g + fine));
+    mixed.b = Math.max(0, Math.min(1, mixed.b + fine));
+    // Ignore slope/shadow/snow logic — contour lines carry the structural
+    // read in this style, and we want the surface to stay near-black
+    // everywhere except where neon passes through.
+    void steep; void shadowT;
     colArr[i * 3] = mixed.r; colArr[i * 3 + 1] = mixed.g; colArr[i * 3 + 2] = mixed.b;
   }
   geom.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
 
-  terrainMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+  // Neon aesthetic: unlit material. The vertex colors (dark body + bright
+  // neon contour bands) become the final pixel output directly, so contours
+  // survive bloom thresholding and glow into the fog. No shadows, no
+  // lighting — the shape is carried by the contour lines and the floor
+  // grid rather than by surface lighting.
+  terrainMesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({
     vertexColors: true,
-    roughness: 0.95,
-    metalness: 0.02,
     side: THREE.DoubleSide,
-    flatShading: false,
+    fog: true,
   }));
-  terrainMesh.castShadow = true;
-  terrainMesh.receiveShadow = true;
   scene.add(terrainMesh);
   // Debug handle for inspection via chrome MCP.
   window.__debug = { scene, terrainMesh, camera, THREE };
@@ -817,6 +764,9 @@ function rebuild() {
     dustParticles.material.dispose();
     dustParticles = null;
   }
+
+  // Position the floor grid at apron level so it reads as the ground.
+  grid.position.y = hMin - 2.5;
 
   // Peak beacon: warm PointLight sitting slightly above the summit. Picks up
   // bloom into a soft halo that marks the entry point from any angle.
@@ -841,13 +791,18 @@ function rebuild() {
   for (const n of nodes) {
     const isPeak = peakSet.has(n.id);
     const isOrphan = !!n.is_orphan;
-    const base = isOrphan ? new THREE.Color(0x555c66) : fileColor(n.file).clone();
-    const emissiveStrength = isOrphan ? 0.05 : (isPeak ? 0.35 : 0.15);
+    const base = isOrphan ? new THREE.Color(0x4c5a80) : fileColor(n.file).clone();
+    // Neon orbs: material is basic-lit by emissive only, so nodes glow into
+    // the bloom. Peak is brighter than leaves. Orphans dim and faded.
+    const emissiveStrength = isOrphan ? 0.4 : (isPeak ? 2.8 : 1.4);
     const mat = new THREE.MeshStandardMaterial({
-      color: base, roughness: 0.5, metalness: 0.1,
-      emissive: base.clone().multiplyScalar(emissiveStrength),
+      color: 0x050510,
+      roughness: 0.6,
+      metalness: 0.0,
+      emissive: base.clone(),
+      emissiveIntensity: emissiveStrength,
       transparent: isOrphan,
-      opacity: isOrphan ? 0.45 : 1.0,
+      opacity: isOrphan ? 0.5 : 1.0,
     });
     const mesh = new THREE.Mesh(sphereGeo, mat);
     mesh.castShadow = true;
@@ -899,17 +854,18 @@ function rebuild() {
       geomPts = curve.getPoints(16);
     }
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
-    // Primary edges: solid dark lines (they mark the spines).
-    // Cross edges: faint dashed lines to de-emphasize without hiding info.
-    const baseOp = isPrimary ? 0.65 : 0.30;
+    // Neon edges: primaries get bright cyan (bloom fodder, they’re the
+    // structural spine). Cross edges are dim dashed magenta so they read
+    // as secondary references without competing with the spine.
+    const baseOp = isPrimary ? 0.95 : 0.40;
     const mat = isPrimary
-      ? new THREE.LineBasicMaterial({ color: 0x2a3238, transparent: true, opacity: baseOp })
+      ? new THREE.LineBasicMaterial({ color: 0x4fe3ff, transparent: true, opacity: baseOp })
       : new THREE.LineDashedMaterial({
-          color: 0x8090a2,
+          color: 0xff6fd9,
           transparent: true,
           opacity: baseOp,
-          dashSize: 0.25,
-          gapSize: 0.35,
+          dashSize: 0.22,
+          gapSize: 0.42,
         });
     const line = new THREE.Line(g, mat);
     if (!isPrimary) line.computeLineDistances();  // required for dashed
@@ -1122,9 +1078,9 @@ composer.setPixelRatio(window.devicePixelRatio);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.45,  // strength
-  0.85,  // radius
-  0.78,  // threshold (only pixels above this glow)
+  1.10,  // strength — heavy for neon glow
+  1.00,  // radius — wide halo around bright pixels
+  0.55,  // threshold — lower so contours + edges all bloom
 );
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
