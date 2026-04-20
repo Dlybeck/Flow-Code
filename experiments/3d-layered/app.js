@@ -370,6 +370,8 @@ scene.add(rim);
 // ---------- derived geometry containers (rebuilt on state change) ----------
 let terrainMesh = null;
 let wireMesh = null;
+let peakBeacon = null;         // warm PointLight at the summit
+let dustParticles = null;      // sparse drifting motes around the mountain
 const nodeMeshes = [];
 const nodeById = new Map();
 const edgeLines = [];
@@ -416,19 +418,20 @@ function computeHeights() {
   return h;
 }
 
-// Alpine palette — greens are deliberately narrow; rock/scree dominate the mid.
+// Alpine palette with wider green foothills and a crisper snow line. The
+// eye reads height faster when there are distinct bands (grass → scrub →
+// rock → snow) instead of a continuous brown gradient.
 const TERRAIN_STOPS = [
-  [0.00, new THREE.Color(0x233e49)], // deep water
-  [0.06, new THREE.Color(0x2e5b4e)], // shoreline
-  [0.14, new THREE.Color(0x3a6e3e)], // dark forest
-  [0.22, new THREE.Color(0x5f8a48)], // forest
-  [0.30, new THREE.Color(0x99a259)], // meadow (narrow)
-  [0.40, new THREE.Color(0xb09a64)], // dry tundra
-  [0.52, new THREE.Color(0x9a7f62)], // scree
-  [0.66, new THREE.Color(0x7a6759)], // rock
-  [0.80, new THREE.Color(0xa89b8d)], // upper rock
-  [0.90, new THREE.Color(0xdad4c6)], // alpine / old snow
-  [1.00, new THREE.Color(0xf8f5ef)], // summit
+  [0.00, new THREE.Color(0x2a4a2e)], // forest floor
+  [0.10, new THREE.Color(0x3e6a3a)], // dark forest
+  [0.22, new THREE.Color(0x679050)], // meadow green (wider)
+  [0.34, new THREE.Color(0x91a164)], // dry grass
+  [0.46, new THREE.Color(0xab9068)], // scrub / dry tundra
+  [0.58, new THREE.Color(0x8a7359)], // scree
+  [0.70, new THREE.Color(0x6e5e50)], // exposed rock
+  [0.82, new THREE.Color(0x8b8275)], // upper rock (snow begins just above)
+  [0.90, new THREE.Color(0xe2ddd0)], // alpine snow
+  [1.00, new THREE.Color(0xfbfaf5)], // summit
 ];
 // Rock tiers: bare → dark (near-cliff) → shadow
 const ROCK = new THREE.Color(0x7d7366);      // cool gray-brown — contrasts the warm slope
@@ -752,9 +755,11 @@ function rebuild() {
     mixed.b = Math.max(0, Math.min(1, mixed.b + noise));
     // Snow cap — but bare cliffs shed snow
     if (t > 0.78) {
-      const snow = new THREE.Color(0xf8f5ef);
-      const snowMix = (t - 0.78) / 0.22;
-      mixed.lerp(snow, Math.min(1, snowMix * (1 - rockMix * 0.4 - cliffMix * 0.6)));
+      // Crisp snow line above t=0.82 — cliffs still shed snow so exposed
+      // rock stays visible on vertical faces.
+      const snow = new THREE.Color(0xfbfaf5);
+      const snowMix = Math.pow(Math.max(0, (t - 0.82) / 0.18), 0.7);
+      mixed.lerp(snow, Math.min(1, snowMix * (1 - rockMix * 0.35 - cliffMix * 0.75)));
     }
     colArr[i * 3] = mixed.r; colArr[i * 3 + 1] = mixed.g; colArr[i * 3 + 2] = mixed.b;
   }
@@ -778,6 +783,61 @@ function rebuild() {
   // Wireframe overlay removed — edges are drawn explicitly below so the
   // visible line network matches the actual call graph, not Delaunay triangulation.
   wireMesh = null;
+
+  // Clean up any beacon/dust from a prior rebuild (layout toggle).
+  if (peakBeacon) { scene.remove(peakBeacon); peakBeacon = null; }
+  if (dustParticles) {
+    scene.remove(dustParticles);
+    dustParticles.geometry.dispose();
+    dustParticles.material.dispose();
+    dustParticles = null;
+  }
+
+  // Peak beacon: warm PointLight sitting slightly above the summit. Picks up
+  // bloom into a soft halo that marks the entry point from any angle.
+  {
+    let peakPos = null;
+    for (const pid of peakList) {
+      const p = currentPositions.get(pid);
+      if (p) { peakPos = p; break; }
+    }
+    if (peakPos) {
+      peakBeacon = new THREE.PointLight(0xffd9a0, 2.2, 35, 2.0);
+      peakBeacon.position.set(peakPos[0], peakPos[1] + 2.5, peakPos[2]);
+      scene.add(peakBeacon);
+    }
+  }
+
+  // Dust motes: sparse drifting points around the mountain. Tiny and dim,
+  // but add a sense of atmospheric scale — something hangs in the air.
+  {
+    const dustN = 260;
+    const dustPositions = new Float32Array(dustN * 3);
+    const dustSeeds = new Float32Array(dustN * 3);  // baseline x/y/z for drift
+    const mountainR = (typeof maxR !== 'undefined' && maxR) ? maxR : 30;
+    const baseY = hMin;
+    const topY = hMax + 4;
+    for (let i = 0; i < dustN; i++) {
+      const theta = (hash(i * 7 + 1) * 2 - 1) * Math.PI;
+      const r = mountainR * (0.4 + hash(i * 11 + 3) * 0.9);
+      const y = baseY + (topY - baseY) * hash(i * 13 + 5);
+      const x = Math.cos(theta) * r;
+      const z = Math.sin(theta) * r;
+      dustPositions[i * 3] = x; dustPositions[i * 3 + 1] = y; dustPositions[i * 3 + 2] = z;
+      dustSeeds[i * 3] = x; dustSeeds[i * 3 + 1] = y; dustSeeds[i * 3 + 2] = z;
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+    dustGeo.userData = { seeds: dustSeeds };
+    dustParticles = new THREE.Points(
+      dustGeo,
+      new THREE.PointsMaterial({
+        color: 0xdccfb6, size: 0.35, transparent: true, opacity: 0.28,
+        sizeAttenuation: true, depthWrite: false, fog: true,
+      }),
+    );
+    scene.add(dustParticles);
+  }
 
   // --- Nodes ---
   const sphereGeo = new THREE.SphereGeometry(0.3, 14, 10);
@@ -1079,6 +1139,20 @@ function animate() {
   requestAnimationFrame(animate);
   if (contextLost) return;
   controls.update();
+  // Drift dust motes so the scene isn't frozen — slow sinusoidal sway per axis.
+  if (dustParticles) {
+    const t = performance.now() * 0.00028;
+    const pos = dustParticles.geometry.attributes.position;
+    const seeds = dustParticles.geometry.userData.seeds;
+    for (let i = 0; i < pos.count; i++) {
+      const sx = seeds[i * 3], sy = seeds[i * 3 + 1], sz = seeds[i * 3 + 2];
+      const phase = (i % 17) * 0.37;
+      pos.array[i * 3]     = sx + Math.sin(t + phase) * 0.9;
+      pos.array[i * 3 + 1] = sy + Math.sin(t * 0.7 + phase * 1.3) * 0.4;
+      pos.array[i * 3 + 2] = sz + Math.cos(t * 0.9 + phase) * 0.9;
+    }
+    pos.needsUpdate = true;
+  }
   composer.render();
 }
 animate();
