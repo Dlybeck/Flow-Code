@@ -108,6 +108,10 @@ if (!webglOK) {
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+// Enable shadow mapping so the sun actually casts shadows — gives the
+// mountain real depth instead of a flat shaded look.
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 renderer.domElement.addEventListener('webglcontextlost', (ev) => {
   ev.preventDefault();
@@ -356,6 +360,17 @@ controls.maxPolarAngle = Math.PI * 0.48;
 scene.add(new THREE.AmbientLight(0xffffff, 0.28));
 const sun = new THREE.DirectionalLight(0xffdfb0, 1.25);   // warmer than before
 sun.position.set(28, 40, 18);                               // lower angle = longer shadows
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+// Shadow camera needs to enclose the mountain. Expand the ortho frustum.
+sun.shadow.camera.left = -45;
+sun.shadow.camera.right = 45;
+sun.shadow.camera.top = 45;
+sun.shadow.camera.bottom = -45;
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 150;
+sun.shadow.bias = -0.0005;
+sun.shadow.radius = 2;
 scene.add(sun);
 const fill = new THREE.DirectionalLight(0x7aa5ff, 0.32);   // cooler fill stronger for dusk feel
 fill.position.set(-30, 18, -15);
@@ -418,20 +433,21 @@ function computeHeights() {
   return h;
 }
 
-// Alpine palette with wider green foothills and a crisper snow line. The
-// eye reads height faster when there are distinct bands (grass → scrub →
-// rock → snow) instead of a continuous brown gradient.
+// Higher-contrast alpine palette with saturated greens, clear dirt/rock
+// zones, and a bright snow line. The smooth-shaded surface was blurring the
+// bands into one muddy brown; stronger saturation per band + multi-octave
+// vertex noise gives the terrain a rocky feel instead of plastic.
 const TERRAIN_STOPS = [
-  [0.00, new THREE.Color(0x2a4a2e)], // forest floor
-  [0.10, new THREE.Color(0x3e6a3a)], // dark forest
-  [0.22, new THREE.Color(0x679050)], // meadow green (wider)
-  [0.34, new THREE.Color(0x91a164)], // dry grass
-  [0.46, new THREE.Color(0xab9068)], // scrub / dry tundra
-  [0.58, new THREE.Color(0x8a7359)], // scree
-  [0.70, new THREE.Color(0x6e5e50)], // exposed rock
-  [0.82, new THREE.Color(0x8b8275)], // upper rock (snow begins just above)
-  [0.90, new THREE.Color(0xe2ddd0)], // alpine snow
-  [1.00, new THREE.Color(0xfbfaf5)], // summit
+  [0.00, new THREE.Color(0x1d3d22)], // deep forest
+  [0.10, new THREE.Color(0x2d6336)], // forest
+  [0.22, new THREE.Color(0x4e8a3f)], // saturated meadow
+  [0.34, new THREE.Color(0x8a9d4a)], // dry grass
+  [0.46, new THREE.Color(0xaf8b52)], // scrub tundra
+  [0.58, new THREE.Color(0x7f6748)], // scree
+  [0.70, new THREE.Color(0x5a4b3e)], // exposed rock (darker)
+  [0.82, new THREE.Color(0x948a7d)], // upper rock
+  [0.88, new THREE.Color(0xe6e1d4)], // alpine snow starts
+  [1.00, new THREE.Color(0xffffff)], // summit
 ];
 // Rock tiers: bare → dark (near-cliff) → shadow
 const ROCK = new THREE.Color(0x7d7366);      // cool gray-brown — contrasts the warm slope
@@ -750,11 +766,21 @@ function rebuild() {
     const shadow = new THREE.Color(0x2a2f36);
     mixed.lerp(shadow, shadowT * 0.35);
 
-    // Per-vertex noise (subtle granular texture)
-    const noise = (hash(i) - 0.5) * 0.08;
-    mixed.r = Math.max(0, Math.min(1, mixed.r + noise));
-    mixed.g = Math.max(0, Math.min(1, mixed.g + noise));
-    mixed.b = Math.max(0, Math.min(1, mixed.b + noise));
+    // Spatially-coherent multi-octave noise baked into vertex colors so the
+    // smooth-shaded surface still reads as rocky/grainy. Uses world-space
+    // (x, z) coordinates so neighboring vertices see correlated noise — the
+    // result reads as weathering rather than pixel-noise.
+    const vx = posArr[i * 3], vz = posArr[i * 3 + 2];
+    const n1 = Math.sin(vx * 1.7 + vz * 1.1) * Math.cos(vx * 0.9 - vz * 1.3);
+    const n2 = Math.sin(vx * 3.8 + vz * 4.3) * Math.cos(vx * 2.7 + vz * 3.1);
+    const n3 = (hash(i * 23) - 0.5) * 2.0;
+    const tex = (n1 * 0.55 + n2 * 0.30 + n3 * 0.15) * 0.11;
+    // Darken low-frequency dips slightly more than highlights to simulate
+    // ambient occlusion in crevices.
+    const aoShade = Math.max(0, -n1) * 0.08;
+    mixed.r = Math.max(0, Math.min(1, mixed.r + tex - aoShade));
+    mixed.g = Math.max(0, Math.min(1, mixed.g + tex - aoShade));
+    mixed.b = Math.max(0, Math.min(1, mixed.b + tex - aoShade));
     // Snow cap — but bare cliffs shed snow
     if (t > 0.78) {
       // Crisp snow line above t=0.82 — cliffs still shed snow so exposed
@@ -769,16 +795,13 @@ function rebuild() {
 
   terrainMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.85,
-    metalness: 0.05,
+    roughness: 0.95,
+    metalness: 0.02,
     side: THREE.DoubleSide,
-    // Smooth shading: normals averaged across shared vertices, so the mesh
-    // reads as a curved surface without any geometry changes. Nodes stay
-    // exactly where they are on the triangulation — zero risk of covering
-    // or floating them. Primary-tree edges are drawn as bold lines on top
-    // of the surface, so spines remain visibly marked as crests.
     flatShading: false,
   }));
+  terrainMesh.castShadow = true;
+  terrainMesh.receiveShadow = true;
   scene.add(terrainMesh);
   // Debug handle for inspection via chrome MCP.
   window.__debug = { scene, terrainMesh, camera, THREE };
@@ -827,6 +850,8 @@ function rebuild() {
       opacity: isOrphan ? 0.45 : 1.0,
     });
     const mesh = new THREE.Mesh(sphereGeo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     const [x, y, z] = currentPositions.get(n.id);
     mesh.position.set(x, y + LIFT, z);
     const s = isOrphan ? 0.7 : (isPeak ? 1.6 : 1 + Math.min(1.2, (n.n_callees || 0) * 0.1));
