@@ -805,40 +805,38 @@ function rebuild() {
     const b = currentPositions.get(e.to);
     if (!a || !b) continue;
     const isPrimary = !!e.is_primary;
-    let geomPts;
-    if (isPrimary) {
-      geomPts = [
-        new THREE.Vector3(a[0], a[1] + LIFT, a[2]),
-        new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
-      ];
-    } else {
-      // Quadratic bezier arc: midpoint lifted above the higher endpoint.
-      // Arc height scales with 2D distance so long crosses hop higher.
-      const dx = b[0] - a[0], dz = b[2] - a[2];
-      const dist2d = Math.hypot(dx, dz);
-      const arcH = Math.min(4.0, 0.6 + dist2d * 0.18);
-      const mid = new THREE.Vector3(
-        (a[0] + b[0]) / 2,
-        Math.max(a[1], b[1]) + LIFT + arcH,
-        (a[2] + b[2]) / 2,
-      );
-      const curve = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(a[0], a[1] + LIFT, a[2]),
-        mid,
-        new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
-      );
-      geomPts = curve.getPoints(16);
-    }
+    // Both edge types use a small quadratic-bezier arc so the line clears
+    // the terrain rather than clipping through it where the mountain
+    // bulges between nodes. Primary arcs are flatter (just enough to
+    // hop the surface); cross edges arch higher because they hop OVER
+    // other edges too.
+    const dx = b[0] - a[0], dz = b[2] - a[2];
+    const dist2d = Math.hypot(dx, dz);
+    const arcH = isPrimary
+      ? Math.min(1.2, 0.25 + dist2d * 0.05)
+      : Math.min(4.0, 0.6 + dist2d * 0.18);
+    const mid = new THREE.Vector3(
+      (a[0] + b[0]) / 2,
+      Math.max(a[1], b[1]) + LIFT + arcH,
+      (a[2] + b[2]) / 2,
+    );
+    const curve = new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(a[0], a[1] + LIFT, a[2]),
+      mid,
+      new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
+    );
+    const geomPts = curve.getPoints(isPrimary ? 10 : 16);
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
     // Neon edges: primaries bright cyan (the structural spine), cross edges
     // brighter magenta than before so they also register as neon accents
     // against the muted wireframe. Both opacities raised now that the
     // mountain wireframe is subtler \u2014 edges should own the foreground.
     const baseOp = isPrimary ? 1.0 : 0.75;
+    const baseColor = isPrimary ? 0x6aeaff : 0xff7ce0;
     const mat = isPrimary
-      ? new THREE.LineBasicMaterial({ color: 0x6aeaff, transparent: true, opacity: baseOp })
+      ? new THREE.LineBasicMaterial({ color: baseColor, transparent: true, opacity: baseOp })
       : new THREE.LineDashedMaterial({
-          color: 0xff7ce0,
+          color: baseColor,
           transparent: true,
           opacity: baseOp,
           dashSize: 0.22,
@@ -846,7 +844,7 @@ function rebuild() {
         });
     const line = new THREE.Line(g, mat);
     if (!isPrimary) line.computeLineDistances();  // required for dashed
-    line.userData = { edge: e, baseOpacity: baseOp };
+    line.userData = { edge: e, baseOpacity: baseOp, baseColor };
     scene.add(line);
     edgeLines.push(line);
     edgeByPair.set(`${e.from}→${e.to}`, line);
@@ -917,7 +915,8 @@ function paintFamilyTree(id) {
       m.material.opacity = 1; m.material.transparent = false;
     }
     for (const l of edgeLines) {
-      l.material.color.setHex(0x2a3240);
+      // Restore each edge's own neon base color + opacity (not a flat gray).
+      l.material.color.setHex(l.userData.baseColor);
       l.material.opacity = l.userData.baseOpacity;
     }
     return;
