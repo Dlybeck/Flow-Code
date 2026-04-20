@@ -402,16 +402,15 @@ function computeHeights() {
   return h;
 }
 
-// Minimal low-poly palette: dark but NOT black — pure black eats all facet
-// shading, leaving the mountain as an unreadable silhouette. Lifted the
-// values into the mid-slate range so flat-shading contrast actually reads,
-// with a cool vertical gradient for a little height signal.
+// Neon / dataviz palette: dark body with a slight cool-to-warm vertical
+// gradient, so height still reads faintly but the surface stays near-black.
+// Contour bands (bright cyan) and glowing edges do the real visual work.
 const TERRAIN_STOPS = [
-  [0.00, new THREE.Color(0x1a2036)], // slate base
-  [0.30, new THREE.Color(0x222a45)], // slate indigo
-  [0.60, new THREE.Color(0x2e3660)], // mid indigo
-  [0.85, new THREE.Color(0x3a4488)], // upper indigo
-  [1.00, new THREE.Color(0x4c5aaa)], // summit indigo
+  [0.00, new THREE.Color(0x070a18)], // near-black base
+  [0.30, new THREE.Color(0x0a1030)], // deep indigo
+  [0.60, new THREE.Color(0x12143d)], // dim violet
+  [0.85, new THREE.Color(0x1b1e55)], // upper indigo
+  [1.00, new THREE.Color(0x2a2d72)], // summit indigo (very dim)
 ];
 // Rock tiers: bare → dark (near-cliff) → shadow
 const ROCK = new THREE.Color(0x7d7366);      // cool gray-brown — contrasts the warm slope
@@ -733,23 +732,23 @@ function rebuild() {
   // Debug handle for inspection via chrome MCP.
   window.__debug = { scene, terrainMesh, camera, THREE };
 
-  // Neon wireframe overlay: thin cyan lines along every polygon edge. Core
-  // of the low-poly-dark aesthetic — the dark facets provide the form and
-  // the wireframe lights up the geometry. EdgesGeometry with a small angle
-  // threshold keeps smooth-looking neighbors from doubling up on edges.
+  // Subtle neon wireframe overlay: thin muted cyan lines along every
+  // polygon edge. Core of the low-poly-dark aesthetic — the dark facets
+  // carry form, wireframe lights up the geometry at low intensity so the
+  // call-graph edges still own the foreground.
   const edgesGeom = new THREE.EdgesGeometry(geom, 1);
   wireMesh = new THREE.LineSegments(
     edgesGeom,
     new THREE.LineBasicMaterial({
-      color: 0x2a7da8,   // muted cyan so it reads as structure, not accent
+      color: 0x2a7da8,
       transparent: true,
-      opacity: 0.14,     // subtle \u2014 lets the call-graph edges win the foreground
+      opacity: 0.14,
       fog: true,
     }),
   );
   scene.add(wireMesh);
 
-  // Clean up any beacon/dust from a prior rebuild (layout toggle).
+  // Minimal aesthetic: no peak beacon, no dust motes.
   if (peakBeacon) { scene.remove(peakBeacon); peakBeacon = null; }
   if (dustParticles) {
     scene.remove(dustParticles);
@@ -761,8 +760,6 @@ function rebuild() {
   // Position the floor grid at apron level so it reads as the ground.
   grid.position.y = hMin - 2.5;
 
-  // Minimal aesthetic: no peak beacon, no dust, no bloom. The peak is
-  // marked by the entry node's emissive color only.
 
   // --- Nodes ---
   const sphereGeo = new THREE.SphereGeometry(0.3, 14, 10);
@@ -770,8 +767,7 @@ function rebuild() {
     const isPeak = peakSet.has(n.id);
     const isOrphan = !!n.is_orphan;
     const base = isOrphan ? new THREE.Color(0x4c5a80) : fileColor(n.file).clone();
-    // Minimal node: solid neon color, no halo/bloom. Peak gets slightly
-    // brighter than leaves via emissiveIntensity, but no glow around it.
+    // Minimal node: solid neon color, no halo/bloom. Peak slightly brighter.
     const emissiveStrength = isOrphan ? 0.1 : (isPeak ? 0.8 : 0.5);
     const mat = new THREE.MeshStandardMaterial({
       color: base,
@@ -805,36 +801,45 @@ function rebuild() {
     const b = currentPositions.get(e.to);
     if (!a || !b) continue;
     const isPrimary = !!e.is_primary;
-    // Both edge types use a small quadratic-bezier arc so the line clears
-    // the terrain rather than clipping through it where the mountain
-    // bulges between nodes. Primary arcs are flatter (just enough to
-    // hop the surface); cross edges arch higher because they hop OVER
-    // other edges too.
-    const dx = b[0] - a[0], dz = b[2] - a[2];
-    const dist2d = Math.hypot(dx, dz);
-    const arcH = isPrimary
-      ? Math.min(1.2, 0.25 + dist2d * 0.05)
-      : Math.min(4.0, 0.6 + dist2d * 0.18);
-    const mid = new THREE.Vector3(
-      (a[0] + b[0]) / 2,
-      Math.max(a[1], b[1]) + LIFT + arcH,
-      (a[2] + b[2]) / 2,
-    );
-    const curve = new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(a[0], a[1] + LIFT, a[2]),
-      mid,
-      new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
-    );
-    const geomPts = curve.getPoints(isPrimary ? 10 : 16);
+    let geomPts;
+    if (isPrimary) {
+      geomPts = [
+        new THREE.Vector3(a[0], a[1] + LIFT, a[2]),
+        new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
+      ];
+    } else {
+      // Quadratic bezier arc: midpoint lifted above the higher endpoint.
+      // Arc height scales with 2D distance so long crosses hop higher.
+      const dx = b[0] - a[0], dz = b[2] - a[2];
+      const dist2d = Math.hypot(dx, dz);
+      const arcH = Math.min(4.0, 0.6 + dist2d * 0.18);
+      const mid = new THREE.Vector3(
+        (a[0] + b[0]) / 2,
+        Math.max(a[1], b[1]) + LIFT + arcH,
+        (a[2] + b[2]) / 2,
+      );
+      const curve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(a[0], a[1] + LIFT, a[2]),
+        mid,
+        new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
+      );
+      geomPts = curve.getPoints(16);
+    }
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
-    // Neon edges: primaries bright cyan (the structural spine), cross edges
-    // brighter magenta than before so they also register as neon accents
-    // against the muted wireframe. Both opacities raised now that the
-    // mountain wireframe is subtler \u2014 edges should own the foreground.
+    // Neon edges at rest. Both types use their signature color all the
+    // time; paintFamilyTree dims unrelated edges on hover/pin.
+    // Primary edges disable depth-test so their straight lines always
+    // render on top of the terrain (otherwise they clip into the
+    // mountain between nodes).
     const baseOp = isPrimary ? 1.0 : 0.75;
     const baseColor = isPrimary ? 0x6aeaff : 0xff7ce0;
     const mat = isPrimary
-      ? new THREE.LineBasicMaterial({ color: baseColor, transparent: true, opacity: baseOp })
+      ? new THREE.LineBasicMaterial({
+          color: baseColor,
+          transparent: true,
+          opacity: baseOp,
+          depthTest: false,
+        })
       : new THREE.LineDashedMaterial({
           color: baseColor,
           transparent: true,
@@ -843,6 +848,7 @@ function rebuild() {
           gapSize: 0.42,
         });
     const line = new THREE.Line(g, mat);
+    if (isPrimary) line.renderOrder = 2;  // ensure primaries draw after terrain
     if (!isPrimary) line.computeLineDistances();  // required for dashed
     line.userData = { edge: e, baseOpacity: baseOp, baseColor };
     scene.add(line);
@@ -915,7 +921,7 @@ function paintFamilyTree(id) {
       m.material.opacity = 1; m.material.transparent = false;
     }
     for (const l of edgeLines) {
-      // Restore each edge's own neon base color + opacity (not a flat gray).
+      // Restore each edge's own neon base color + opacity at rest.
       l.material.color.setHex(l.userData.baseColor);
       l.material.opacity = l.userData.baseOpacity;
     }
