@@ -957,7 +957,7 @@ function rebuild() {
   const yMid = (hMin + hMax) / 2;
   controls.target.set(xMid, yMid, zMid);
   const zSouth = Math.min(...xy.map(p => p[1]));
-  const finalCam = { x: xMid, y: hMax * 1.1, z: zSouth - 32 };
+  const finalCam = { x: xMid, y: hMax * 1.5, z: zSouth - 52 };
   if (!camera.position.lengthSq() || initialCameraPlacement) {
     camera.position.set(finalCam.x, finalCam.y, finalCam.z);
     camera.lookAt(xMid, yMid, zMid);
@@ -1076,13 +1076,29 @@ function tickIntro(nowMs) {
   wireMesh.material.opacity = terr * 0.14;
 
   // Camera lerps from startCamera to finalCamera, looking at the fixed target.
+  // Spherical-arc camera path around the target. Linear Cartesian interp
+  // can swoop close to the mountain during the tilt; an arc keeps the camera
+  // on a smooth orbit that never pinches inward.
   const sc = introState.startCamera, fc = introState.finalCamera;
+  const tgt = introState.targetCenter;
+  const so = { x: sc.x - tgt.x, y: sc.y - tgt.y, z: sc.z - tgt.z };
+  const fo = { x: fc.x - tgt.x, y: fc.y - tgt.y, z: fc.z - tgt.z };
+  const sR = Math.hypot(so.x, so.y, so.z);
+  const fR = Math.hypot(fo.x, fo.y, fo.z);
+  const sPhi = Math.acos(so.y / sR);           // polar (0=up)
+  const fPhi = Math.acos(fo.y / fR);
+  const sTheta = Math.atan2(so.x, so.z);       // azimuth
+  const fTheta = Math.atan2(fo.x, fo.z);
+  const r = sR + (fR - sR) * cam;
+  const phi = sPhi + (fPhi - sPhi) * cam;
+  const theta = sTheta + (fTheta - sTheta) * cam;
+  const sinPhi = Math.sin(phi);
   camera.position.set(
-    sc.x + (fc.x - sc.x) * cam,
-    sc.y + (fc.y - sc.y) * cam,
-    sc.z + (fc.z - sc.z) * cam,
+    tgt.x + r * sinPhi * Math.sin(theta),
+    tgt.y + r * Math.cos(phi),
+    tgt.z + r * sinPhi * Math.cos(theta),
   );
-  camera.lookAt(introState.targetCenter);
+  camera.lookAt(tgt);
 
   if (introState.paused === null && absT >= 5.0) finishIntro();
 }
