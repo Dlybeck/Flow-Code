@@ -941,12 +941,18 @@ const DOWN = new THREE.Color(0xffb454);
 const HOVER = new THREE.Color(0x4c9aff);
 const DIM = new THREE.Color(0x2a3240);
 
-const infoEl = document.getElementById('info');
+const panelEmpty = document.getElementById('panel-empty');
+const panelPinned = document.getElementById('panel-pinned');
+const panelClose = document.getElementById('panel-close');
 const qEl = document.getElementById('i-qname');
 const subEl = document.getElementById('i-sub');
 const descEl = document.getElementById('i-desc');
 const statsEl = document.getElementById('i-stats');
 const conesEl = document.getElementById('i-cones');
+const copyRefBtn = document.getElementById('copy-ref');
+const tooltipEl = document.getElementById('tooltip');
+const gearEl = document.getElementById('gear');
+const controlsEl = document.getElementById('controls');
 
 // Visual highlighting (node colors + edge colors) separated from info-panel
 // updates so the panel can track hover while the highlighted family tree
@@ -994,17 +1000,20 @@ function paintFamilyTree(id) {
   }
 }
 
-function showInfoPanel(id) {
-  if (!id) { infoEl.classList.remove('visible'); return; }
+function renderPinnedPanel(id) {
+  if (!id) {
+    panelPinned.style.display = 'none';
+    panelEmpty.style.display = 'block';
+    return;
+  }
   const mesh = nodeById.get(id);
-  if (!mesh) { infoEl.classList.remove('visible'); return; }
+  if (!mesh) { panelPinned.style.display = 'none'; panelEmpty.style.display = 'block'; return; }
   const n = mesh.userData.node;
   const peakTag = peakSet.has(id) ? ' · PEAK' : '';
-  const pinnedTag = id === pinnedId ? ' · PINNED' : '';
   const up = bfsCone(id, callers); up.delete(id);
   const down = bfsCone(id, callees); down.delete(id);
   qEl.textContent = n.displayName || n.label || n.qname;
-  subEl.textContent = `${n.qname} · ${n.file} · depth ${n.depth}${peakTag}${pinnedTag}`;
+  subEl.textContent = `${n.qname} · ${n.file} · depth ${n.depth}${peakTag}`;
   descEl.textContent = n.description || '(no description)';
   statsEl.innerHTML = `
     <span>source lines</span><b>${n.source_lines}</b>
@@ -1017,15 +1026,26 @@ function showInfoPanel(id) {
     <span class="up">↑ ${up.size} caller${up.size === 1 ? '' : 's'}</span>
     <span class="down">↓ ${down.size} callee${down.size === 1 ? '' : 's'}</span>
   `;
-  infoEl.classList.add('visible');
+  panelEmpty.style.display = 'none';
+  panelPinned.style.display = 'block';
+  copyRefBtn.textContent = 'Copy ref';
+  copyRefBtn.classList.remove('copied');
+  copyRefBtn.dataset.ref = `@flowcode:${n.qname}`;
 }
 
-// Unified hover handler: info panel ONLY appears while hovering a node.
-// Highlight coloring tracks hover when nothing is pinned; when pinned, the
-// pinned node's family tree stays lit regardless of hover.
-function setHover(id) {
+function renderHoverTooltip(id, clientX, clientY) {
+  if (!id || id === pinnedId) { tooltipEl.classList.remove('visible'); return; }
+  const mesh = nodeById.get(id);
+  if (!mesh) { tooltipEl.classList.remove('visible'); return; }
+  tooltipEl.textContent = mesh.userData.node.qname;
+  tooltipEl.style.left = `${clientX}px`;
+  tooltipEl.style.top = `${clientY}px`;
+  tooltipEl.classList.add('visible');
+}
+
+function setHover(id, clientX, clientY) {
   hoveredId = id;
-  showInfoPanel(id);  // hides panel when id is null, even if something is pinned
+  renderHoverTooltip(id, clientX, clientY);
   if (!pinnedId) paintFamilyTree(id);
 }
 
@@ -1037,10 +1057,10 @@ function setPinned(id) {
     pinnedId = id;
     paintFamilyTree(id);
   }
-  // Keep the panel aligned with whatever the mouse is currently over,
-  // regardless of pin state. A click on a node implicitly means the mouse
-  // is over that node, so showInfoPanel(hoveredId) lands on it naturally.
-  showInfoPanel(hoveredId);
+  renderPinnedPanel(pinnedId);
+  // hide hover tooltip if it was for the just-pinned node
+  if (hoveredId === pinnedId) tooltipEl.classList.remove('visible');
+  postSelectionToSidecar(pinnedId);
 }
 
 window.addEventListener('pointermove', (e) => {
@@ -1049,8 +1069,56 @@ window.addEventListener('pointermove', (e) => {
   raycaster.setFromCamera(mouse, camera);
   const hits = raycaster.intersectObjects(nodeMeshes, false);
   const nextId = hits.length ? hits[0].object.userData.node.id : null;
-  if (nextId !== hoveredId) setHover(nextId);
+  if (nextId !== hoveredId) setHover(nextId, e.clientX, e.clientY);
+  else if (nextId) { tooltipEl.style.left = `${e.clientX}px`; tooltipEl.style.top = `${e.clientY}px`; }
 });
+
+// Best-effort push of the current selection to the sidecar server. Silently
+// no-ops if the sidecar isn't running — viz keeps working standalone.
+async function postSelectionToSidecar(id) {
+  try {
+    await fetch('/api/selection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+  } catch (_) { /* sidecar absent, that's fine */ }
+}
+
+// Poll the sidecar so AI-driven pins (via MCP set_selection) propagate back
+// to the viz. Last-write-wins file; we only act when the remote id differs
+// from our current local pin.
+async function pollSelectionFromSidecar() {
+  try {
+    const r = await fetch('/api/selection', { cache: 'no-store' });
+    if (!r.ok) return;
+    const { id: remoteId } = await r.json();
+    if (remoteId === pinnedId) return;  // already in sync (or both null)
+    // Remote wants us pinned on remoteId (or unpinned if null). Don't POST back
+    // — setPinned would re-POST, causing a feedback loop. Apply locally only.
+    if (remoteId === null && pinnedId) {
+      const was = pinnedId;
+      pinnedId = null;
+      paintFamilyTree(hoveredId);
+      renderPinnedPanel(null);
+      if (hoveredId === was) tooltipEl.classList.remove('visible');
+    } else if (remoteId && nodeById.has(remoteId)) {
+      pinnedId = remoteId;
+      paintFamilyTree(pinnedId);
+      renderPinnedPanel(pinnedId);
+      if (hoveredId === pinnedId) tooltipEl.classList.remove('visible');
+      // Brief cue so user notices they were steered by the AI, not by their
+      // own click. Fades itself via CSS animation.
+      const hint = document.getElementById('ai-hint');
+      if (hint) {
+        hint.classList.remove('visible');
+        void hint.offsetWidth;  // force reflow so animation retriggers
+        hint.classList.add('visible');
+      }
+    }
+  } catch (_) { /* sidecar absent */ }
+}
+setInterval(pollSelectionFromSidecar, 1500);
 
 // Click handler: if we hit a node, pin its family tree (toggle if same).
 // If we hit nothing, unpin. We track mousedown position and only treat the
@@ -1064,7 +1132,7 @@ window.addEventListener('mousedown', (e) => {
 window.addEventListener('click', (e) => {
   const dx = e.clientX - clickDownX, dy = e.clientY - clickDownY;
   if (Math.hypot(dx, dy) > CLICK_SLOP) return;  // was a drag, not a click
-  if (e.target && e.target.closest && e.target.closest('#hud, #controls, #info, #legend')) return;
+  if (e.target && e.target.closest && e.target.closest('#panel, #controls, #gear, #tooltip, #hint')) return;
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
@@ -1086,6 +1154,30 @@ window.addEventListener('resize', () => {
 for (const r of document.querySelectorAll('input[name="layout"]')) {
   r.addEventListener('change', () => { state.layout = r.value; initialCameraPlacement = true; rebuild(); });
 }
+
+gearEl.addEventListener('click', () => controlsEl.classList.toggle('visible'));
+
+panelClose.addEventListener('click', () => {
+  if (pinnedId) setPinned(pinnedId);  // toggles off
+});
+
+copyRefBtn.addEventListener('click', async () => {
+  const ref = copyRefBtn.dataset.ref;
+  if (!ref) return;
+  try {
+    await navigator.clipboard.writeText(ref);
+    copyRefBtn.textContent = 'Copied ✓';
+    copyRefBtn.classList.add('copied');
+    setTimeout(() => {
+      copyRefBtn.textContent = 'Copy ref';
+      copyRefBtn.classList.remove('copied');
+    }, 1400);
+  } catch (_) { /* clipboard blocked; ignore */ }
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && pinnedId) setPinned(pinnedId);
+});
 
 rebuild();
 

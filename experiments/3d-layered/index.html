@@ -16,86 +16,124 @@
   }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, Inter, Segoe UI, Roboto, sans-serif; overflow: hidden; }
   canvas { display: block; }
-  #hud {
-    position: fixed; top: 12px; left: 12px;
+
+  /* Left-side detail panel — selection-first. Always present; content swaps
+     between empty-state and pinned-state. */
+  #panel {
+    position: fixed; top: 16px; left: 16px; width: 320px;
     background: var(--panel); border: 1px solid var(--border);
-    border-radius: 8px; padding: 10px 14px;
-    font-size: 12px; color: var(--muted); max-width: 300px;
-    backdrop-filter: blur(8px);
-  }
-  #hud h3 { margin: 0 0 4px; font-size: 13px; color: var(--fg); font-weight: 600; }
-  #hud kbd { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 3px; color: var(--fg); font-family: ui-monospace, monospace; font-size: 11px; }
-  #controls {
-    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 10px; padding: 10px 14px;
-    font-size: 12px; display: flex; gap: 18px; align-items: center;
-    backdrop-filter: blur(8px);
-  }
-  #controls .group { display: flex; flex-direction: column; gap: 3px; min-width: 100px; }
-  #controls .label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 2px; }
-  #controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--fg); }
-  #controls input { margin: 0; }
-  #controls label.disabled { color: var(--muted); cursor: not-allowed; }
-  #info {
-    position: fixed; top: 12px; right: 12px; width: 340px;
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 16px;
+    border-radius: 10px; padding: 16px 18px;
     font-size: 13px; backdrop-filter: blur(8px);
+  }
+  #panel .empty { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  #panel .empty kbd { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 3px; color: var(--fg); font-family: ui-monospace, monospace; font-size: 11px; }
+  #panel .close {
+    position: absolute; top: 8px; right: 10px; width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); cursor: pointer; border-radius: 4px; font-size: 16px; line-height: 1;
+  }
+  #panel .close:hover { background: rgba(255,255,255,.06); color: var(--fg); }
+  #panel .qname { font-size: 16px; color: var(--accent); font-weight: 600; letter-spacing: -.005em; padding-right: 24px; }
+  #panel .ai-hint {
+    display: none;
+    font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--warn); margin-bottom: 4px;
+  }
+  #panel .ai-hint.visible { display: block; animation: aiFade 3s ease-out forwards; }
+  @keyframes aiFade { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+  #panel .sub { color: var(--muted); font-size: 11px; margin: 4px 0 10px; font-family: ui-monospace, monospace; word-break: break-all; }
+  #panel .desc { margin: 10px 0; line-height: 1.5; }
+  #panel .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  #panel .stats b { color: var(--fg); }
+  #panel .cones { margin-top: 10px; font-size: 11px; }
+  #panel .cones span { display: inline-block; padding: 2px 7px; border-radius: 10px; margin-right: 4px; }
+  #panel .up { background: rgba(125,209,129,.18); color: var(--ok); }
+  #panel .down { background: rgba(255,180,84,.18); color: var(--warn); }
+  #panel .actions { margin-top: 14px; display: flex; gap: 8px; }
+  #panel button {
+    background: var(--accent); color: white; border: none;
+    padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500;
+  }
+  #panel button:hover { filter: brightness(1.1); }
+  #panel button.copied { background: var(--ok); }
+
+  /* Cursor-following hover tooltip — single line qname. */
+  #tooltip {
+    position: fixed; pointer-events: none;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 9px;
+    font-size: 12px; color: var(--fg); font-family: ui-monospace, monospace;
+    backdrop-filter: blur(6px);
+    display: none;
+    transform: translate(12px, 12px);
+    z-index: 10;
+  }
+  #tooltip.visible { display: block; }
+
+  /* Gear (top-right) + collapsible controls drawer. */
+  #gear {
+    position: fixed; top: 16px; right: 16px;
+    width: 34px; height: 34px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 16px;
+    backdrop-filter: blur(8px);
+  }
+  #gear:hover { color: var(--fg); }
+  #controls {
+    position: fixed; top: 58px; right: 16px; width: 220px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+    font-size: 12px; backdrop-filter: blur(8px);
     display: none;
   }
-  #info.visible { display: block; }
-  #info .qname { font-size: 15px; color: var(--accent); font-weight: 600; letter-spacing: -.005em; }
-  #info .sub { color: var(--muted); font-size: 11px; margin: 4px 0 10px; font-family: ui-monospace, monospace; word-break: break-all; }
-  #info .desc { margin: 10px 0; line-height: 1.5; }
-  #info .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; color: var(--muted); }
-  #info .stats b { color: var(--fg); }
-  #info .cones { margin-top: 10px; font-size: 11px; }
-  #info .cones span { display: inline-block; padding: 2px 7px; border-radius: 10px; margin-right: 4px; }
-  #info .up { background: rgba(125,209,129,.18); color: var(--ok); }
-  #info .down { background: rgba(255,180,84,.18); color: var(--warn); }
-  #legend {
-    position: fixed; bottom: 12px; left: 12px;
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 8px; padding: 8px 12px; font-size: 11px; color: var(--muted);
-    display: flex; gap: 14px; backdrop-filter: blur(8px);
+  #controls.visible { display: block; }
+  #controls .label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  #controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--fg); margin-bottom: 4px; }
+  #controls input { margin: 0; }
+
+  /* Bottom-right help hint. */
+  #hint {
+    position: fixed; bottom: 12px; right: 14px;
+    font-size: 11px; color: var(--muted);
+    pointer-events: none;
   }
-  #legend span::before { content: "●"; margin-right: 4px; font-size: 14px; vertical-align: middle; }
-  .up-c::before { color: var(--ok); }
-  .down-c::before { color: var(--warn); }
-  .hover-c::before { color: var(--accent); }
+  #hint kbd { background: rgba(255,255,255,.06); padding: 1px 4px; border-radius: 3px; color: var(--muted); font-family: ui-monospace, monospace; font-size: 10px; }
 </style>
 </head>
 <body>
-<div id="hud">
-  <h3>Layered 3D call graph</h3>
-  <div><kbd>drag</kbd> orbit · <kbd>scroll</kbd> zoom · <kbd>hover</kbd> a node to light its cones</div>
+
+<div id="panel">
+  <div class="empty" id="panel-empty">
+    Click a node on the mountain to pin it.<br><br>
+    <kbd>drag</kbd> orbit · <kbd>scroll</kbd> zoom · <kbd>hover</kbd> preview
+  </div>
+  <div class="pinned" id="panel-pinned" style="display:none">
+    <div class="close" id="panel-close" title="Unpin">×</div>
+    <div class="ai-hint" id="ai-hint">AI pinned this</div>
+    <div class="qname" id="i-qname">—</div>
+    <div class="sub" id="i-sub">—</div>
+    <div class="desc" id="i-desc"></div>
+    <div class="stats" id="i-stats"></div>
+    <div class="cones" id="i-cones"></div>
+    <div class="actions">
+      <button id="copy-ref">Copy ref</button>
+    </div>
+  </div>
 </div>
 
+<div id="tooltip"></div>
+
+<div id="gear" title="Settings">⚙</div>
 <div id="controls">
-  <div class="group">
-    <div class="label">Layout</div>
-    <label><input type="radio" name="layout" value="fan" checked> Ski slope (fan)</label>
-    <label><input type="radio" name="layout" value="umap"> Pure embedding</label>
-  </div>
-  <div class="group">
-    <div class="label">Height rule</div>
-    <div style="font-size:11px; color:var(--muted)">Per-edge slope from embedding-density delta, scaled by architectural importance (betweenness × novelty). Regular terrain 10°–60°; spine chains flatten to 3° → visible ridges.</div>
-  </div>
+  <div class="label">Layout</div>
+  <label><input type="radio" name="layout" value="fan" checked> Ski slope (fan)</label>
+  <label><input type="radio" name="layout" value="umap"> Pure embedding</label>
 </div>
 
-<div id="info">
-  <div class="qname" id="i-qname">—</div>
-  <div class="sub" id="i-sub">—</div>
-  <div class="desc" id="i-desc"></div>
-  <div class="stats" id="i-stats"></div>
-  <div class="cones" id="i-cones"></div>
-</div>
-<div id="legend">
-  <span class="hover-c">hovered</span>
-  <span class="up-c">callers (upward cone)</span>
-  <span class="down-c">callees (downward cone)</span>
-</div>
+<div id="hint"><kbd>click</kbd> pin · <kbd>esc</kbd> unpin</div>
+
 <script type="importmap">
 {
   "imports": {

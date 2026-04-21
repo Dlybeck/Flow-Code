@@ -20,6 +20,8 @@ class FuncInfo:
     class_name: str | None
     docstring: str
     source: str
+    lineno: int = 0
+    end_lineno: int = 0
     calls: list[str] = field(default_factory=list)
 
 
@@ -114,6 +116,8 @@ def parse_directory(root: Path) -> dict[str, FuncInfo]:
                     class_name=None,
                     docstring=ast.get_docstring(top) or "",
                     source=_source(lines, top),
+                    lineno=top.lineno or 0,
+                    end_lineno=top.end_lineno or 0,
                     calls=_collect_callees(top, None, known),
                 )
             elif isinstance(top, ast.ClassDef):
@@ -126,6 +130,8 @@ def parse_directory(root: Path) -> dict[str, FuncInfo]:
                             class_name=top.name,
                             docstring=ast.get_docstring(item) or "",
                             source=_source(lines, item),
+                            lineno=item.lineno or 0,
+                            end_lineno=item.end_lineno or 0,
                             calls=_collect_callees(item, top.name, known),
                         )
     return out

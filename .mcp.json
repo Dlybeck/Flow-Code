@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "flowcode": {
+      "command": "/home/dlybeck/Projects/Modular Code/experiments/3d-layered/.venv/bin/python",
+      "args": ["sidecar/mcp_server.py"],
+      "cwd": "/home/dlybeck/Projects/Modular Code/experiments/3d-layered"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+[project]
+name = "flowcode-sidecar"
+version = "0.1.0"
+description = "Static+selection HTTP server and MCP server for the 3D call-graph viz."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "mcp>=1.0",
+]
