@@ -25,6 +25,7 @@ const state = {
 
 // ---------- scene ----------
 const scene = new THREE.Scene();
+window.__scene = scene; window.__THREE = THREE;
 // Neon / dataviz aesthetic: deep indigo-black void with subtle gradient,
 // heavy fog for atmospheric falloff so distant geometry dissolves into
 // darkness. The mountain will render as a dark body with luminous
@@ -825,32 +826,43 @@ function rebuild() {
         new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
       ];
     } else {
-      // Peak-hop routing: walk the XZ segment from A to B, probe the mesh y
-      // at CROSS_SAMPLES+1 points, find LOCAL MAXIMA (ridge crests the line
-      // passes over), then draw STRAIGHT segments A → peak₁ → peak₂ → … → B.
-      // The line hops ridge to ridge, floating above the mountain by
-      // CROSS_FLOAT so it doesn't z-fight or disappear into facets.
+      // Peak-hop routing via upper convex hull of the sampled terrain
+      // profile (in (t, y) space along the A→B chord). This is the tightest
+      // polyline that stays ABOVE every sample — so ridges between detected
+      // peaks (which strict local-max detection misses when the slope is
+      // monotonic or plateaus) can't poke through.
       const CROSS_FLOAT = 1.2;
-      const probeY = [];
+      const probeT = [];
       const probeX = [];
+      const probeY = [];
       const probeZ = [];
       for (let s = 0; s <= CROSS_SAMPLES; s++) {
         const t = s / CROSS_SAMPLES;
         const x = a[0] * (1 - t) + b[0] * t;
         const z = a[2] * (1 - t) + b[2] * t;
-        let y = a[1] * (1 - t) + b[1] * t;
-        crossRaycaster.set(new THREE.Vector3(x, hMax + 20, z), new THREE.Vector3(0, -1, 0));
-        const hits = crossRaycaster.intersectObject(terrainMesh, true);
-        if (hits.length) y = hits[0].point.y;
-        probeX.push(x); probeY.push(y); probeZ.push(z);
-      }
-      geomPts = [new THREE.Vector3(a[0], a[1] + CROSS_FLOAT, a[2])];
-      for (let s = 1; s < probeY.length - 1; s++) {
-        if (probeY[s] > probeY[s - 1] && probeY[s] > probeY[s + 1]) {
-          geomPts.push(new THREE.Vector3(probeX[s], probeY[s] + CROSS_FLOAT, probeZ[s]));
+        let y;
+        if (s === 0) y = a[1];
+        else if (s === CROSS_SAMPLES) y = b[1];
+        else {
+          y = a[1] * (1 - t) + b[1] * t;
+          crossRaycaster.set(new THREE.Vector3(x, hMax + 20, z), new THREE.Vector3(0, -1, 0));
+          const hits = crossRaycaster.intersectObject(terrainMesh, true);
+          if (hits.length) y = hits[0].point.y;
         }
+        probeT.push(t); probeX.push(x); probeY.push(y + CROSS_FLOAT); probeZ.push(z);
       }
-      geomPts.push(new THREE.Vector3(b[0], b[1] + CROSS_FLOAT, b[2]));
+      const hull = [];
+      for (let i = 0; i < probeT.length; i++) {
+        while (hull.length >= 2) {
+          const p1 = hull[hull.length - 2];
+          const p2 = hull[hull.length - 1];
+          const cross = (probeT[p2] - probeT[p1]) * (probeY[i] - probeY[p1]) -
+                        (probeY[p2] - probeY[p1]) * (probeT[i] - probeT[p1]);
+          if (cross >= 0) hull.pop(); else break;
+        }
+        hull.push(i);
+      }
+      geomPts = hull.map(i => new THREE.Vector3(probeX[i], probeY[i], probeZ[i]));
     }
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
     // Neon edges at rest. Both types use their signature color all the
