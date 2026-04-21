@@ -31,9 +31,40 @@ from parse_calls import parse_directory  # noqa: E402
 mcp = FastMCP("flowcode")
 
 
+_graph_mtime: float = 0.0
+
+
+def _maybe_reload_graph() -> None:
+    """If graph.json has changed on disk since we last loaded it, drop caches.
+    Saves the user from having to remember to call reload_graph after
+    rebuilding via build_graph.py.
+    """
+    global _graph_mtime
+    try:
+        mt = GRAPH_FILE.stat().st_mtime
+    except OSError:
+        return
+    if mt > _graph_mtime:
+        if _graph_mtime > 0:
+            _graph_cached.cache_clear()
+            _node_index.cache_clear()
+            _edge_index.cache_clear()
+            _primary_lookup.cache_clear()
+            _sources.cache_clear()
+            _source_lines.cache_clear()
+        _graph_mtime = mt
+
+
 @cache
-def _graph() -> dict:
+def _graph_cached() -> dict:
     return json.loads(GRAPH_FILE.read_text())
+
+
+def _graph() -> dict:
+    """Public graph accessor. Checks mtime first so a rebuilt graph.json
+    auto-reloads without needing reload_graph."""
+    _maybe_reload_graph()
+    return _graph_cached()
 
 
 @cache
@@ -95,6 +126,8 @@ def _canon_ref(ref: str | None) -> str | None:
     if ref.startswith(REF_PREFIX):
         return ref[len(REF_PREFIX):]
     return ref
+
+
 
 
 def _node_summary(n: dict) -> dict[str, Any]:
@@ -349,7 +382,7 @@ def reload_graph() -> dict:
     Call this after rebuilding graph.json via build_graph.py so the next tool
     call reads the fresh data. Returns the new node count.
     """
-    _graph.cache_clear()
+    _graph_cached.cache_clear()
     _node_index.cache_clear()
     _edge_index.cache_clear()
     _primary_lookup.cache_clear()
