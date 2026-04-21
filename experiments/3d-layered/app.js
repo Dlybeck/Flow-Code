@@ -803,9 +803,16 @@ function rebuild() {
     nodeById.set(n.id, mesh);
   }
 
-  // --- Edges: primaries as straight lines (they lie on the mountain),
-  // cross-edges as small arcs that visibly hop OVER the surface and any
-  // edges they cross. Crossings are honest — you can see the arc going over.
+  // --- Edges ---
+  //   Primary edges: straight lines between nodes. They're guaranteed to
+  //   sit flush on the mesh because CDT preserves them as polygon edges.
+  //   Cross edges: follow the terrain surface between A and B. The path is
+  //   the straight XZ segment between endpoints, but every sample point is
+  //   raycast DOWN onto the mesh and set to mesh-y + LIFT. So the cross
+  //   edge flows OVER ridges and INTO valleys instead of clipping through
+  //   the mountain. depthTest stays on so the far side is still occluded.
+  const crossRaycaster = new THREE.Raycaster();
+  const CROSS_SAMPLES = 24;
   for (const e of edges) {
     const a = currentPositions.get(e.from);
     const b = currentPositions.get(e.to);
@@ -818,22 +825,21 @@ function rebuild() {
         new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
       ];
     } else {
-      // Quadratic bezier arc: midpoint lifted above the higher endpoint.
-      // Arc height scales with 2D distance so long crosses hop higher.
-      const dx = b[0] - a[0], dz = b[2] - a[2];
-      const dist2d = Math.hypot(dx, dz);
-      const arcH = Math.min(4.0, 0.6 + dist2d * 0.18);
-      const mid = new THREE.Vector3(
-        (a[0] + b[0]) / 2,
-        Math.max(a[1], b[1]) + LIFT + arcH,
-        (a[2] + b[2]) / 2,
-      );
-      const curve = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(a[0], a[1] + LIFT, a[2]),
-        mid,
-        new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
-      );
-      geomPts = curve.getPoints(16);
+      // Sample along the straight A→B segment in XZ; at each sample, ray-cast
+      // DOWN to the terrain mesh to read its actual y. Draw a polyline that
+      // hugs the mesh surface. Small LIFT keeps the line just above the
+      // polygons so it isn't z-fighting with them.
+      geomPts = [];
+      for (let s = 0; s <= CROSS_SAMPLES; s++) {
+        const t = s / CROSS_SAMPLES;
+        const x = a[0] * (1 - t) + b[0] * t;
+        const z = a[2] * (1 - t) + b[2] * t;
+        let y = a[1] * (1 - t) + b[1] * t;  // linear fallback
+        crossRaycaster.set(new THREE.Vector3(x, hMax + 20, z), new THREE.Vector3(0, -1, 0));
+        const hits = crossRaycaster.intersectObject(terrainMesh, true);
+        if (hits.length) y = hits[0].point.y;
+        geomPts.push(new THREE.Vector3(x, y + LIFT, z));
+      }
     }
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
     // Neon edges at rest. Both types use their signature color all the
