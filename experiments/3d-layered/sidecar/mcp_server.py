@@ -176,15 +176,20 @@ def get_node(ref: str) -> dict | None:
 
 
 @mcp.tool()
-def get_neighbors(ref: str) -> dict:
+def get_neighbors(ref: str) -> dict | None:
     """One-hop callers and callees for a node.
 
     Returns each neighbor as a summary dict (qname, file, depth, description)
     so the caller doesn't need a follow-up get_node per neighbor just to show
     a "callers: [...]" list with context. Each neighbor also has `is_primary`
     indicating whether the edge is a ski-slope spine edge.
+
+    Returns None if `ref` is not in the graph — distinguishes an unknown
+    ref from a valid node that genuinely has no neighbors.
     """
     ref = _canon_ref(ref)
+    if ref not in _node_index():
+        return None
     callees, callers = _edge_index()
     idx = _node_index()
     pl = _primary_lookup()
@@ -232,10 +237,10 @@ def get_source(ref: str) -> dict | None:
 _BFS_MAX_RESULTS = 100  # hard cap so a depth=6 fan-out doesn't flood the AI's context
 
 
-def _bfs(ref: str, edge_map: dict[str, list[str]], max_depth: int) -> list[dict]:
+def _bfs(ref: str, edge_map: dict[str, list[str]], max_depth: int) -> list[dict] | None:
     idx = _node_index()
     if ref not in idx:
-        return []
+        return None
     seen = {ref}
     frontier = [ref]
     out: list[dict] = []
@@ -263,12 +268,15 @@ def _bfs(ref: str, edge_map: dict[str, list[str]], max_depth: int) -> list[dict]
 
 
 @mcp.tool()
-def get_ancestors(ref: str, max_depth: int = 6) -> list[dict]:
+def get_ancestors(ref: str, max_depth: int = 6) -> list[dict] | None:
     """All transitive callers of `ref` up to `max_depth` hops, BFS order.
 
     Each entry is a node summary plus an `hops` field (1 = direct caller,
     2 = caller's caller, ...). Use this instead of chaining get_neighbors
     when you want the chain to an entry point.
+
+    Returns None if `ref` is unknown; [] if it's a valid node with no
+    callers (e.g. the entry point).
     """
     ref = _canon_ref(ref)
     _callees, callers = _edge_index()
@@ -276,11 +284,13 @@ def get_ancestors(ref: str, max_depth: int = 6) -> list[dict]:
 
 
 @mcp.tool()
-def get_descendants(ref: str, max_depth: int = 3) -> list[dict]:
+def get_descendants(ref: str, max_depth: int = 3) -> list[dict] | None:
     """All transitive callees of `ref` up to `max_depth` hops, BFS order.
 
     Default depth is smaller than get_ancestors because call trees fan out
     fast. Each entry includes an `hops` field.
+
+    Returns None if `ref` is unknown; [] if it's a valid leaf.
     """
     ref = _canon_ref(ref)
     callees, _callers = _edge_index()
@@ -303,7 +313,7 @@ def grep_source(pattern: str, limit: int = 30, ignore_case: bool = True) -> list
     try:
         rx = re.compile(pattern, flags)
     except re.error as e:
-        return [{"error": f"bad regex: {e}"}]
+        raise ValueError(f"invalid regex: {e}") from e
     # Restrict to nodes that are actually in the graph — parse_directory picks
     # up every function in the source tree, but the selection surface is the
     # graph, so results that can't be pinned are just noise.

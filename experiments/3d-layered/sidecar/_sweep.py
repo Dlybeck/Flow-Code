@@ -55,8 +55,10 @@ def main() -> int:
         if not full.get("description"):
             stats["empty_description"] += 1
 
-        # 5. Neighbors shape correctness
+        # 5. Neighbors shape correctness (now returns None for unknown ref,
+        # dict for known). Since qn is from list_nodes, it's known — expect dict.
         nb = _c(get_neighbors, qn)
+        assert nb is not None, f"{qn}: get_neighbors returned None for known ref"
         assert "callers" in nb and "callees" in nb, f"{qn}: neighbors shape"
         for side in ("callers", "callees"):
             for x in nb[side]:
@@ -69,9 +71,9 @@ def main() -> int:
                 stats["no_callers_non_entry"] += 1
                 problems.append(f"{qn}: non-entry (depth {full['depth']}) but 0 ancestors")
 
-        # 7. Descendants shape
+        # 7. Descendants shape (None = unknown, list = known)
         desc = _c(get_descendants, qn, 3)
-        assert isinstance(desc, list), f"{qn}: descendants not list"
+        assert isinstance(desc, list), f"{qn}: descendants not list (got {type(desc).__name__})"
 
     # 8. Setting selection to every node in turn
     for n in nodes:
