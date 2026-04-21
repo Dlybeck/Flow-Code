@@ -7,9 +7,38 @@ import { Delaunay } from 'https://cdn.jsdelivr.net/npm/d3-delaunay@6/+esm';
 import cdt2d from 'https://esm.sh/cdt2d@1.0.0';
 
 // ---------- load ----------
-const graph = await fetch('graph.json', { cache: 'no-store' }).then(r => r.json());
+const graphResp = await fetch('graph.json', { cache: 'no-store' });
+const graph = await graphResp.json();
+const graphMtime = graphResp.headers.get('Last-Modified') || String(graph.generated_at || '');
 const { nodes, edges, max_depth, peaks: peakList } = graph;
 const peakSet = new Set(peakList);
+
+// ---------- intro animation state ----------
+const urlParams = new URLSearchParams(location.search);
+const SKIP_INTRO = urlParams.get('intro') === 'skip';
+const PAUSE_AT = (() => {
+  const v = urlParams.get('pauseAt');
+  if (v === null) return null;
+  const n = parseFloat(v);
+  return isFinite(n) ? n : null;
+})();
+const storedMtime = (() => { try { return localStorage.getItem('flowcode.graphMtime'); } catch { return null; } })();
+const isFreshBuild = storedMtime !== graphMtime;
+const introState = {
+  active: false,
+  done: SKIP_INTRO,
+  start: 0,
+  duration: SKIP_INTRO ? 0 : (isFreshBuild ? 5.0 : 2.5),
+  hasPlayed: SKIP_INTRO,   // becomes true after the first finishIntro()
+  flowchartPositions: null, // Map<id, [x, z]>
+  finalCamera: null,        // { x, y, z } oblique pose computed in rebuild()
+  startCamera: null,        // top-down pose computed in rebuild()
+  targetCenter: null,       // Vector3
+  // paused={t} freezes the timeline at absolute-seconds t; animate() still draws
+  // so we can screenshot at a precise frame.
+  paused: null,
+};
+window.__intro = introState;  // exposed for chrome-based verification
 
 const callees = new Map(nodes.map(n => [n.id, []]));
 const callers = new Map(nodes.map(n => [n.id, []]));
@@ -371,6 +400,34 @@ const LIFT = 0.55;
 
 function xyFor(n) {
   return state.layout === 'fan' ? [n.x_fan, n.y_fan] : [n.x_umap, n.y_umap];
+}
+
+// Flowchart layout: group nodes by depth, order each row by fan-angle so
+// siblings stay together, then spread across x. Coordinates are in the
+// same world units as normalizedXY() so we can lerp directly.
+function computeFlowchartPositions() {
+  const STEP_Z = 6;
+  const SPREAD = 50;
+  const byDepth = new Map();
+  for (const n of nodes) {
+    const d = n.depth ?? 0;
+    if (!byDepth.has(d)) byDepth.set(d, []);
+    byDepth.get(d).push({ id: n.id, angle: Math.atan2(n.y_fan || 0, n.x_fan || 0) });
+  }
+  const depths = [...byDepth.keys()].sort((a, b) => a - b);
+  const maxD = depths[depths.length - 1] || 1;
+  const midD = maxD / 2;
+  const result = new Map();
+  for (const d of depths) {
+    const row = byDepth.get(d).sort((a, b) => a.angle - b.angle);
+    const count = row.length;
+    for (let i = 0; i < count; i++) {
+      const x = count > 1 ? ((i / (count - 1)) - 0.5) * SPREAD : 0;
+      const z = (d - midD) * STEP_Z;
+      result.set(row[i].id, [x, z]);
+    }
+  }
+  return result;
 }
 
 function normalizedXY() {
@@ -899,21 +956,174 @@ function rebuild() {
   const zMid = (Math.min(...xy.map(p => p[1])) + Math.max(...xy.map(p => p[1]))) / 2;
   const yMid = (hMin + hMax) / 2;
   controls.target.set(xMid, yMid, zMid);
+  const zSouth = Math.min(...xy.map(p => p[1]));
+  const finalCam = { x: xMid, y: hMax * 1.1, z: zSouth - 32 };
   if (!camera.position.lengthSq() || initialCameraPlacement) {
-    // Place the camera on the SLOPE-FACING side of the mountain.
-    // The fan opens toward -Z in world space (south in the original polar
-    // layout), so camera at -Z sits in front of the slope looking back at the
-    // peak. Height slightly below peak gives a classic "standing at base
-    // looking up" view that shows the full slope shape.
-    const zSouth = Math.min(...xy.map(p => p[1]));  // most-negative world Z
-    // Higher + closer in so the mountain fills the frame. With shallow ridges
-    // the mountain is wider than tall; pulling the camera in makes the vertical
-    // profile read more clearly against the horizon.
-    camera.position.set(xMid, hMax * 1.1, zSouth - 32);
+    camera.position.set(finalCam.x, finalCam.y, finalCam.z);
     camera.lookAt(xMid, yMid, zMid);
     initialCameraPlacement = false;
   }
+
+  // ---------- intro animation prep ----------
+  // Only prime the intro on the very first rebuild of the session. Layout
+  // toggles rebuild() without replaying the intro.
+  if (!introState.hasPlayed && !SKIP_INTRO) {
+    introState.flowchartPositions = computeFlowchartPositions();
+    // Top-down camera pose: high above scene centroid, looking straight down.
+    // Orbit height is comfortably above the mountain so the whole flowchart
+    // is framed.
+    const topHeight = hMax + Math.max(60, (hMax - hMin) * 4);
+    introState.startCamera = { x: xMid, y: topHeight, z: zMid };
+    introState.finalCamera = finalCam;
+    introState.targetCenter = new THREE.Vector3(xMid, yMid, zMid);
+
+    // Make terrain + wire fadeable and start hidden
+    terrainMesh.material.transparent = true;
+    terrainMesh.material.opacity = 0;
+    wireMesh.material.opacity = 0;
+    // Cross-edges start hidden (they're already transparent:true from build)
+    for (const l of edgeLines) {
+      if (!l.userData.edge.is_primary) {
+        l.material.opacity = 0;
+      }
+    }
+    // Snap nodes to flowchart (x, 0, z) — they ride the intro from there.
+    for (const mesh of nodeMeshes) {
+      const id = mesh.userData.node.id;
+      const flow = introState.flowchartPositions.get(id);
+      if (flow) mesh.position.set(flow[0], LIFT, flow[1]);
+    }
+    // Primary edges get regenerated from node positions every frame during
+    // intro; snap them now to match the flowchart positions so frame 0 is
+    // coherent even if the first animate() tick is delayed.
+    for (const l of edgeLines) {
+      if (!l.userData.edge.is_primary) continue;
+      const { from, to } = l.userData.edge;
+      const a = nodeById.get(from)?.position;
+      const b = nodeById.get(to)?.position;
+      if (!a || !b) continue;
+      l.geometry.setFromPoints([a.clone(), b.clone()]);
+    }
+
+    // Camera to top-down start
+    camera.position.set(introState.startCamera.x, introState.startCamera.y, introState.startCamera.z);
+    camera.lookAt(introState.targetCenter);
+
+    controls.enabled = false;
+    introState.active = true;
+    introState.done = false;
+    introState.start = performance.now();
+    if (PAUSE_AT !== null) introState.paused = PAUSE_AT;
+  } else if (SKIP_INTRO && !introState.hasPlayed) {
+    // Still persist the mtime sentinel so next load sees it as the same build
+    try { localStorage.setItem('flowcode.graphMtime', graphMtime); } catch {}
+    introState.hasPlayed = true;
+    introState.done = true;
+  }
 }
+
+function introWindow(t, a, b) {
+  if (t <= a) return 0;
+  if (t >= b) return 1;
+  return (t - a) / (b - a);
+}
+function introEase(x) {
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+}
+
+function tickIntro(nowMs) {
+  if (!introState.active) return;
+  // speedFactor: full intro = duration/5.0 per scheduled-second; for reload
+  // (duration=2.5) this is 0.5, doubling clock rate.
+  const absT = introState.paused !== null
+    ? introState.paused
+    : ((nowMs - introState.start) / 1000) * (5.0 / introState.duration);
+  const xz = introEase(introWindow(absT, 0.0, 3.0));
+  const yy = introEase(introWindow(absT, 2.0, 4.5));
+  const cam = introEase(introWindow(absT, 0.8, 5.0));
+  const terr = introWindow(absT, 3.0, 5.0);
+  const cross = introWindow(absT, 3.2, 5.0);
+
+  const fp = introState.flowchartPositions;
+  // Nodes: lerp between flowchart (xz=0, yy=0) and final (xz=1, yy=1).
+  for (const mesh of nodeMeshes) {
+    const id = mesh.userData.node.id;
+    const flow = fp.get(id);
+    const finalPos = currentPositions.get(id);
+    if (!flow || !finalPos) continue;
+    const fx = flow[0], fz = flow[1];
+    const tx = finalPos[0], tyRaw = finalPos[1], tz = finalPos[2];
+    const x = fx + (tx - fx) * xz;
+    const z = fz + (tz - fz) * xz;
+    const y = (tyRaw + LIFT) * yy;  // start at y=0, reach tyRaw+LIFT at yy=1
+    mesh.position.set(x, y, z);
+  }
+  // Primary edges regenerate from current node positions
+  for (const l of edgeLines) {
+    if (!l.userData.edge.is_primary) continue;
+    const { from, to } = l.userData.edge;
+    const a = nodeById.get(from)?.position;
+    const b = nodeById.get(to)?.position;
+    if (!a || !b) continue;
+    l.geometry.setFromPoints([a.clone(), b.clone()]);
+  }
+  // Cross-edges: only fade opacity (shape is baked for final positions)
+  for (const l of edgeLines) {
+    if (l.userData.edge.is_primary) continue;
+    l.material.opacity = cross * l.userData.baseOpacity;
+  }
+  // Terrain + wire fade
+  terrainMesh.material.opacity = terr;
+  wireMesh.material.opacity = terr * 0.14;
+
+  // Camera lerps from startCamera to finalCamera, looking at the fixed target.
+  const sc = introState.startCamera, fc = introState.finalCamera;
+  camera.position.set(
+    sc.x + (fc.x - sc.x) * cam,
+    sc.y + (fc.y - sc.y) * cam,
+    sc.z + (fc.z - sc.z) * cam,
+  );
+  camera.lookAt(introState.targetCenter);
+
+  if (introState.paused === null && absT >= 5.0) finishIntro();
+}
+
+function finishIntro() {
+  if (!introState.active) return;
+  // Snap everything to final
+  for (const mesh of nodeMeshes) {
+    const id = mesh.userData.node.id;
+    const finalPos = currentPositions.get(id);
+    if (!finalPos) continue;
+    mesh.position.set(finalPos[0], finalPos[1] + LIFT, finalPos[2]);
+  }
+  for (const l of edgeLines) {
+    if (!l.userData.edge.is_primary) continue;
+    const { from, to } = l.userData.edge;
+    const a = nodeById.get(from)?.position;
+    const b = nodeById.get(to)?.position;
+    if (!a || !b) continue;
+    l.geometry.setFromPoints([a.clone(), b.clone()]);
+  }
+  for (const l of edgeLines) {
+    if (l.userData.edge.is_primary) continue;
+    l.material.opacity = l.userData.baseOpacity;
+  }
+  terrainMesh.material.opacity = 1;
+  wireMesh.material.opacity = 0.14;
+  // Camera at final pose
+  const fc = introState.finalCamera;
+  camera.position.set(fc.x, fc.y, fc.z);
+  camera.lookAt(introState.targetCenter);
+
+  controls.enabled = true;
+  introState.active = false;
+  introState.done = true;
+  introState.hasPlayed = true;
+  try { localStorage.setItem('flowcode.graphMtime', graphMtime); } catch {}
+  console.log('[intro] finished');
+}
+window.__finishIntro = finishIntro;
 
 let initialCameraPlacement = true;
 
@@ -1196,7 +1406,8 @@ window.addEventListener('resize', () => {
 function animate() {
   requestAnimationFrame(animate);
   if (contextLost) return;
-  controls.update();
+  if (introState.active) tickIntro(performance.now());
+  if (controls.enabled) controls.update();
   composer.render();
 }
 animate();
