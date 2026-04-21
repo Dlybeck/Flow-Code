@@ -739,6 +739,20 @@ def main() -> None:
     out.write_text(json.dumps(payload))
     print(f"wrote {out}  ({len(nodes)} nodes, {len(edges)} edges, {len(peaks)} peaks, max_depth={max_depth})")
 
+    # Persist raw embeddings alongside graph.json (as <stem>.embeddings.npz)
+    # so the MCP server can do nearest-neighbour / similarity queries without
+    # reloading the sentence-transformer model at runtime. Kept in a sibling
+    # file rather than inlined because 768-dim × N would bloat graph.json.
+    try:
+        import numpy as np
+        emb_qnames = sorted(embeddings.keys())
+        emb_matrix = np.asarray([embeddings[q] for q in emb_qnames], dtype="float32")
+        emb_path = out.with_suffix(".embeddings.npz")
+        np.savez_compressed(emb_path, qnames=np.asarray(emb_qnames), vectors=emb_matrix)
+        print(f"wrote {emb_path}  ({emb_matrix.shape[0]} × {emb_matrix.shape[1]})")
+    except Exception as e:
+        print(f"WARN: failed to persist embeddings: {e}")
+
 
 if __name__ == "__main__":
     main()

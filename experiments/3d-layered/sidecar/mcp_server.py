@@ -52,6 +52,7 @@ def _maybe_reload_graph() -> None:
             _primary_lookup.cache_clear()
             _sources.cache_clear()
             _source_lines.cache_clear()
+            _embeddings.cache_clear()
         _graph_mtime = mt
 
 
@@ -99,6 +100,26 @@ def _sources() -> dict[str, str]:
 
 
 @cache
+def _embeddings() -> tuple[list[str], "object"] | None:
+    """Load sibling embeddings.npz if present. Returns (qnames, matrix) or None.
+
+    The matrix is L2-normalised at build time (sentence-transformers
+    `normalize_embeddings=True`), so cosine similarity = dot product.
+    """
+    emb_path = GRAPH_FILE.with_suffix(".embeddings.npz")
+    if not emb_path.exists():
+        return None
+    try:
+        import numpy as np
+        z = np.load(emb_path, allow_pickle=False)
+        qnames = [str(q) for q in z["qnames"].tolist()]
+        vectors = z["vectors"]
+        return qnames, vectors
+    except Exception:
+        return None
+
+
+@cache
 def _source_lines() -> dict[str, tuple[int, int]]:
     """qname -> (line_start, line_end) within the function's file."""
     src_root = Path(_graph()["root"])
@@ -139,6 +160,8 @@ def _node_summary(n: dict) -> dict[str, Any]:
         "class": n.get("class"),
         "depth": n["depth"],
         "description": n.get("description", ""),
+        "importance": n.get("importance", 0.0),
+        "n_callees": n.get("n_callees", 0),
     }
 
 
@@ -359,6 +382,52 @@ def search(query: str, limit: int = 10) -> list[dict]:
 
 
 @mcp.tool()
+def similar(ref: str, limit: int = 5) -> list[dict] | None:
+    """Semantically similar nodes to `ref` by embedding cosine similarity.
+
+    Uses the Jina code-embedding vectors computed at build time — this is
+    *conceptual* closeness, not name/file match (for that, see `search`).
+    Good for "what else looks like this?" or "find alternatives."
+
+    Returns list of summaries ordered by similarity (highest first), each
+    with a `similarity` field in [-1, 1]. Excludes `ref` itself.
+
+    Returns None if `ref` is unknown OR if embeddings.npz is missing
+    (rebuild with the updated build_graph.py to generate it).
+    """
+    ref = _canon_ref(ref)
+    if ref not in _node_index():
+        return None
+    emb = _embeddings()
+    if emb is None:
+        return None
+    qnames, vectors = emb
+    if ref not in qnames:
+        return None
+    import numpy as np
+    idx = qnames.index(ref)
+    query = vectors[idx]
+    # vectors are L2-normalised → cosine = dot product
+    sims = vectors @ query
+    order = np.argsort(-sims)
+    out: list[dict] = []
+    idx_lookup = _node_index()
+    for i in order:
+        if int(i) == idx:
+            continue
+        q = qnames[int(i)]
+        n = idx_lookup.get(q)
+        if not n:
+            continue  # in embedding set but not in current graph (e.g. filtered)
+        s = _node_summary(n)
+        s["similarity"] = float(sims[int(i)])
+        out.append(s)
+        if len(out) >= limit:
+            break
+    return out
+
+
+@mcp.tool()
 def set_selection(ref: str | None) -> dict:
     """Pin `ref` in the viz (AI → user direction).
 
@@ -398,6 +467,7 @@ def reload_graph() -> dict:
     _primary_lookup.cache_clear()
     _sources.cache_clear()
     _source_lines.cache_clear()
+    _embeddings.cache_clear()
     g = _graph()
     return {"reloaded": True, "n_nodes": g["n_nodes"], "n_edges": g["n_edges"]}
 

@@ -4,17 +4,18 @@ Autonomous testing pass that drove the MCP surface from the 4-tool skeleton to
 an 11-tool, bidirectional, LLM-ergonomic set. All changes are already applied
 in `sidecar/mcp_server.py`, `app.js`, and `parse_calls.py`.
 
-## Final tool surface (11 tools)
+## Final tool surface (12 tools)
 
 ```
 get_selection       — read the currently pinned node (or None)
 set_selection(ref)  — AI → viz: pin a node; viz polls and picks it up
 get_node(ref)       — full metadata (incl. abs_file)
-get_neighbors(ref)  — 1-hop summaries; each carries is_primary
+get_neighbors(ref)  — 1-hop summaries; each carries is_primary; None if unknown
 get_source(ref)     — {body, line_start, line_end, abs_file}
-get_ancestors       — BFS up; each entry has hops; 100-result cap
-get_descendants     — BFS down; same shape
+get_ancestors       — BFS up; each entry has hops; 100-result cap; None if unknown
+get_descendants     — BFS down; same shape; None if unknown
 search(query)       — substring match across qname/file
+similar(ref)        — embedding cosine nearest neighbours (code-as-search)
 grep_source(regex)  — regex across every in-graph function body
 list_nodes          — all node summaries (aggregation queries)
 reload_graph        — drop caches after rebuilding graph.json

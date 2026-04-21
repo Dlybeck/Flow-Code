@@ -94,6 +94,15 @@ async def main() -> None:
             ss = await call("set_selection", ref=None)
             print(f"set_selection unpin: {ss}")
 
+            # similar (embedding cosine)
+            sim = await call("similar", ref="main", limit=3)
+            if sim is None:
+                print("similar(main): None (embeddings.npz absent — rebuild graph to generate)")
+            else:
+                print(f"similar(main) top 3:")
+                for s in sim:
+                    print(f"  {s['similarity']:.3f}  {s['qname']}  ({s['file']})")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
