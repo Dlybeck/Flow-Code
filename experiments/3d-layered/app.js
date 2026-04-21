@@ -825,21 +825,32 @@ function rebuild() {
         new THREE.Vector3(b[0], b[1] + LIFT, b[2]),
       ];
     } else {
-      // Sample along the straight A→B segment in XZ; at each sample, ray-cast
-      // DOWN to the terrain mesh to read its actual y. Draw a polyline that
-      // hugs the mesh surface. Small LIFT keeps the line just above the
-      // polygons so it isn't z-fighting with them.
-      geomPts = [];
+      // Peak-hop routing: walk the XZ segment from A to B, probe the mesh y
+      // at CROSS_SAMPLES+1 points, find LOCAL MAXIMA (ridge crests the line
+      // passes over), then draw STRAIGHT segments A → peak₁ → peak₂ → … → B.
+      // The line hops ridge to ridge, floating above the mountain by
+      // CROSS_FLOAT so it doesn't z-fight or disappear into facets.
+      const CROSS_FLOAT = 1.2;
+      const probeY = [];
+      const probeX = [];
+      const probeZ = [];
       for (let s = 0; s <= CROSS_SAMPLES; s++) {
         const t = s / CROSS_SAMPLES;
         const x = a[0] * (1 - t) + b[0] * t;
         const z = a[2] * (1 - t) + b[2] * t;
-        let y = a[1] * (1 - t) + b[1] * t;  // linear fallback
+        let y = a[1] * (1 - t) + b[1] * t;
         crossRaycaster.set(new THREE.Vector3(x, hMax + 20, z), new THREE.Vector3(0, -1, 0));
         const hits = crossRaycaster.intersectObject(terrainMesh, true);
         if (hits.length) y = hits[0].point.y;
-        geomPts.push(new THREE.Vector3(x, y + LIFT, z));
+        probeX.push(x); probeY.push(y); probeZ.push(z);
       }
+      geomPts = [new THREE.Vector3(a[0], a[1] + CROSS_FLOAT, a[2])];
+      for (let s = 1; s < probeY.length - 1; s++) {
+        if (probeY[s] > probeY[s - 1] && probeY[s] > probeY[s + 1]) {
+          geomPts.push(new THREE.Vector3(probeX[s], probeY[s] + CROSS_FLOAT, probeZ[s]));
+        }
+      }
+      geomPts.push(new THREE.Vector3(b[0], b[1] + CROSS_FLOAT, b[2]));
     }
     const g = new THREE.BufferGeometry().setFromPoints(geomPts);
     // Neon edges at rest. Both types use their signature color all the
