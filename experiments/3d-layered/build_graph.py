@@ -461,6 +461,51 @@ def radial_fan_layout(
     for _ in range(BARYCENTER_ITERATIONS):
         place_tree(barycenter_order)
 
+    # --- Continuous leaf-angle relaxation -----------------------------------
+    #
+    # Barycenter reorder handles the combinatorial problem (WHICH sibling
+    # sits on which side). But each leaf is still pinned to the center of
+    # its slot. We can shorten cross-edges further by allowing each leaf to
+    # DRIFT WITHIN its own slot toward the angular barycenter of its cross-
+    # edge partners. The slot bound keeps the leaf from crossing its
+    # siblings, so we gain shorter jumps without reshuffling the tree.
+    primary_parent_of: dict[str, str] = {}
+    for p, kids in primary_children.items():
+        for c in kids:
+            primary_parent_of[c] = p
+    LEAF_RELAX_ITERS = 4
+    LEAF_RELAX_RATE  = 0.5   # fraction of distance to close each iteration
+    for _ in range(LEAF_RELAX_ITERS):
+        for leaf in qnames:
+            if leaf == VIRTUAL or leaf not in angles:
+                continue
+            # Only leaves \u2014 non-leaves have children locked to their wedge.
+            if primary_children.get(leaf):
+                continue
+            partners = []
+            pp = primary_parent_of.get(leaf)
+            for n in callers_of.get(leaf, []):
+                if n == pp or n not in angles:
+                    continue
+                partners.append(angles[n])
+            for n in callees_of.get(leaf, []):
+                if n not in angles:
+                    continue
+                partners.append(angles[n])
+            if not partners:
+                continue
+            s = sum(math.sin(a) for a in partners)
+            c = sum(math.cos(a) for a in partners)
+            desired = math.atan2(s, c)
+            s_min, s_max = angle_range[leaf]
+            desired = _clamp_to_wedge(desired, s_min, s_max)
+            cur = angles[leaf]
+            new_angle = cur + (desired - cur) * LEAF_RELAX_RATE
+            new_angle = max(s_min, min(s_max, new_angle))
+            angles[leaf] = new_angle
+            r = math.hypot(*positions[leaf])
+            positions[leaf] = (r * math.cos(new_angle), r * math.sin(new_angle))
+
     # Place orphan peaks behind the mountain (north of origin) so they don't
     # clutter the south-facing slope. Arrange them in a compact grid.
     placed_xs = [positions[q][0] for q in qnames if q in positions]
