@@ -976,10 +976,16 @@ function rebuild() {
   // toggles rebuild() without replaying the intro.
   if (!introState.hasPlayed && !SKIP_INTRO) {
 
-    // Make terrain + wire fadeable and start hidden
+    // Make terrain + wire fadeable and start hidden.
+    // depthWrite=false while invisible: without this, the terrain's depth
+    // buffer still occludes primary edges that pass through the (eventual)
+    // mountain volume while nodes are mid-rise, so edges appear to flicker
+    // off. Restored to true in finishIntro().
     terrainMesh.material.transparent = true;
     terrainMesh.material.opacity = 0;
+    terrainMesh.material.depthWrite = false;
     wireMesh.material.opacity = 0;
+    wireMesh.material.depthWrite = false;
     // Cross-edges start hidden (they're already transparent:true from build)
     for (const l of edgeLines) {
       if (!l.userData.edge.is_primary) {
@@ -1125,7 +1131,9 @@ function finishIntro() {
     l.material.opacity = l.userData.baseOpacity;
   }
   terrainMesh.material.opacity = 1;
+  terrainMesh.material.depthWrite = true;
   wireMesh.material.opacity = 0.14;
+  wireMesh.material.depthWrite = true;
   // Camera at final pose
   const fc = introState.finalCamera;
   camera.position.set(fc.x, fc.y, fc.z);
@@ -1147,7 +1155,9 @@ function replayIntro() {
   if (!introState.flowchartPositions || !introState.finalCamera) return;
   terrainMesh.material.transparent = true;
   terrainMesh.material.opacity = 0;
+  terrainMesh.material.depthWrite = false;
   wireMesh.material.opacity = 0;
+  wireMesh.material.depthWrite = false;
   for (const l of edgeLines) {
     if (!l.userData.edge.is_primary) l.material.opacity = 0;
   }
