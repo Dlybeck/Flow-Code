@@ -965,17 +965,16 @@ function rebuild() {
   }
 
   // ---------- intro animation prep ----------
+  // Always cache camera poses + flowchart positions for the replay button.
+  introState.flowchartPositions = computeFlowchartPositions();
+  const topHeight = hMax + Math.max(60, (hMax - hMin) * 4);
+  introState.startCamera = { x: xMid, y: topHeight, z: zMid };
+  introState.finalCamera = finalCam;
+  introState.targetCenter = new THREE.Vector3(xMid, yMid, zMid);
+
   // Only prime the intro on the very first rebuild of the session. Layout
   // toggles rebuild() without replaying the intro.
   if (!introState.hasPlayed && !SKIP_INTRO) {
-    introState.flowchartPositions = computeFlowchartPositions();
-    // Top-down camera pose: high above scene centroid, looking straight down.
-    // Orbit height is comfortably above the mountain so the whole flowchart
-    // is framed.
-    const topHeight = hMax + Math.max(60, (hMax - hMin) * 4);
-    introState.startCamera = { x: xMid, y: topHeight, z: zMid };
-    introState.finalCamera = finalCam;
-    introState.targetCenter = new THREE.Vector3(xMid, yMid, zMid);
 
     // Make terrain + wire fadeable and start hidden
     terrainMesh.material.transparent = true;
@@ -1124,6 +1123,33 @@ function finishIntro() {
   console.log('[intro] finished');
 }
 window.__finishIntro = finishIntro;
+
+// Replay: resets the intro state and re-runs the animation from scratch.
+// Reuses the precomputed flowchart positions so there's no rebuild cost.
+function replayIntro() {
+  if (introState.active) return;
+  if (!introState.flowchartPositions || !introState.finalCamera) return;
+  terrainMesh.material.transparent = true;
+  terrainMesh.material.opacity = 0;
+  wireMesh.material.opacity = 0;
+  for (const l of edgeLines) {
+    if (!l.userData.edge.is_primary) l.material.opacity = 0;
+  }
+  for (const mesh of nodeMeshes) {
+    const id = mesh.userData.node.id;
+    const flow = introState.flowchartPositions.get(id);
+    if (flow) mesh.position.set(flow[0], LIFT, flow[1]);
+  }
+  camera.position.set(introState.startCamera.x, introState.startCamera.y, introState.startCamera.z);
+  camera.lookAt(introState.targetCenter);
+  controls.enabled = false;
+  introState.duration = 5.0;
+  introState.paused = null;
+  introState.active = true;
+  introState.done = false;
+  introState.start = performance.now();
+}
+window.__replayIntro = replayIntro;
 
 let initialCameraPlacement = true;
 
@@ -1366,6 +1392,9 @@ for (const r of document.querySelectorAll('input[name="layout"]')) {
 }
 
 gearEl.addEventListener('click', () => controlsEl.classList.toggle('visible'));
+
+const replayBtn = document.getElementById('replay-intro');
+if (replayBtn) replayBtn.addEventListener('click', () => replayIntro());
 
 panelClose.addEventListener('click', () => {
   if (pinnedId) setPinned(pinnedId);  // toggles off
