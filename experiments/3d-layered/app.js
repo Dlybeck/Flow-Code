@@ -22,13 +22,11 @@ const PAUSE_AT = (() => {
   const n = parseFloat(v);
   return isFinite(n) ? n : null;
 })();
-const storedMtime = (() => { try { return localStorage.getItem('flowcode.graphMtime'); } catch { return null; } })();
-const isFreshBuild = storedMtime !== graphMtime;
 const introState = {
   active: false,
   done: SKIP_INTRO,
   start: 0,
-  duration: SKIP_INTRO ? 0 : (isFreshBuild ? 5.0 : 2.5),
+  duration: SKIP_INTRO ? 0 : 5.0,
   hasPlayed: SKIP_INTRO,   // becomes true after the first finishIntro()
   flowchartPositions: null, // Map<id, [x, z]>
   finalCamera: null,        // { x, y, z } oblique pose computed in rebuild()
