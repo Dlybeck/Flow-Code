@@ -1133,7 +1133,7 @@ function tickIntro(nowMs) {
     : (nowMs - introState.start) / 1000;
   const xz = introEase(introWindow(absT, 0.0, 3.0));
   const yy = introEase(introWindow(absT, 2.0, 4.5));
-  const cam = introEase(introWindow(absT, 0.8, 5.5));
+  const cam = introEase(introWindow(absT, 0.8, 4.3));
   const terr = introWindow(absT, 4.5, 6.0);
   const cross = introWindow(absT, 4.5, 6.0);
 
