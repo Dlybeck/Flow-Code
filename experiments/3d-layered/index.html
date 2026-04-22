@@ -55,47 +55,7 @@
     padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500;
   }
   #panel button:hover { filter: brightness(1.1); }
-  #panel button:disabled { opacity: 0.55; cursor: wait; }
   #panel button.copied { background: var(--ok); }
-
-  /* Labeling progress — shimmer-filled bar under the action buttons. */
-  .labeling-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 11px; }
-  .labeling-text { color: #cfd3da; }
-  .labeling-eta { color: #8b93a1; font-variant-numeric: tabular-nums; }
-  .labeling-track { height: 3px; background: rgba(76,154,255,.12); border-radius: 2px; overflow: hidden; position: relative; }
-  .labeling-fill {
-    position: absolute; top: 0; left: 0; bottom: 0; width: 0%;
-    background: linear-gradient(90deg, rgba(76,154,255,.75), rgba(125,209,129,.75));
-    transition: width 0.25s linear;
-  }
-  .labeling-fill::after {
-    /* shimmering highlight that slides across whatever is currently filled */
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
-    background-size: 40% 100%; background-repeat: no-repeat;
-    animation: labelShimmer 1.4s linear infinite;
-  }
-  /* Indeterminate state: full-width track with a traveling band, used while
-     we wait for the user's AI to pick up the queued request. */
-  .labeling-fill-indeterminate {
-    width: 100%;
-    background: linear-gradient(90deg,
-      rgba(76,154,255,.0) 0%,
-      rgba(76,154,255,.55) 40%,
-      rgba(125,209,129,.55) 60%,
-      rgba(76,154,255,.0) 100%);
-    background-size: 35% 100%;
-    background-repeat: no-repeat;
-    animation: labelIndeterminate 1.6s linear infinite;
-  }
-  @keyframes labelShimmer {
-    from { background-position: -40% 0; }
-    to   { background-position: 140% 0; }
-  }
-  @keyframes labelIndeterminate {
-    from { background-position: -35% 0; }
-    to   { background-position: 135% 0; }
-  }
 
   /* Cursor-following hover tooltip — single line qname. */
   #tooltip {
@@ -159,10 +119,7 @@
     <div class="cones" id="i-cones"></div>
     <div class="actions">
       <button id="copy-ref">Copy ref</button>
-      <button id="label-node" title="Ask AI to write a plain-English name + description for this function">Label node</button>
-      <button id="label-branch" title="Ask AI to label this function and everything it calls">Label branch</button>
     </div>
-    <div id="label-status" style="margin-top:10px;font-size:11px;color:#8b93a1;display:none"></div>
   </div>
 </div>
 

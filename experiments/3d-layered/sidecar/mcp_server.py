@@ -29,36 +29,17 @@ sys.path.insert(0, str(ROOT))
 from parse_calls import parse_directory  # noqa: E402
 
 MCP_INSTRUCTIONS = """\
-FlowCode exposes a 3D call-graph viz. The user can click nodes in the viz and
-request "label this" — which queues a labeling job, not an immediate LLM call.
-YOU are the labeler.
+FlowCode exposes a 3D call-graph viz of the project's source code. Labels
+(displayName + description) are generated automatically at build time by
+label_graph.py, branch-by-branch from the primary-tree root.
 
-At the START of every user turn, FIRST call `pending_label_requests()`. If the
-queue is non-empty:
-
-  • If your harness supports parallel subagents (Claude Code's Task tool,
-    OpenCode's spawn, etc.), launch one per request so the user's actual
-    question isn't blocked. Each subagent should:
-       1. call `get_source(ref)` and `get_neighbors(ref)` for context
-       2. if scope="branch", also walk descendants via get_descendants()
-       3. compose {displayName, description} — 3-6 word plain-English name
-          + 1-2 short sentences, no code jargon, no "This function…" filler
-       4. call `write_label(ref, display_name, description)` for each node
-       5. call `complete_label_request(id)` when done
-
-  • If you DON'T have subagents, answer the user's question first, then at
-    the end of your reply mention briefly that you'll label the queued items
-    next (or inline if it's small).
-
-  • Always call `complete_label_request(id)` after writing labels so the
-    queue doesn't re-trigger.
-
-Labels belong to graph semantics (node, branch, flow) — not map positions.
-The viz auto-refreshes within ~2s of write_label.
+If the user asks you to refine or rewrite a specific label, use `write_label`.
+If they want to find what still needs work, `list_unlabeled` returns nodes
+missing a displayName, ranked by importance. Neither happens automatically —
+it's invoked by the user, not by polling.
 """
 
 mcp = FastMCP("flowcode", instructions=MCP_INSTRUCTIONS)
-LABEL_QUEUE_FILE = Path("/tmp/flowcode-label-queue.json")
 
 
 _graph_mtime: float = 0.0
@@ -482,50 +463,6 @@ def list_nodes(limit: int = 200) -> list[dict]:
     the client can answer with a single fetch instead of chained calls.
     """
     return [_node_summary(n) for n in list(_node_index().values())[:limit]]
-
-
-def _read_label_queue() -> list[dict]:
-    if not LABEL_QUEUE_FILE.exists():
-        return []
-    try:
-        return json.loads(LABEL_QUEUE_FILE.read_text())
-    except (json.JSONDecodeError, OSError):
-        return []
-
-
-def _write_label_queue(items: list[dict]) -> None:
-    LABEL_QUEUE_FILE.write_text(json.dumps(items))
-
-
-@mcp.tool()
-def pending_label_requests() -> list[dict]:
-    """Return labeling jobs the user queued from the viz (pending the AI).
-
-    Call this at the START of every user turn. If the list is non-empty, the
-    user has clicked "Label node" or "Label branch" on one or more functions
-    in the FlowCode viz and is expecting YOU to write plain-English labels
-    for them. Each entry has {id, ref, scope, from_ref?, to_ref?, queued_at}.
-
-    Workflow for each request:
-      1. Call get_source(ref) + get_neighbors(ref) (and get_descendants for
-         scope="branch") to gather context.
-      2. Compose {display_name, description} per the voice guidance in the
-         server instructions.
-      3. Call write_label(ref, display_name, description) for each node.
-      4. Call complete_label_request(id) to remove it from the queue.
-    """
-    return _read_label_queue()
-
-
-@mcp.tool()
-def complete_label_request(request_id: str) -> dict:
-    """Remove a queued label request. Call this AFTER write_label has been
-    invoked for every target node in the request. Idempotent — missing ids
-    are fine."""
-    items = _read_label_queue()
-    kept = [it for it in items if it.get("id") != request_id]
-    _write_label_queue(kept)
-    return {"ok": True, "removed": len(items) - len(kept)}
 
 
 @mcp.tool()

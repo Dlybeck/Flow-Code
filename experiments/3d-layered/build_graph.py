@@ -753,6 +753,20 @@ def main() -> None:
     except Exception as e:
         print(f"WARN: failed to persist embeddings: {e}")
 
+    # Auto-label (branch-by-branch from root) unless explicitly disabled.
+    # Picks up whichever LLM backend the environment advertises; falls back
+    # to a no-op with a warning if none available. See label_graph.py for the
+    # full backend ladder (FLOWCODE_LABELER override env var supported).
+    import os as _os
+    if _os.environ.get("FLOWCODE_SKIP_LABEL", "").strip().lower() in ("1", "true", "yes"):
+        print("[label] skipped (FLOWCODE_SKIP_LABEL set)")
+    else:
+        try:
+            from label_graph import label_all
+            label_all(out, root, force=False)
+        except Exception as e:
+            print(f"WARN: labeling failed: {e}")
+
 
 if __name__ == "__main__":
     main()
