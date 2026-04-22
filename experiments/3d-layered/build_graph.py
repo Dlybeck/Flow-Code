@@ -725,6 +725,40 @@ def main() -> None:
                     "is_primary": (q, callee) in primary_edges,
                 })
 
+    # Preserve previous labels across rebuilds. If a function's qname exists
+    # in the prior graph.json AND its displayName/description/source_hash are
+    # set, copy them onto the fresh node. Source hash matching the current
+    # source is the signal that the label is still valid — label_all reads
+    # source_hash to decide whether to re-label.
+    previous_labels: dict[str, dict] = {}
+    if out.exists():
+        try:
+            prev = json.loads(out.read_text())
+            for pn in prev.get("nodes", []):
+                q = pn.get("qname")
+                if not q:
+                    continue
+                if pn.get("displayName") or pn.get("description") or pn.get("source_hash"):
+                    previous_labels[q] = {
+                        "displayName": pn.get("displayName"),
+                        "description": pn.get("description"),
+                        "source_hash": pn.get("source_hash"),
+                    }
+        except Exception as e:
+            print(f"WARN: couldn't read previous {out} for label preservation: {e}")
+    if previous_labels:
+        for n in nodes:
+            prior = previous_labels.get(n["qname"])
+            if not prior:
+                continue
+            if prior.get("displayName"):
+                n["displayName"] = prior["displayName"]
+            if prior.get("description"):
+                n["description"] = prior["description"]
+            if prior.get("source_hash"):
+                n["source_hash"] = prior["source_hash"]
+        print(f"[build] preserved labels for {sum(1 for n in nodes if n.get('displayName'))} nodes across rebuild")
+
     payload = {
         "root": str(root.resolve()),
         "n_nodes": len(nodes),
