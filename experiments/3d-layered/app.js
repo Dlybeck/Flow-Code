@@ -943,6 +943,8 @@ function rebuild() {
       node: n,
       baseColor: base.clone(),
       baseEmissive: base.clone().multiplyScalar(emissiveStrength),
+      baseEmissiveIntensity: emissiveStrength,
+      baseScale: s,
     };
     scene.add(mesh);
     nodeMeshes.push(mesh);
@@ -1579,36 +1581,40 @@ function saveRate(scope, ms) {
   rates[scope] = arr;
   try { localStorage.setItem('flowcode.labelRates', JSON.stringify(rates)); } catch {}
 }
-function estimateMs(scope, count) {
+function estimateMs(scope) {
   const rates = loadRates();
   const arr = rates[scope] || [];
-  if (!arr.length) {
-    // Default: DeepSeek round-trip ~5s per call regardless of count (single batched call).
-    return 5000;
-  }
+  if (!arr.length) return 5000;  // Default: DeepSeek round-trip ~5s regardless of size.
   const sorted = [...arr].sort((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-// Target node count for the active pin + scope. Matches the server's resolver.
-function countTargets(id, scope) {
-  if (scope === 'node') return 1;
-  // branch: BFS over primary children.
-  const primaryChildren = new Map();
-  for (const e of edges) {
-    if (!e.is_primary) continue;
-    if (!primaryChildren.has(e.from)) primaryChildren.set(e.from, []);
-    primaryChildren.get(e.from).push(e.to);
-  }
-  const seen = new Set([id]);
-  const queue = [id];
-  while (queue.length) {
-    const cur = queue.shift();
-    for (const c of primaryChildren.get(cur) || []) {
-      if (!seen.has(c)) { seen.add(c); queue.push(c); }
+// The node id set (+ connecting primary edges) that's being labeled for the
+// current request. Matches the server's resolver for node/branch scopes.
+function collectTargets(id, scope) {
+  const ids = new Set([id]);
+  if (scope !== 'node') {
+    const primaryChildren = new Map();
+    for (const e of edges) {
+      if (!e.is_primary) continue;
+      if (!primaryChildren.has(e.from)) primaryChildren.set(e.from, []);
+      primaryChildren.get(e.from).push(e.to);
+    }
+    const queue = [id];
+    while (queue.length) {
+      const cur = queue.shift();
+      for (const c of primaryChildren.get(cur) || []) {
+        if (!ids.has(c)) { ids.add(c); queue.push(c); }
+      }
     }
   }
-  return seen.size;
+  const edgeKeys = new Set();
+  for (const e of edges) {
+    if (e.is_primary && ids.has(e.from) && ids.has(e.to)) {
+      edgeKeys.add(`${e.from}→${e.to}`);
+    }
+  }
+  return { ids, edgeKeys };
 }
 
 async function runLabel(scope) {
@@ -1616,12 +1622,38 @@ async function runLabel(scope) {
   const mesh = nodeById.get(pinnedId);
   if (!mesh) return;
   const n = mesh.userData.node;
-  const count = countTargets(pinnedId, scope);
-  const est = estimateMs(scope, count);
+  const { ids, edgeKeys } = collectTargets(pinnedId, scope);
+  const count = ids.size;
+  const est = estimateMs(scope);
+  // Kick off the pulse animation on the targeted nodes + edges.
+  labelingNodes.clear(); labelingEdges.clear();
+  for (const id of ids) labelingNodes.add(id);
+  for (const k of edgeKeys) labelingEdges.add(k);
+  // Progress bar UI: fill proportional to elapsed/estimated, asymptotically
+  // approaching 95% so we never visually "arrive" before the response does.
+  labelStatusEl.innerHTML = `
+    <div class="labeling-row">
+      <span class="labeling-text">Labeling ${count} node${count === 1 ? '' : 's'}…</span>
+      <span class="labeling-eta">~<span id="labeling-eta-sec">${(est / 1000).toFixed(0)}</span>s</span>
+    </div>
+    <div class="labeling-track"><div class="labeling-fill" id="labeling-fill"></div></div>
+  `;
   labelStatusEl.style.display = 'block';
-  labelStatusEl.textContent = `Labeling ${count} node${count === 1 ? '' : 's'}… ~${(est / 1000).toFixed(0)}s`;
   [labelNodeBtn, labelBranchBtn].forEach(b => b.disabled = true);
   const t0 = performance.now();
+  let raf;
+  const fillEl = document.getElementById('labeling-fill');
+  const etaEl = document.getElementById('labeling-eta-sec');
+  const updateFill = () => {
+    const elapsed = performance.now() - t0;
+    // Asymptotic approach to 0.95 — never reaches 1 until the response lands.
+    const frac = 1 - Math.exp(-elapsed / est);
+    if (fillEl) fillEl.style.width = `${(frac * 95).toFixed(1)}%`;
+    const remain = Math.max(0, (est - elapsed) / 1000);
+    if (etaEl) etaEl.textContent = remain.toFixed(0);
+    raf = requestAnimationFrame(updateFill);
+  };
+  raf = requestAnimationFrame(updateFill);
   try {
     const r = await fetch('/api/label', {
       method: 'POST',
@@ -1645,11 +1677,14 @@ async function runLabel(scope) {
       }
     }
     renderPinnedPanel(pinnedId);
-    labelStatusEl.textContent = `Labeled ${result.labeled.length} in ${(elapsed / 1000).toFixed(1)}s.`;
-    setTimeout(() => { labelStatusEl.style.display = 'none'; }, 3000);
+    if (fillEl) fillEl.style.width = '100%';
+    labelStatusEl.innerHTML = `<div class="labeling-row"><span class="labeling-text">Labeled ${result.labeled.length} in ${(elapsed / 1000).toFixed(1)}s.</span></div>`;
+    setTimeout(() => { labelStatusEl.style.display = 'none'; }, 2500);
   } catch (err) {
-    labelStatusEl.textContent = `Label failed: ${err.message || err}`;
+    labelStatusEl.innerHTML = `<div class="labeling-row"><span class="labeling-text" style="color:#ff8b7c">Label failed: ${(err.message || err)}</span></div>`;
   } finally {
+    cancelAnimationFrame(raf);
+    clearLabelingPulse();
     [labelNodeBtn, labelBranchBtn].forEach(b => b.disabled = false);
   }
 }
@@ -1675,10 +1710,54 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Nodes/edges currently being labeled. tickLabeling() pulses them each frame.
+const labelingNodes = new Set();   // node ids
+const labelingEdges = new Set();   // `${from}→${to}` keys
+
+function tickLabeling(nowMs) {
+  if (labelingNodes.size === 0 && labelingEdges.size === 0) return;
+  // Two overlapping sines produce a breathing, slightly organic pulse so it
+  // doesn't read as a metronome.
+  const t = nowMs * 0.0035;
+  const pulse = 0.5 + 0.5 * Math.sin(t) * 0.7 + 0.3 * Math.sin(t * 2.3);
+  for (const id of labelingNodes) {
+    const m = nodeById.get(id);
+    if (!m) continue;
+    const base = m.userData.baseEmissiveIntensity || 0.5;
+    m.material.emissiveIntensity = base + 1.8 * Math.max(0, pulse);
+    const baseScale = m.userData.baseScale || 1;
+    m.scale.setScalar(baseScale * (1 + 0.12 * pulse));
+  }
+  for (const l of edgeLines) {
+    const key = `${l.userData.edge.from}→${l.userData.edge.to}`;
+    if (!labelingEdges.has(key)) continue;
+    const baseOp = l.userData.baseOpacity || 1;
+    l.material.opacity = baseOp * (0.35 + 0.65 * pulse);
+  }
+}
+
+function clearLabelingPulse() {
+  for (const id of labelingNodes) {
+    const m = nodeById.get(id);
+    if (!m) continue;
+    m.material.emissiveIntensity = m.userData.baseEmissiveIntensity || 0.5;
+    m.scale.setScalar(m.userData.baseScale || 1);
+  }
+  for (const l of edgeLines) {
+    const key = `${l.userData.edge.from}→${l.userData.edge.to}`;
+    if (labelingEdges.has(key)) {
+      l.material.opacity = l.userData.baseOpacity || 1;
+    }
+  }
+  labelingNodes.clear();
+  labelingEdges.clear();
+}
+
 function animate() {
   requestAnimationFrame(animate);
   if (contextLost) return;
   if (introState.active) tickIntro(performance.now());
+  tickLabeling(performance.now());
   if (controls.enabled) controls.update();
   composer.render();
 }
