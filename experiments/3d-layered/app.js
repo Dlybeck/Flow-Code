@@ -1074,6 +1074,14 @@ function rebuild() {
     wireMesh.material.opacity = 0;
     if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
     if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
+    // Cross-edges: disable depth test during intro so the revealing terrain
+    // (which writes depth as each polygon materializes) can't intermittently
+    // clip polyline segments that ride just above ridges. Restored on finish.
+    for (const l of edgeLines) {
+      if (!l.userData.edge.is_primary) {
+        l.material.depthTest = false;
+      }
+    }
     // Cross-edges start hidden (they're already transparent:true from build)
     for (const l of edgeLines) {
       if (!l.userData.edge.is_primary) {
@@ -1226,6 +1234,7 @@ function finishIntro() {
   for (const l of edgeLines) {
     if (l.userData.edge.is_primary) continue;
     l.material.opacity = l.userData.baseOpacity;
+    l.material.depthTest = true;
   }
   terrainMesh.material.opacity = 1;
   wireMesh.material.opacity = 0.14;
@@ -1256,7 +1265,10 @@ function replayIntro() {
   if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
   if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
   for (const l of edgeLines) {
-    if (!l.userData.edge.is_primary) l.material.opacity = 0;
+    if (!l.userData.edge.is_primary) {
+      l.material.opacity = 0;
+      l.material.depthTest = false;
+    }
   }
   for (const mesh of nodeMeshes) {
     const id = mesh.userData.node.id;
