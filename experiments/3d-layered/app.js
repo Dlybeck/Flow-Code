@@ -400,33 +400,76 @@ function xyFor(n) {
   return state.layout === 'fan' ? [n.x_fan, n.y_fan] : [n.x_umap, n.y_umap];
 }
 
-// Flowchart layout: group nodes by depth, order each row by fan-angle so
-// siblings stay together, then spread across x. Coordinates are in the
-// same world units as normalizedXY() so we can lerp directly.
+// Flowchart layout: a real top-down tree where each subtree gets width
+// proportional to its leaf count and children sit centered under their
+// primary parent. Falls back to depth-row ordering for orphans.
 function computeFlowchartPositions() {
   const STEP_Z = 6;
-  const SPREAD = 50;
-  const byDepth = new Map();
-  for (const n of nodes) {
-    const d = n.depth ?? 0;
-    if (!byDepth.has(d)) byDepth.set(d, []);
-    byDepth.get(d).push({ id: n.id, angle: Math.atan2(n.y_fan || 0, n.x_fan || 0) });
+  const LEAF_GAP = 3.0;  // horizontal spacing between adjacent leaves
+  const primaryChildren = new Map(nodes.map(n => [n.id, []]));
+  const primaryParent = new Map();
+  for (const e of edges) {
+    if (!e.is_primary) continue;
+    primaryChildren.get(e.from)?.push(e.to);
+    primaryParent.set(e.to, e.from);
   }
-  const depths = [...byDepth.keys()].sort((a, b) => a - b);
-  const maxD = depths[depths.length - 1] || 1;
-  const midD = maxD / 2;
+  // Roots of the primary tree: nodes with no primary parent.
+  const roots = nodes.filter(n => !primaryParent.has(n.id) && !n.is_orphan).map(n => n.id);
+  // Stable child ordering by fan angle so siblings match their eventual
+  // angular order in the fan layout (minimizes visual crossings).
+  for (const [, kids] of primaryChildren) {
+    kids.sort((a, b) => {
+      const na = nodeById_data(a), nb = nodeById_data(b);
+      return Math.atan2(na.y_fan || 0, na.x_fan || 0) - Math.atan2(nb.y_fan || 0, nb.x_fan || 0);
+    });
+  }
+  // Post-order: subtree width = sum of child widths, or LEAF_GAP for leaves.
+  const width = new Map();
+  function computeWidth(id) {
+    const kids = primaryChildren.get(id) || [];
+    if (kids.length === 0) { width.set(id, LEAF_GAP); return LEAF_GAP; }
+    let w = 0;
+    for (const k of kids) w += computeWidth(k);
+    width.set(id, w);
+    return w;
+  }
+  let totalW = 0;
+  for (const r of roots) totalW += computeWidth(r);
+
   const result = new Map();
-  for (const d of depths) {
-    const row = byDepth.get(d).sort((a, b) => a.angle - b.angle);
-    const count = row.length;
-    for (let i = 0; i < count; i++) {
-      const x = count > 1 ? ((i / (count - 1)) - 0.5) * SPREAD : 0;
-      const z = (d - midD) * STEP_Z;
-      result.set(row[i].id, [x, z]);
+  const maxD = Math.max(...nodes.map(n => n.depth ?? 0)) || 1;
+  const midD = maxD / 2;
+  // Place roots left-to-right, then recursively place each subtree.
+  let cursor = -totalW / 2;
+  function place(id) {
+    const w = width.get(id);
+    const centerX = cursor + w / 2;
+    const d = nodes.find(n => n.id === id)?.depth ?? 0;
+    result.set(id, [centerX, (d - midD) * STEP_Z]);
+    const kids = primaryChildren.get(id) || [];
+    const saved = cursor;
+    for (const k of kids) place(k);
+    cursor = saved + w;
+  }
+  for (const r of roots) place(r);
+
+  // Orphans (not in primary tree): park them in a bottom row, spread out.
+  const orphans = nodes.filter(n => !result.has(n.id));
+  if (orphans.length) {
+    const orphZ = (maxD + 1 - midD) * STEP_Z;
+    const orphSpan = Math.max(totalW, orphans.length * LEAF_GAP);
+    for (let i = 0; i < orphans.length; i++) {
+      const x = orphans.length > 1
+        ? (i / (orphans.length - 1) - 0.5) * orphSpan
+        : 0;
+      result.set(orphans[i].id, [x, orphZ]);
     }
   }
   return result;
 }
+// Small helper for the sort above (node data lookup by id).
+const _nodeDataIndex = new Map(nodes.map(n => [n.id, n]));
+function nodeById_data(id) { return _nodeDataIndex.get(id) || {}; }
 
 function normalizedXY() {
   const raws = nodes.map(xyFor);
