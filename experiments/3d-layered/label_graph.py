@@ -93,37 +93,56 @@ def build_user_message(functions: dict, graph_nodes: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def label_subset(graph_path: Path, source_root: Path, qnames: list[str]) -> dict:
+    """Label a specific subset of nodes. Reads graph.json, runs one LLM call
+    for the requested qnames, writes the labels back into graph.json, and
+    returns {elapsed_ms, labeled: [{ref, displayName, description}]}.
+
+    Shared between the CLI (`label_graph.py`) and the sidecar `/api/label`
+    endpoint so both paths produce identical labels with the same prompt.
+    """
+    import time
+    functions = parse_directory(source_root)
+    graph = json.loads(graph_path.read_text())
+    nodes = graph["nodes"]
+    qname_set = {q for q in qnames}
+    subset = [n for n in nodes if n["qname"] in qname_set]
+    if not subset:
+        return {"elapsed_ms": 0, "labeled": []}
+
+    user_msg = build_user_message(functions, subset)
+    t0 = time.perf_counter()
+    resp = call_llm(user_msg)
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    labels = resp.get("labels", {})
+    labeled = []
+    for n in nodes:
+        lbl = labels.get(n["qname"])
+        if not lbl:
+            continue
+        display_name = lbl.get("displayName") or n["qname"].split(".")[-1]
+        description = lbl.get("description") or n.get("description", "")
+        n["displayName"] = display_name
+        n["description"] = description
+        labeled.append({"ref": n["qname"], "displayName": display_name, "description": description})
+
+    graph_path.write_text(json.dumps(graph))
+    return {"elapsed_ms": elapsed_ms, "labeled": labeled}
+
+
 def main() -> None:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else "httpie-src/httpie")
     graph_path = Path(sys.argv[2] if len(sys.argv) > 2 else "graph.json")
 
     print(f"Parsing {root}...")
-    functions = parse_directory(root)
     graph = json.loads(graph_path.read_text())
-    nodes = graph["nodes"]
-    print(f"  {len(nodes)} nodes to label")
-
-    user_msg = build_user_message(functions, nodes)
-    approx_tokens = len(user_msg) // 4
+    qnames = [n["qname"] for n in graph["nodes"]]
+    print(f"  {len(qnames)} nodes to label")
+    approx_tokens = len(build_user_message(parse_directory(root), graph["nodes"])) // 4
     print(f"  ~{approx_tokens} tokens in prompt, calling DeepSeek...", flush=True)
 
-    resp = call_llm(user_msg)
-    labels = resp.get("labels", {})
-    missing = [n["qname"] for n in nodes if n["qname"] not in labels]
-    print(f"  labeled {len(labels)} functions, {len(missing)} missing")
-    if missing:
-        for m in missing[:5]:
-            print(f"    missing: {m}")
-
-    # Merge back into the graph
-    for n in nodes:
-        lbl = labels.get(n["qname"])
-        if lbl:
-            n["displayName"] = lbl.get("displayName", n["qname"].split(".")[-1])
-            n["description"] = lbl.get("description", n.get("description", ""))
-
-    graph_path.write_text(json.dumps(graph))
-    print(f"wrote {graph_path}  ({sum(1 for n in nodes if n.get('displayName'))} labeled)")
+    result = label_subset(graph_path, root, qnames)
+    print(f"  labeled {len(result['labeled'])} functions in {result['elapsed_ms']} ms")
 
 
 if __name__ == "__main__":

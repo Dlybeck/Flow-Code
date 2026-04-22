@@ -455,6 +455,37 @@ def list_nodes(limit: int = 200) -> list[dict]:
 
 
 @mcp.tool()
+def annotate(ref: str, scope: str = "node", from_ref: str | None = None, to_ref: str | None = None) -> dict:
+    """Ask the labeling pipeline to write a plain-English displayName +
+    description for a node, a branch (node + primary-tree descendants), or
+    a flow (shortest path between two refs).
+
+    scope ∈ {"node", "branch", "flow"}. For "flow" both from_ref and to_ref
+    are required.
+
+    Thin wrapper around the sidecar's POST /api/label endpoint, so browser
+    buttons and AI-driven calls produce identical labels. Refs accept bare
+    qnames and the `@flowcode:qname` clipboard form.
+
+    Returns {elapsed_ms, labeled: [{ref, displayName, description}, ...]}.
+    After this runs, call reload_graph() (or let the auto-reload fire) so
+    subsequent get_node calls see the new labels.
+    """
+    import httpx
+    import os
+    base = os.environ.get("FLOWCODE_SIDECAR_URL", "http://127.0.0.1:8792")
+    body = {"ref": ref, "scope": scope}
+    if from_ref:
+        body["from_ref"] = from_ref
+    if to_ref:
+        body["to_ref"] = to_ref
+    with httpx.Client(timeout=300.0) as c:
+        r = c.post(f"{base}/api/label", json=body)
+        r.raise_for_status()
+        return r.json()
+
+
+@mcp.tool()
 def reload_graph() -> dict:
     """Drop cached graph.json and source-parse state.
 

@@ -1560,6 +1560,103 @@ copyRefBtn.addEventListener('click', async () => {
   } catch (_) { /* clipboard blocked; ignore */ }
 });
 
+// ---------- AI labeling (pinned panel) ----------
+const labelNodeBtn = document.getElementById('label-node');
+const labelBranchBtn = document.getElementById('label-branch');
+const labelStatusEl = document.getElementById('label-status');
+
+// Rolling-median estimator for label latency. Keyed on scope so a "node"
+// run's timing doesn't skew a "branch" estimate. Stored in localStorage so
+// estimates carry across reloads.
+function loadRates() {
+  try { return JSON.parse(localStorage.getItem('flowcode.labelRates') || '{}'); } catch { return {}; }
+}
+function saveRate(scope, ms) {
+  const rates = loadRates();
+  const arr = rates[scope] || [];
+  arr.push(ms);
+  if (arr.length > 20) arr.shift();
+  rates[scope] = arr;
+  try { localStorage.setItem('flowcode.labelRates', JSON.stringify(rates)); } catch {}
+}
+function estimateMs(scope, count) {
+  const rates = loadRates();
+  const arr = rates[scope] || [];
+  if (!arr.length) {
+    // Default: DeepSeek round-trip ~5s per call regardless of count (single batched call).
+    return 5000;
+  }
+  const sorted = [...arr].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+// Target node count for the active pin + scope. Matches the server's resolver.
+function countTargets(id, scope) {
+  if (scope === 'node') return 1;
+  // branch: BFS over primary children.
+  const primaryChildren = new Map();
+  for (const e of edges) {
+    if (!e.is_primary) continue;
+    if (!primaryChildren.has(e.from)) primaryChildren.set(e.from, []);
+    primaryChildren.get(e.from).push(e.to);
+  }
+  const seen = new Set([id]);
+  const queue = [id];
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const c of primaryChildren.get(cur) || []) {
+      if (!seen.has(c)) { seen.add(c); queue.push(c); }
+    }
+  }
+  return seen.size;
+}
+
+async function runLabel(scope) {
+  if (!pinnedId) return;
+  const mesh = nodeById.get(pinnedId);
+  if (!mesh) return;
+  const n = mesh.userData.node;
+  const count = countTargets(pinnedId, scope);
+  const est = estimateMs(scope, count);
+  labelStatusEl.style.display = 'block';
+  labelStatusEl.textContent = `Labeling ${count} node${count === 1 ? '' : 's'}… ~${(est / 1000).toFixed(0)}s`;
+  [labelNodeBtn, labelBranchBtn].forEach(b => b.disabled = true);
+  const t0 = performance.now();
+  try {
+    const r = await fetch('/api/label', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: n.qname, scope }),
+    });
+    if (!r.ok) {
+      const text = await r.text().catch(() => '');
+      throw new Error(`HTTP ${r.status}: ${text.slice(0, 120)}`);
+    }
+    const result = await r.json();
+    const elapsed = performance.now() - t0;
+    saveRate(scope, elapsed);
+    // Patch in-memory nodes + refresh panel / hover tooltip immediately.
+    const byQname = new Map(nodes.map(x => [x.qname, x]));
+    for (const l of result.labeled) {
+      const target = byQname.get(l.ref);
+      if (target) {
+        target.displayName = l.displayName;
+        target.description = l.description;
+      }
+    }
+    renderPinnedPanel(pinnedId);
+    labelStatusEl.textContent = `Labeled ${result.labeled.length} in ${(elapsed / 1000).toFixed(1)}s.`;
+    setTimeout(() => { labelStatusEl.style.display = 'none'; }, 3000);
+  } catch (err) {
+    labelStatusEl.textContent = `Label failed: ${err.message || err}`;
+  } finally {
+    [labelNodeBtn, labelBranchBtn].forEach(b => b.disabled = false);
+  }
+}
+
+labelNodeBtn?.addEventListener('click', () => runLabel('node'));
+labelBranchBtn?.addEventListener('click', () => runLabel('branch'));
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pinnedId) setPinned(pinnedId);
 });
