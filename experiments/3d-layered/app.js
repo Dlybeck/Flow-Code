@@ -26,7 +26,7 @@ const introState = {
   active: false,
   done: SKIP_INTRO,
   start: 0,
-  duration: SKIP_INTRO ? 0 : 5.0,
+  duration: SKIP_INTRO ? 0 : 6.0,
   hasPlayed: SKIP_INTRO,   // becomes true after the first finishIntro()
   flowchartPositions: null, // Map<id, [x, z]>
   finalCamera: null,        // { x, y, z } oblique pose computed in rebuild()
@@ -1130,12 +1130,12 @@ function tickIntro(nowMs) {
   // (duration=2.5) this is 0.5, doubling clock rate.
   const absT = introState.paused !== null
     ? introState.paused
-    : ((nowMs - introState.start) / 1000) * (5.0 / introState.duration);
+    : (nowMs - introState.start) / 1000;
   const xz = introEase(introWindow(absT, 0.0, 3.0));
   const yy = introEase(introWindow(absT, 2.0, 4.5));
-  const cam = introEase(introWindow(absT, 0.8, 5.0));
-  const terr = introWindow(absT, 3.0, 5.0);
-  const cross = introWindow(absT, 3.2, 5.0);
+  const cam = introEase(introWindow(absT, 0.8, 5.5));
+  const terr = introWindow(absT, 4.5, 6.0);
+  const cross = introWindow(absT, 4.5, 6.0);
 
   const fp = introState.flowchartPositions;
   // Nodes: lerp between flowchart (xz=0, yy=0) and final (xz=1, yy=1).
@@ -1174,7 +1174,7 @@ function tickIntro(nowMs) {
   // Reveal runs on its own, longer window so the ripple outward from the
   // peak is clearly readable. Uniform climbs past 1 so the smoothstep
   // fade band clears even the outermost (vRevealD=1) polygons at animation end.
-  const reveal = introWindow(absT, 2.5, 5.2) * 1.3;
+  const reveal = introWindow(absT, 4.5, 6.0) * 1.3;
   if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = reveal;
   if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = reveal;
 
@@ -1203,7 +1203,7 @@ function tickIntro(nowMs) {
   );
   camera.lookAt(tgt);
 
-  if (introState.paused === null && absT >= 5.0) finishIntro();
+  if (introState.paused === null && absT >= 6.0) finishIntro();
 }
 
 function finishIntro() {
