@@ -1595,9 +1595,59 @@ function collectTargets(id, scope) {
   return { ids, edgeKeys };
 }
 
-// Set of ref strings that are currently queued with the user's AI.
-// Populated at load time from /api/label-queue, updated on click.
-const queuedRefs = new Set();
+// Tracks an in-flight queue entry. `ref` is the pin the user clicked (the
+// root of the request); `targetQnames` is the full set of qnames that
+// should end up labeled; `requestId` is the queue-file id so we can DELETE
+// on cancel. Only one active request at a time — queueing a second hides
+// the first's status row (the server still holds both and the AI will
+// drain both independently).
+let activeRequest = null;  // { requestId, ref, scope, targetQnames, queuedAt }
+
+function renderQueuedStatus(elapsedMs) {
+  if (!activeRequest) { labelStatusEl.style.display = 'none'; return; }
+  const count = activeRequest.targetQnames.size;
+  const secs = Math.floor(elapsedMs / 1000);
+  const ageStr = secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
+  const stuck = elapsedMs > 30_000;
+  const mainMsg = stuck
+    ? `Still waiting on your AI (${ageStr}). Open your chat and send any message to kick it off.`
+    : `Queued. Your AI will label ${count} node${count === 1 ? '' : 's'} on its next turn. <span style="opacity:.55">(${ageStr})</span>`;
+  labelStatusEl.innerHTML = `
+    <div class="labeling-row">
+      <span class="labeling-text">${mainMsg}</span>
+      <button id="label-cancel" style="background:transparent;border:1px solid #2d3a4d;color:#8b93a1;padding:2px 8px;border-radius:4px;font:inherit;cursor:pointer;font-size:11px">Cancel</button>
+    </div>
+    <div class="labeling-track"><div class="labeling-fill labeling-fill-indeterminate"></div></div>
+  `;
+  labelStatusEl.style.display = 'block';
+  document.getElementById('label-cancel')?.addEventListener('click', cancelActiveRequest);
+}
+
+async function cancelActiveRequest() {
+  if (!activeRequest) return;
+  const id = activeRequest.requestId;
+  activeRequest = null;
+  clearLabelingPulse();
+  labelStatusEl.style.display = 'none';
+  try { await fetch(`/api/label-queue/${id}`, { method: 'DELETE' }); } catch {}
+}
+
+function showLabelError(msg, { retry } = {}) {
+  const retryHtml = retry
+    ? `<button id="label-retry" style="background:transparent;border:1px solid #2d3a4d;color:#8b93a1;padding:2px 8px;border-radius:4px;font:inherit;cursor:pointer;font-size:11px;margin-left:8px">Retry</button>`
+    : '';
+  labelStatusEl.innerHTML = `
+    <div class="labeling-row">
+      <span class="labeling-text" style="color:#ff8b7c">${msg}</span>
+      ${retryHtml}
+      <button id="label-dismiss" style="background:transparent;border:1px solid #2d3a4d;color:#8b93a1;padding:2px 8px;border-radius:4px;font:inherit;cursor:pointer;font-size:11px;margin-left:4px">Dismiss</button>
+    </div>
+  `;
+  labelStatusEl.style.display = 'block';
+  clearLabelingPulse();
+  document.getElementById('label-dismiss')?.addEventListener('click', () => { labelStatusEl.style.display = 'none'; });
+  if (retry) document.getElementById('label-retry')?.addEventListener('click', retry);
+}
 
 async function queueLabel(scope) {
   if (!pinnedId) return;
@@ -1605,7 +1655,13 @@ async function queueLabel(scope) {
   if (!mesh) return;
   const n = mesh.userData.node;
   const { ids, edgeKeys } = collectTargets(pinnedId, scope);
+  const targetQnames = new Set();
+  for (const id of ids) {
+    const m = nodeById.get(id);
+    if (m) targetQnames.add(m.userData.node.qname);
+  }
   // Start the pulse to visually mark these as "waiting for the AI".
+  labelingNodes.clear(); labelingEdges.clear();
   for (const id of ids) labelingNodes.add(id);
   for (const k of edgeKeys) labelingEdges.add(k);
 
@@ -1626,16 +1682,17 @@ async function queueLabel(scope) {
       const text = await r.text().catch(() => '');
       throw new Error(`HTTP ${r.status}: ${text.slice(0, 120)}`);
     }
-    queuedRefs.add(`${n.qname}|${scope}`);
-    labelStatusEl.innerHTML = `
-      <div class="labeling-row">
-        <span class="labeling-text">Queued. Your AI will label ${ids.size} node${ids.size === 1 ? '' : 's'} on its next turn.</span>
-      </div>
-      <div class="labeling-track"><div class="labeling-fill labeling-fill-indeterminate"></div></div>
-    `;
+    const { id } = await r.json();
+    activeRequest = {
+      requestId: id,
+      ref: n.qname,
+      scope,
+      targetQnames,
+      queuedAt: performance.now(),
+    };
+    renderQueuedStatus(0);
   } catch (err) {
-    labelStatusEl.innerHTML = `<div class="labeling-row"><span class="labeling-text" style="color:#ff8b7c">Queue failed: ${(err.message || err)}</span></div>`;
-    clearLabelingPulse();
+    showLabelError(`Queue failed: ${err.message || err}`);
   } finally {
     [labelNodeBtn, labelBranchBtn].forEach(b => b.disabled = false);
   }
@@ -1644,37 +1701,61 @@ async function queueLabel(scope) {
 labelNodeBtn?.addEventListener('click', () => queueLabel('node'));
 labelBranchBtn?.addEventListener('click', () => queueLabel('branch'));
 
-// Poll the queue + graph.json so the viz reflects the AI's progress.
-// When the queue drains OR a labeled node's displayName appears, clear its
-// pulse and refresh the panel.
+// Poll the queue and watch the active request. Three interesting transitions:
+//   1. still queued → update age display (lets "Still waiting" hint kick in).
+//   2. drained with labels written → success, update UI.
+//   3. drained without labels written → agent mis-handled; show error + Retry.
 async function pollLabelProgress() {
+  if (!activeRequest) return;
   try {
     const qr = await fetch('/api/label-queue', { cache: 'no-store' });
     if (!qr.ok) return;
     const { items } = await qr.json();
-    const stillQueued = new Set(items.map(i => `${i.ref}|${i.scope}`));
-    // Detect drain: anything in queuedRefs that's no longer in stillQueued → re-fetch graph.
-    let drained = false;
-    for (const k of queuedRefs) if (!stillQueued.has(k)) { drained = true; break; }
-    if (drained || (queuedRefs.size > 0 && items.length === 0)) {
-      const gr = await fetch('graph.json', { cache: 'no-store' });
-      if (gr.ok) {
-        const fresh = await gr.json();
-        const byQname = new Map(nodes.map(x => [x.qname, x]));
-        for (const fn of fresh.nodes) {
-          const target = byQname.get(fn.qname);
-          if (target && (fn.displayName !== target.displayName || fn.description !== target.description)) {
-            target.displayName = fn.displayName;
-            target.description = fn.description;
-          }
-        }
-        if (pinnedId) renderPinnedPanel(pinnedId);
-      }
-      queuedRefs.clear();
-      clearLabelingPulse();
-      labelStatusEl.style.display = 'none';
+    const stillInQueue = items.some(i => i.id === activeRequest.requestId);
+    if (stillInQueue) {
+      renderQueuedStatus(performance.now() - activeRequest.queuedAt);
+      return;
     }
-  } catch (_) { /* sidecar absent, ignore */ }
+    // Drained. Re-fetch the graph to see whether labels actually landed.
+    const gr = await fetch('graph.json', { cache: 'no-store' });
+    if (!gr.ok) return;
+    const fresh = await gr.json();
+    const byQname = new Map(nodes.map(x => [x.qname, x]));
+    const freshByQname = new Map(fresh.nodes.map(n => [n.qname, n]));
+    // Patch every changed field, not just targets, so a branch-scope request
+    // updates every node the agent decided to write.
+    for (const fn of fresh.nodes) {
+      const target = byQname.get(fn.qname);
+      if (!target) continue;
+      if (fn.displayName !== target.displayName) target.displayName = fn.displayName;
+      if (fn.description !== target.description) target.description = fn.description;
+    }
+    if (pinnedId) renderPinnedPanel(pinnedId);
+    // How many of the targets actually got a displayName? (Descriptions can
+    // be legitimately terse; name is our reliable freshness signal.)
+    const labeled = [...activeRequest.targetQnames].filter(q => {
+      const fn = freshByQname.get(q);
+      return fn && fn.displayName && fn.displayName.trim();
+    }).length;
+    const expected = activeRequest.targetQnames.size;
+    const req = activeRequest;
+    activeRequest = null;
+    if (labeled === 0) {
+      showLabelError(
+        `Your AI drained the request but didn't write any labels. Did it skip the step?`,
+        { retry: () => queueLabel(req.scope) },
+      );
+    } else if (labeled < expected) {
+      showLabelError(
+        `Labeled ${labeled} of ${expected} — AI skipped ${expected - labeled}.`,
+        { retry: () => queueLabel(req.scope) },
+      );
+    } else {
+      clearLabelingPulse();
+      labelStatusEl.innerHTML = `<div class="labeling-row"><span class="labeling-text">Labeled ${labeled} node${labeled === 1 ? '' : 's'}.</span></div>`;
+      setTimeout(() => { labelStatusEl.style.display = 'none'; }, 2500);
+    }
+  } catch (_) { /* sidecar absent */ }
 }
 setInterval(pollLabelProgress, 2000);
 
