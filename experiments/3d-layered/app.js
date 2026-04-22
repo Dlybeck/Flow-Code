@@ -1064,16 +1064,14 @@ function rebuild() {
   // toggles rebuild() without replaying the intro.
   if (!introState.hasPlayed && !SKIP_INTRO) {
 
-    // Make terrain + wire fadeable and start hidden.
-    // depthWrite=false while invisible: without this, the terrain's depth
-    // buffer still occludes primary edges that pass through the (eventual)
-    // mountain volume while nodes are mid-rise, so edges appear to flicker
-    // off. Restored to true in finishIntro().
+    // Terrain stays fully opaque and depth-writing; the shader's discard
+    // (via uReveal) handles which polygons exist yet. Discarded fragments
+    // don't write depth, so edges passing through the unrevealed zone stay
+    // visible, and revealed polygons occlude naturally as they materialize
+    // — no final-frame state flip, no pop.
     terrainMesh.material.transparent = true;
-    terrainMesh.material.opacity = 0;
-    terrainMesh.material.depthWrite = false;
+    terrainMesh.material.opacity = 1;
     wireMesh.material.opacity = 0;
-    wireMesh.material.depthWrite = false;
     if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
     if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
     // Cross-edges start hidden (they're already transparent:true from build)
@@ -1230,9 +1228,7 @@ function finishIntro() {
     l.material.opacity = l.userData.baseOpacity;
   }
   terrainMesh.material.opacity = 1;
-  terrainMesh.material.depthWrite = true;
   wireMesh.material.opacity = 0.14;
-  wireMesh.material.depthWrite = true;
   if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 10.0;
   if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 10.0;
   // Camera at final pose
@@ -1255,10 +1251,8 @@ function replayIntro() {
   if (introState.active) return;
   if (!introState.flowchartPositions || !introState.finalCamera) return;
   terrainMesh.material.transparent = true;
-  terrainMesh.material.opacity = 0;
-  terrainMesh.material.depthWrite = false;
+  terrainMesh.material.opacity = 1;
   wireMesh.material.opacity = 0;
-  wireMesh.material.depthWrite = false;
   if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
   if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
   for (const l of edgeLines) {
