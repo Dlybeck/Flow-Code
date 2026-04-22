@@ -81,6 +81,73 @@
     backdrop-filter: blur(8px);
   }
   #gear:hover { color: var(--fg); }
+
+  /* Freshness badge: muted dot near the gear. Green when graph.json is
+     current with source; amber when source files have changed since the
+     last index build. Hover expands to show the rebuild command. */
+  #freshness {
+    position: fixed; top: 22px; right: 58px;
+    width: auto; height: 22px;
+    display: flex; align-items: center;
+    padding: 0 8px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 11px;
+    font-size: 11px; color: var(--muted);
+    backdrop-filter: blur(8px);
+    cursor: default;
+    transition: color .2s;
+  }
+  #freshness .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #4a6c50;  /* dim green */
+    box-shadow: 0 0 4px rgba(125,209,129,.0);
+    transition: background .2s, box-shadow .2s;
+  }
+  #freshness.stale .dot {
+    background: #d4a657;  /* amber */
+    box-shadow: 0 0 5px rgba(212,166,87,.55);
+    animation: freshnessPulse 2.2s ease-in-out infinite;
+  }
+  @keyframes freshnessPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  #freshness.stale { color: #d4a657; border-color: #5a4a30; cursor: pointer; }
+  #freshness.stale::after {
+    content: attr(data-count) " stale";
+    margin-left: 6px;
+    font-size: 10px;
+    letter-spacing: .02em;
+  }
+  .freshness-detail {
+    position: absolute; top: 30px; right: 0;
+    display: none;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+    font-size: 11px; color: var(--fg);
+    width: 320px; line-height: 1.5;
+    backdrop-filter: blur(8px);
+  }
+  #freshness.open .freshness-detail { display: block; }
+  .freshness-detail .cmd {
+    display: block;
+    margin-top: 8px;
+    padding: 6px 8px;
+    background: #0a0d14; border: 1px solid #222;
+    border-radius: 4px;
+    font: 11px/1.4 ui-monospace, Menlo, Consolas, monospace;
+    color: #9cd9ff;
+    white-space: pre-wrap;
+    word-break: break-all;
+    cursor: pointer;
+    user-select: all;
+  }
+  .freshness-detail .cmd:hover { background: #121826; }
+  .freshness-detail .files {
+    margin-top: 8px; color: var(--muted); font-size: 10px;
+    max-height: 120px; overflow-y: auto;
+  }
+  .freshness-detail .files li { margin-left: 14px; }
   #controls {
     position: fixed; top: 58px; right: 16px; width: 220px;
     background: var(--panel); border: 1px solid var(--border);
@@ -124,6 +191,11 @@
 </div>
 
 <div id="tooltip"></div>
+
+<div id="freshness" class="fresh" title="Graph index is up to date">
+  <span class="dot"></span>
+  <div class="freshness-detail" id="freshness-detail"></div>
+</div>
 
 <div id="gear" title="Settings">⚙</div>
 <div id="controls">

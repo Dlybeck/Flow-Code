@@ -1565,6 +1565,51 @@ copyRefBtn.addEventListener('click', async () => {
 // Labels are baked into graph.json at build time by label_graph.py
 // (branch-by-branch from the primary-tree root). The viz just reads them.
 
+// ---------- Freshness badge ----------
+// /api/freshness says whether graph.json is current with the source tree.
+// We poll every 30s (cheap stat-only walk); the UI flips amber + shows the
+// rebuild command when it's stale. Build is never auto-triggered — the user
+// runs it when they want to.
+const freshnessEl = document.getElementById('freshness');
+const freshnessDetailEl = document.getElementById('freshness-detail');
+
+async function pollFreshness() {
+  try {
+    const r = await fetch('/api/freshness', { cache: 'no-store' });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.stale) {
+      freshnessEl.classList.add('stale');
+      freshnessEl.classList.remove('fresh');
+      freshnessEl.dataset.count = data.files_changed_total || 0;
+      freshnessEl.title = `${data.files_changed_total} file${data.files_changed_total === 1 ? '' : 's'} changed since last index`;
+      const fileList = (data.files_changed || []).slice(0, 10).map(f => `<li>${f}</li>`).join('');
+      const overflow = data.files_changed_total > 10
+        ? `<div style="margin-left:14px;opacity:.6">… and ${data.files_changed_total - 10} more</div>`
+        : '';
+      freshnessDetailEl.innerHTML = `
+        <div><b>Index is stale.</b> ${data.files_changed_total} file${data.files_changed_total === 1 ? '' : 's'} changed in source since the last build.</div>
+        <div style="margin-top:6px;color:var(--muted)">Run this to re-index:</div>
+        <code class="cmd" title="Click to select">${data.rebuild_cmd || 'python build_graph.py …'}</code>
+        <div class="files"><ul>${fileList}</ul>${overflow}</div>
+      `;
+    } else {
+      freshnessEl.classList.add('fresh');
+      freshnessEl.classList.remove('stale', 'open');
+      delete freshnessEl.dataset.count;
+      freshnessEl.title = 'Graph index is up to date';
+    }
+  } catch (_) { /* sidecar absent */ }
+}
+freshnessEl?.addEventListener('click', () => {
+  if (freshnessEl.classList.contains('stale')) freshnessEl.classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  if (!freshnessEl?.contains(e.target)) freshnessEl?.classList.remove('open');
+});
+pollFreshness();
+setInterval(pollFreshness, 30_000);
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pinnedId) setPinned(pinnedId);
 });

@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 VIZ_ROOT = Path(__file__).resolve().parent.parent
 SELECTION_FILE = Path("/tmp/flowcode-selection.json")
+GRAPH_PATH = VIZ_ROOT / "graph.json"
 
 app = FastAPI(title="Flow-Code sidecar")
 
@@ -46,6 +47,53 @@ def get_selection() -> dict:
     if not SELECTION_FILE.exists():
         return {"id": None}
     return json.loads(SELECTION_FILE.read_text())
+
+
+@app.get("/api/freshness")
+def freshness() -> dict:
+    """Is graph.json stale relative to source?
+
+    Returns {stale, graph_mtime, newest_source_mtime, files_changed,
+             source_root, rebuild_cmd}. "files_changed" is a truncated list
+     of .py paths newer than graph.json (for the tooltip). Cheap to call
+    (stat-only walk); safe to poll every ~30s.
+    """
+    if not GRAPH_PATH.exists():
+        return {"stale": True, "reason": "no graph.json", "files_changed": [], "rebuild_cmd": None}
+    try:
+        graph = json.loads(GRAPH_PATH.read_text())
+    except Exception as e:
+        return {"stale": True, "reason": f"couldn't read graph.json: {e}", "files_changed": [], "rebuild_cmd": None}
+    root_str = graph.get("root")
+    if not root_str:
+        return {"stale": False, "reason": "graph has no root field", "files_changed": [], "rebuild_cmd": None}
+    root = Path(root_str)
+    graph_mtime = GRAPH_PATH.stat().st_mtime
+    changed: list[str] = []
+    newest = graph_mtime
+    if root.exists():
+        for p in root.rglob("*.py"):
+            try:
+                mt = p.stat().st_mtime
+            except OSError:
+                continue
+            if mt > newest:
+                newest = mt
+            if mt > graph_mtime:
+                try:
+                    changed.append(str(p.relative_to(root)))
+                except ValueError:
+                    changed.append(str(p))
+    stale = len(changed) > 0
+    return {
+        "stale": stale,
+        "graph_mtime": graph_mtime,
+        "newest_source_mtime": newest,
+        "files_changed": changed[:20],
+        "files_changed_total": len(changed),
+        "source_root": str(root),
+        "rebuild_cmd": f"python build_graph.py {root} graph.json",
+    }
 
 
 # Static files LAST so the API routes above take precedence.
