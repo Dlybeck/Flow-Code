@@ -1565,39 +1565,78 @@ copyRefBtn.addEventListener('click', async () => {
 // Labels are baked into graph.json at build time by label_graph.py
 // (branch-by-branch from the primary-tree root). The viz just reads them.
 
-// ---------- Freshness badge ----------
-// /api/freshness says whether graph.json is current with the source tree.
-// We poll every 30s (cheap stat-only walk); the UI flips amber + shows the
-// rebuild command when it's stale. Build is never auto-triggered — the user
-// runs it when they want to.
+// ---------- Freshness badge + hot-reload ----------
+// /api/freshness tells us (a) whether graph.json is stale vs source and
+// (b) graph.json's mtime. We poll every 30s. Two things happen on each poll:
+//   - the badge flips amber / green with a reason string
+//   - if graph.json's mtime is newer than the one we loaded, we re-fetch
+//     graph.json and patch displayName/description on matching qnames
+//     in-place. Camera, pin, intro state are untouched.
+// Build is never auto-triggered — the user runs it when they want to.
 const freshnessEl = document.getElementById('freshness');
 const freshnessDetailEl = document.getElementById('freshness-detail');
+let loadedGraphMtime = 0;  // populated on first successful freshness response
+
+async function hotReloadGraph() {
+  try {
+    const gr = await fetch('graph.json', { cache: 'no-store' });
+    if (!gr.ok) return 0;
+    const fresh = await gr.json();
+    const byQname = new Map(nodes.map(x => [x.qname, x]));
+    let patched = 0;
+    for (const fn of fresh.nodes) {
+      const target = byQname.get(fn.qname);
+      if (!target) continue;
+      const changed =
+        fn.displayName !== target.displayName ||
+        fn.description !== target.description;
+      if (!changed) continue;
+      target.displayName = fn.displayName;
+      target.description = fn.description;
+      target.source_hash = fn.source_hash;
+      target.descendant_hash = fn.descendant_hash;
+      patched++;
+    }
+    if (patched && pinnedId) renderPinnedPanel(pinnedId);
+    return patched;
+  } catch (_) { return 0; }
+}
 
 async function pollFreshness() {
   try {
     const r = await fetch('/api/freshness', { cache: 'no-store' });
     if (!r.ok) return;
     const data = await r.json();
+    // Hot-reload labels when graph.json has been rebuilt behind our back.
+    if (data.graph_mtime && loadedGraphMtime && data.graph_mtime > loadedGraphMtime) {
+      const patched = await hotReloadGraph();
+      if (patched) console.log(`[flowcode] hot-reloaded ${patched} label${patched === 1 ? '' : 's'} from rebuilt graph.json`);
+    }
+    if (data.graph_mtime) loadedGraphMtime = data.graph_mtime;
+
     if (data.stale) {
       freshnessEl.classList.add('stale');
       freshnessEl.classList.remove('fresh');
       freshnessEl.dataset.count = data.files_changed_total || 0;
-      freshnessEl.title = `${data.files_changed_total} file${data.files_changed_total === 1 ? '' : 's'} changed since last index`;
+      freshnessEl.title = data.reason || 'graph.json is stale';
       const fileList = (data.files_changed || []).slice(0, 10).map(f => `<li>${f}</li>`).join('');
       const overflow = data.files_changed_total > 10
         ? `<div style="margin-left:14px;opacity:.6">… and ${data.files_changed_total - 10} more</div>`
         : '';
+      const cmdBlock = data.rebuild_cmd
+        ? `<code class="cmd" title="Click to select">${data.rebuild_cmd}</code>`
+        : `<div style="margin-top:6px;opacity:.6">No rebuild command — see the reason above.</div>`;
       freshnessDetailEl.innerHTML = `
-        <div><b>Index is stale.</b> ${data.files_changed_total} file${data.files_changed_total === 1 ? '' : 's'} changed in source since the last build.</div>
-        <div style="margin-top:6px;color:var(--muted)">Run this to re-index:</div>
-        <code class="cmd" title="Click to select">${data.rebuild_cmd || 'python build_graph.py …'}</code>
-        <div class="files"><ul>${fileList}</ul>${overflow}</div>
+        <div><b>${data.reason || 'Index is stale.'}</b></div>
+        ${data.rebuild_cmd ? '<div style="margin-top:6px;color:var(--muted)">Run this to re-index:</div>' : ''}
+        ${cmdBlock}
+        ${fileList ? `<div class="files"><ul>${fileList}</ul>${overflow}</div>` : ''}
       `;
     } else {
       freshnessEl.classList.add('fresh');
       freshnessEl.classList.remove('stale', 'open');
       delete freshnessEl.dataset.count;
-      freshnessEl.title = 'Graph index is up to date';
+      freshnessEl.title = data.reason || 'Graph index is up to date';
     }
   } catch (_) { /* sidecar absent */ }
 }

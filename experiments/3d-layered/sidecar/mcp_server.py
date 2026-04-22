@@ -477,8 +477,12 @@ def write_label(ref: str, display_name: str, description: str) -> dict:
       - description: 1-2 short sentences, plain English, no "This function…"
         filler, describe EFFECT not implementation
 
+    Also stamps source_hash + descendant_hash for the current source, so the
+    next `python label_graph.py …` run treats this label as up-to-date and
+    skips it (rather than overwriting your refinement with an LLM rewrite).
+
     Refs accept bare qnames or @flowcode:qname. Returns {ok, ref}. The viz
-    refreshes the pinned panel and tooltip within ~2s.
+    hot-reloads the panel + tooltip on its next 30s freshness poll.
     """
     ref = _canon_ref(ref)
     if ref is None:
@@ -487,8 +491,31 @@ def write_label(ref: str, display_name: str, description: str) -> dict:
     target = next((n for n in graph["nodes"] if n["qname"] == ref or n["id"] == ref), None)
     if not target:
         return {"ok": False, "error": f"unknown ref: {ref}"}
+
     target["displayName"] = display_name
     target["description"] = description
+
+    # Stamp hashes so label_graph's incremental check sees this as current.
+    # Without this, the next label_all run would see source_hash mismatch
+    # (label stamped hash belongs to an older source) and overwrite the
+    # refinement.
+    try:
+        from label_graph import _compute_descendant_hashes, _source_hash
+        from parse_calls import parse_directory
+        src_root = Path(graph.get("root", ""))
+        if src_root.exists():
+            functions = parse_directory(src_root)
+            info = functions.get(ref)
+            if info and getattr(info, "source", None):
+                target["source_hash"] = _source_hash(info.source)
+            desc_hashes = _compute_descendant_hashes(graph, functions)
+            if ref in desc_hashes:
+                target["descendant_hash"] = desc_hashes[ref]
+    except Exception as e:
+        # Non-fatal: label still persists, just without the hash stamp.
+        # Next label_all would relabel, which is the safe default.
+        print(f"write_label: couldn't stamp hashes for {ref}: {e}", file=sys.stderr)
+
     GRAPH_FILE.write_text(json.dumps(graph))
     _graph_cached.cache_clear()
     _node_index.cache_clear()

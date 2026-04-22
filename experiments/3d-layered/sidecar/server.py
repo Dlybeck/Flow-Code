@@ -53,40 +53,89 @@ def get_selection() -> dict:
 def freshness() -> dict:
     """Is graph.json stale relative to source?
 
-    Returns {stale, graph_mtime, newest_source_mtime, files_changed,
-             source_root, rebuild_cmd}. "files_changed" is a truncated list
-     of .py paths newer than graph.json (for the tooltip). Cheap to call
-    (stat-only walk); safe to poll every ~30s.
+    Returns {stale, reason, graph_mtime, newest_source_mtime, files_changed,
+             files_changed_total, source_root, rebuild_cmd}. Cheap to call
+    (stat-only walk); safe to poll every ~30s. Always includes a `reason`
+    string so the UI can render an actionable hint, not just a count.
     """
     if not GRAPH_PATH.exists():
-        return {"stale": True, "reason": "no graph.json", "files_changed": [], "rebuild_cmd": None}
+        return {
+            "stale": True,
+            "reason": "no graph.json — run build_graph.py to create it",
+            "files_changed": [],
+            "files_changed_total": 0,
+            "rebuild_cmd": None,
+        }
     try:
         graph = json.loads(GRAPH_PATH.read_text())
     except Exception as e:
-        return {"stale": True, "reason": f"couldn't read graph.json: {e}", "files_changed": [], "rebuild_cmd": None}
+        return {
+            "stale": True,
+            "reason": f"couldn't read graph.json: {e}",
+            "files_changed": [],
+            "files_changed_total": 0,
+            "rebuild_cmd": None,
+        }
+
+    graph_mtime = GRAPH_PATH.stat().st_mtime
     root_str = graph.get("root")
     if not root_str:
-        return {"stale": False, "reason": "graph has no root field", "files_changed": [], "rebuild_cmd": None}
+        return {
+            "stale": True,
+            "reason": "graph.json has no `root` field — rebuild to stamp it",
+            "graph_mtime": graph_mtime,
+            "files_changed": [],
+            "files_changed_total": 0,
+            "rebuild_cmd": None,
+        }
+
     root = Path(root_str)
-    graph_mtime = GRAPH_PATH.stat().st_mtime
+    if not root.exists():
+        return {
+            "stale": True,
+            "reason": f"source root not found at {root} — did the directory move?",
+            "graph_mtime": graph_mtime,
+            "files_changed": [],
+            "files_changed_total": 0,
+            "source_root": str(root),
+            "rebuild_cmd": None,
+        }
+
     changed: list[str] = []
     newest = graph_mtime
-    if root.exists():
-        for p in root.rglob("*.py"):
+    py_count = 0
+    for p in root.rglob("*.py"):
+        py_count += 1
+        try:
+            mt = p.stat().st_mtime
+        except OSError:
+            continue
+        if mt > newest:
+            newest = mt
+        if mt > graph_mtime:
             try:
-                mt = p.stat().st_mtime
-            except OSError:
-                continue
-            if mt > newest:
-                newest = mt
-            if mt > graph_mtime:
-                try:
-                    changed.append(str(p.relative_to(root)))
-                except ValueError:
-                    changed.append(str(p))
+                changed.append(str(p.relative_to(root)))
+            except ValueError:
+                changed.append(str(p))
+
+    if py_count == 0:
+        return {
+            "stale": True,
+            "reason": f"no .py files under {root} — source tree is empty or path is wrong",
+            "graph_mtime": graph_mtime,
+            "files_changed": [],
+            "files_changed_total": 0,
+            "source_root": str(root),
+            "rebuild_cmd": None,
+        }
+
     stale = len(changed) > 0
     return {
         "stale": stale,
+        "reason": (
+            f"{len(changed)} file{'s' if len(changed) != 1 else ''} changed since last build"
+            if stale else "up to date"
+        ),
         "graph_mtime": graph_mtime,
         "newest_source_mtime": newest,
         "files_changed": changed[:20],
