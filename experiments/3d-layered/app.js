@@ -1329,6 +1329,10 @@ const controlsEl = document.getElementById('controls');
 // updates so the panel can track hover while the highlighted family tree
 // stays pinned to a clicked node.
 function paintFamilyTree(id) {
+  // During the intro, tickIntro owns cross-edge opacity. Any paintFamilyTree
+  // stomp (from selection-poll state flips or a stray hover) would override
+  // the fade-in mid-animation. Skip entirely — there's nothing to pin yet.
+  if (introState && introState.active) return;
   if (!id) {
     for (const m of nodeMeshes) {
       m.material.color.copy(m.userData.baseColor);
@@ -1460,6 +1464,8 @@ async function postSelectionToSidecar(id) {
 // to the viz. Last-write-wins file; we only act when the remote id differs
 // from our current local pin.
 async function pollSelectionFromSidecar() {
+  // Don't let an MCP-driven selection state flip interrupt the intro.
+  if (introState && introState.active) return;
   try {
     const r = await fetch('/api/selection', { cache: 'no-store' });
     if (!r.ok) return;
