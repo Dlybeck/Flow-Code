@@ -1033,6 +1033,11 @@ function rebuild() {
         });
     const line = new THREE.Line(g, mat);
     if (!isPrimary) line.computeLineDistances();  // required for dashed
+    // Primary edges get regenerated (setFromPoints) each frame during the
+    // intro without updating the bounding sphere, so frustum culling using
+    // the original final-layout sphere would drop far-out branches mid-
+    // animation. Only ~50 primary lines — cheap to skip culling entirely.
+    if (isPrimary) line.frustumCulled = false;
     line.userData = { edge: e, baseOpacity: baseOp, baseColor };
     scene.add(line);
     edgeLines.push(line);
