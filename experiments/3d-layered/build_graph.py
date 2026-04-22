@@ -743,6 +743,7 @@ def main() -> None:
                         "displayName": pn.get("displayName"),
                         "description": pn.get("description"),
                         "source_hash": pn.get("source_hash"),
+                        "descendant_hash": pn.get("descendant_hash"),
                     }
         except Exception as e:
             print(f"WARN: couldn't read previous {out} for label preservation: {e}")
@@ -757,6 +758,8 @@ def main() -> None:
                 n["description"] = prior["description"]
             if prior.get("source_hash"):
                 n["source_hash"] = prior["source_hash"]
+            if prior.get("descendant_hash"):
+                n["descendant_hash"] = prior["descendant_hash"]
         print(f"[build] preserved labels for {sum(1 for n in nodes if n.get('displayName'))} nodes across rebuild")
 
     payload = {

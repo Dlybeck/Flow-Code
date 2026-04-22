@@ -84,6 +84,51 @@ def _source_hash(src: str) -> str:
     return hashlib.sha1(src.encode("utf-8")).hexdigest()[:16]
 
 
+def _compute_descendant_hashes(graph: dict, functions: dict) -> dict[str, str]:
+    """descendant_hash[qname] = hash(source || sorted primary-child descendant_hashes).
+
+    Propagates transitive behavior changes up the primary tree (ski-slope spine):
+    if a child's source changes, every ancestor of that child in the primary
+    tree gets a new descendant_hash and will be re-labeled.
+
+    Non-primary callees (orthogonal helpers called from many places) are
+    intentionally excluded — a utility change shouldn't invalidate every
+    caller's label across the whole codebase.
+
+    Cycles in the primary tree aren't structurally possible (it's a DAG by
+    construction), but we defensively break recursion on repeat visits.
+    """
+    id_to_qname = {n["id"]: n["qname"] for n in graph["nodes"]}
+    children: dict[str, list[str]] = {}
+    for e in graph.get("edges", []):
+        if e.get("is_primary"):
+            children.setdefault(e["from"], []).append(e["to"])
+
+    memo: dict[str, str] = {}
+    in_progress: set[str] = set()
+
+    def visit(nid: str) -> str:
+        if nid in memo:
+            return memo[nid]
+        if nid in in_progress:
+            return ""  # cycle break — degenerate case
+        in_progress.add(nid)
+        qname = id_to_qname.get(nid, nid)
+        info = functions.get(qname)
+        src = info.source if info else ""
+        parts = [_source_hash(src)]
+        for cid in sorted(children.get(nid, [])):
+            parts.append(visit(cid))
+        h = hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()[:16]
+        memo[nid] = h
+        in_progress.discard(nid)
+        return h
+
+    for n in graph["nodes"]:
+        visit(n["id"])
+    return {id_to_qname[nid]: h for nid, h in memo.items() if nid in id_to_qname}
+
+
 def _build_user_message(batch: list[tuple[str, str]]) -> str:
     """batch is a list of (qname, source)."""
     lines = ["Functions to label (qname + source):", ""]
@@ -347,6 +392,7 @@ def label_all(graph_path: Path, source_root: Path, force: bool = False) -> dict:
         return {"backend": None, "model": None, "labeled": 0, "skipped": len(nodes), "elapsed_ms": 0, "errors": []}
 
     functions = parse_directory(source_root)
+    desc_hashes = _compute_descendant_hashes(graph, functions)
 
     def needs_label(n: dict) -> bool:
         qname = n["qname"]
@@ -356,8 +402,14 @@ def label_all(graph_path: Path, source_root: Path, force: bool = False) -> dict:
         if force:
             return True
         has_label = bool(n.get("displayName")) and bool(n.get("description"))
-        same_hash = n.get("source_hash") == _source_hash(info.source)
-        return not (has_label and same_hash)
+        same_source = n.get("source_hash") == _source_hash(info.source)
+        # descendant_hash propagates through the primary tree so transitive
+        # behavior changes (child's source changed, parent's text unchanged)
+        # still invalidate the parent. Treat a missing stored desc_hash on an
+        # existing label as "trust the source_hash" (migration from older data).
+        stored_desc = n.get("descendant_hash")
+        same_desc = stored_desc is None or stored_desc == desc_hashes.get(qname)
+        return not (has_label and same_source and same_desc)
 
     work = _ordered_work(graph, functions, needs_label)
 
@@ -390,7 +442,9 @@ def label_all(graph_path: Path, source_root: Path, force: bool = False) -> dict:
             done += 1
             print(f"[label]   batch {done}/{len(batches)} done ({len(labels)} labels, {len(errs)} errors)", flush=True)
 
-    # Merge back. Update source_hash so incremental works on re-run.
+    # Merge back. Update source_hash + descendant_hash so both levels of the
+    # incremental check (direct text change, transitive primary-tree change)
+    # work on re-run.
     labeled = 0
     src_by_qname = dict(work)
     for n in nodes:
@@ -406,6 +460,8 @@ def label_all(graph_path: Path, source_root: Path, force: bool = False) -> dict:
         n["description"] = desc
         if qn in src_by_qname:
             n["source_hash"] = _source_hash(src_by_qname[qn])
+        if qn in desc_hashes:
+            n["descendant_hash"] = desc_hashes[qn]
         labeled += 1
 
     graph_path.write_text(json.dumps(graph))
