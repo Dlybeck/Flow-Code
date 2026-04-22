@@ -836,7 +836,41 @@ function rebuild() {
     side: THREE.DoubleSide,
     flatShading: true,
     fog: true,
+    transparent: true,
   }));
+  // Radial reveal: inject a uniform into the standard shader so we can
+  // progressively reveal polygons outward from the peak. uReveal in [0,1]
+  // is the current "reach" of the reveal; a narrow smoothstep band at the
+  // leading edge fades each polygon in instead of popping it.
+  // Peak = the primary-tree root (highest terrain vertex).
+  let peakX = 0, peakZ = 0, peakY = -Infinity;
+  for (const n of terrainNodes) {
+    const p = currentPositions.get(n.id);
+    if (p && p[1] > peakY) { peakY = p[1]; peakX = p[0]; peakZ = p[2]; }
+  }
+  // Use the bounding radius of the whole terrain (ground arcs included) so
+  // the reveal reaches everything by uReveal=1.
+  let maxReveal = 0;
+  for (let i = 0; i < finalCount; i++) {
+    const dx = posArr[i * 3] - peakX;
+    const dz = posArr[i * 3 + 2] - peakZ;
+    const d = Math.hypot(dx, dz);
+    if (d > maxReveal) maxReveal = d;
+  }
+  maxReveal = maxReveal || 1;
+  terrainMesh.material.onBeforeCompile = (shader) => {
+    shader.uniforms.uReveal = { value: 1.0 };
+    shader.uniforms.uPeak = { value: new THREE.Vector2(peakX, peakZ) };
+    shader.uniforms.uMaxD = { value: maxReveal };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vRevealD; uniform vec2 uPeak; uniform float uMaxD;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRevealD = length(position.xz - uPeak) / uMaxD;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vRevealD; uniform float uReveal;')
+      .replace('#include <dithering_fragment>',
+        'if (vRevealD > uReveal) discard;\ngl_FragColor.a *= smoothstep(0.0, 0.22, uReveal - vRevealD);\n#include <dithering_fragment>');
+    terrainMesh.userData.revealShader = shader;
+  };
   scene.add(terrainMesh);
   // Debug handle for inspection via chrome MCP.
   window.__debug = { scene, terrainMesh, camera, THREE };
@@ -855,6 +889,19 @@ function rebuild() {
       fog: true,
     }),
   );
+  wireMesh.material.onBeforeCompile = (shader) => {
+    shader.uniforms.uReveal = { value: 1.0 };
+    shader.uniforms.uPeak = { value: new THREE.Vector2(peakX, peakZ) };
+    shader.uniforms.uMaxD = { value: maxReveal };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vRevealD; uniform vec2 uPeak; uniform float uMaxD;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRevealD = length(position.xz - uPeak) / uMaxD;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vRevealD; uniform float uReveal;')
+      .replace('#include <dithering_fragment>',
+        'if (vRevealD > uReveal) discard;\ngl_FragColor.a *= smoothstep(0.0, 0.22, uReveal - vRevealD);\n#include <dithering_fragment>');
+    wireMesh.userData.revealShader = shader;
+  };
   scene.add(wireMesh);
 
   // Minimal aesthetic: no peak beacon, no dust motes.
@@ -1027,6 +1074,8 @@ function rebuild() {
     terrainMesh.material.depthWrite = false;
     wireMesh.material.opacity = 0;
     wireMesh.material.depthWrite = false;
+    if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
+    if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
     // Cross-edges start hidden (they're already transparent:true from build)
     for (const l of edgeLines) {
       if (!l.userData.edge.is_primary) {
@@ -1118,9 +1167,18 @@ function tickIntro(nowMs) {
     if (l.userData.edge.is_primary) continue;
     l.material.opacity = cross * l.userData.baseOpacity;
   }
-  // Terrain + wire fade
-  terrainMesh.material.opacity = terr;
+  // Terrain: keep global opacity at 1 and let the reveal sweep do the
+  // fade. Dark-on-dark global alpha is invisible until very high, so it
+  // just causes an apparent pop at the end. Wire still fades globally
+  // because cyan-on-black is visible at low alpha.
+  terrainMesh.material.opacity = 1;
   wireMesh.material.opacity = terr * 0.14;
+  // Reveal runs on its own, longer window so the ripple outward from the
+  // peak is clearly readable. Uniform climbs past 1 so the smoothstep
+  // fade band clears even the outermost (vRevealD=1) polygons at animation end.
+  const reveal = introWindow(absT, 2.5, 5.2) * 1.3;
+  if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = reveal;
+  if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = reveal;
 
   // Camera lerps from startCamera to finalCamera, looking at the fixed target.
   // Spherical-arc camera path around the target. Linear Cartesian interp
@@ -1175,6 +1233,8 @@ function finishIntro() {
   terrainMesh.material.depthWrite = true;
   wireMesh.material.opacity = 0.14;
   wireMesh.material.depthWrite = true;
+  if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 10.0;
+  if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 10.0;
   // Camera at final pose
   const fc = introState.finalCamera;
   camera.position.set(fc.x, fc.y, fc.z);
@@ -1199,6 +1259,8 @@ function replayIntro() {
   terrainMesh.material.depthWrite = false;
   wireMesh.material.opacity = 0;
   wireMesh.material.depthWrite = false;
+  if (terrainMesh.userData.revealShader) terrainMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
+  if (wireMesh.userData.revealShader) wireMesh.userData.revealShader.uniforms.uReveal.value = 0.0;
   for (const l of edgeLines) {
     if (!l.userData.edge.is_primary) l.material.opacity = 0;
   }
