@@ -15,39 +15,19 @@ Run:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 VIZ_ROOT = Path(__file__).resolve().parent.parent
 SELECTION_FILE = Path("/tmp/flowcode-selection.json")
+LABEL_QUEUE_FILE = Path("/tmp/flowcode-label-queue.json")
 GRAPH_PATH = VIZ_ROOT / "graph.json"
-import os
-
-
-def _graph_source_root() -> Path:
-    """Resolve the absolute source root for graph.json. build_graph.py stamps
-    the ingested path as graph["root"]; an env var FLOWCODE_SOURCE_ROOT
-    overrides for edge cases (e.g., the codebase moved)."""
-    if "FLOWCODE_SOURCE_ROOT" in os.environ:
-        return Path(os.environ["FLOWCODE_SOURCE_ROOT"])
-    try:
-        g = json.loads(GRAPH_PATH.read_text())
-        r = g.get("root")
-        if r:
-            return Path(r)
-    except Exception:
-        pass
-    return VIZ_ROOT / "httpie-src" / "httpie"
-
-# Make label_graph importable (lives alongside server.py's parent, not in this package).
-sys.path.insert(0, str(VIZ_ROOT))
-from label_graph import label_subset  # noqa: E402
+import time
+import uuid
 
 app = FastAPI(title="Flow-Code sidecar")
 
@@ -56,81 +36,30 @@ class Selection(BaseModel):
     id: str | None
 
 
-class LabelRequest(BaseModel):
+class QueueLabelRequest(BaseModel):
     ref: str
     scope: Literal["node", "branch", "flow"] = "node"
-    # Optional endpoints for scope="flow"
     from_ref: str | None = None
     to_ref: str | None = None
 
 
-def _strip_prefix(ref: str) -> str:
-    return ref.removeprefix("@flowcode:") if ref else ref
+def _read_queue() -> list[dict]:
+    if not LABEL_QUEUE_FILE.exists():
+        return []
+    try:
+        return json.loads(LABEL_QUEUE_FILE.read_text())
+    except (json.JSONDecodeError, OSError):
+        return []
 
 
-def _resolve_scope(graph: dict, ref: str, scope: str, from_ref: str | None, to_ref: str | None) -> list[str]:
-    """Return the list of qnames to label for a given scope."""
-    ref = _strip_prefix(ref)
-    qnames_by_id = {n["id"]: n["qname"] for n in graph["nodes"]}
-    qnames_by_qn = {n["qname"]: n["qname"] for n in graph["nodes"]}
-    # Accept either id or qname as the incoming ref
-    resolved = qnames_by_qn.get(ref) or qnames_by_id.get(ref)
-    if not resolved:
-        raise HTTPException(status_code=404, detail=f"unknown ref: {ref}")
+def _write_queue(items: list[dict]) -> None:
+    LABEL_QUEUE_FILE.write_text(json.dumps(items))
 
-    if scope == "node":
-        return [resolved]
 
-    if scope == "branch":
-        # Primary-tree descendants (BFS over is_primary edges).
-        qname_from_id = lambda nid: qnames_by_id.get(nid)
-        id_from_qname = {n["qname"]: n["id"] for n in graph["nodes"]}
-        root_id = id_from_qname.get(resolved)
-        children: dict[str, list[str]] = {n["id"]: [] for n in graph["nodes"]}
-        for e in graph.get("edges", []):
-            if e.get("is_primary"):
-                children.setdefault(e["from"], []).append(e["to"])
-        seen = {root_id}
-        queue = [root_id]
-        while queue:
-            cur = queue.pop(0)
-            for c in children.get(cur, []):
-                if c not in seen:
-                    seen.add(c)
-                    queue.append(c)
-        return [qname_from_id(i) for i in seen if qname_from_id(i)]
-
-    if scope == "flow":
-        if not from_ref or not to_ref:
-            raise HTTPException(status_code=400, detail="scope=flow requires from_ref and to_ref")
-        id_from_qname = {n["qname"]: n["id"] for n in graph["nodes"]}
-        a = id_from_qname.get(_strip_prefix(from_ref)) or _strip_prefix(from_ref)
-        b = id_from_qname.get(_strip_prefix(to_ref)) or _strip_prefix(to_ref)
-        # BFS over any edges to find shortest path a→b.
-        adj: dict[str, list[str]] = {n["id"]: [] for n in graph["nodes"]}
-        for e in graph.get("edges", []):
-            adj.setdefault(e["from"], []).append(e["to"])
-        prev: dict[str, str] = {}
-        queue = [a]
-        seen = {a}
-        while queue:
-            cur = queue.pop(0)
-            if cur == b:
-                break
-            for nxt in adj.get(cur, []):
-                if nxt not in seen:
-                    seen.add(nxt)
-                    prev[nxt] = cur
-                    queue.append(nxt)
-        if b not in seen:
-            raise HTTPException(status_code=404, detail=f"no path from {from_ref} to {to_ref}")
-        path = [b]
-        while path[-1] != a:
-            path.append(prev[path[-1]])
-        path.reverse()
-        return [qnames_by_id[i] for i in path if qnames_by_id.get(i)]
-
-    raise HTTPException(status_code=400, detail=f"unknown scope: {scope}")
+class LabelWrite(BaseModel):
+    ref: str
+    displayName: str
+    description: str
 
 
 @app.post("/api/selection")
@@ -146,28 +75,64 @@ def get_selection() -> dict:
     return json.loads(SELECTION_FILE.read_text())
 
 
-@app.post("/api/label")
-def post_label(req: LabelRequest) -> dict:
+@app.get("/api/label-queue")
+def get_label_queue() -> dict:
+    """Return the current labeling request queue.
+
+    The browser polls this to show pending/in-progress state per pin.
+    MCP clients (agents) call the equivalent pending_label_requests tool.
+    """
+    return {"items": _read_queue()}
+
+
+@app.post("/api/label-queue")
+def enqueue_label_request(req: QueueLabelRequest) -> dict:
+    """Enqueue a labeling request from the browser. The connected AI agent
+    will pick it up via MCP and process it on its next turn.
+    """
+    items = _read_queue()
+    # De-dupe: if the same ref+scope is already queued, return its existing id.
+    for it in items:
+        if it.get("ref") == req.ref and it.get("scope") == req.scope:
+            return {"ok": True, "id": it["id"], "dedup": True}
+    new = {
+        "id": uuid.uuid4().hex[:12],
+        "ref": req.ref,
+        "scope": req.scope,
+        "from_ref": req.from_ref,
+        "to_ref": req.to_ref,
+        "queued_at": time.time(),
+        "status": "pending",
+    }
+    items.append(new)
+    _write_queue(items)
+    return {"ok": True, "id": new["id"], "dedup": False}
+
+
+@app.delete("/api/label-queue/{req_id}")
+def complete_label_request(req_id: str) -> dict:
+    """Remove a queue entry (called after the agent has written labels)."""
+    items = _read_queue()
+    kept = [it for it in items if it.get("id") != req_id]
+    _write_queue(kept)
+    return {"ok": True, "removed": len(items) - len(kept)}
+
+
+@app.post("/api/label-write")
+def label_write(req: LabelWrite) -> dict:
+    """Write a single {displayName, description} onto a node in graph.json.
+
+    Called by the MCP write_label tool; also available to anyone who can
+    reach the sidecar. The viz picks up the change via its poll.
+    """
     graph = json.loads(GRAPH_PATH.read_text())
-    qnames = _resolve_scope(graph, req.ref, req.scope, req.from_ref, req.to_ref)
-    # Root-first: if labeling more than one node and the primary-tree root
-    # (peak) isn't in the set yet AND has no displayName, prepend it so the
-    # LLM has the root's framing context in the same prompt.
-    if len(qnames) > 1:
-        peaks = graph.get("peaks") or []
-        peak_qnames = [n["qname"] for n in graph["nodes"] if n["id"] in peaks]
-        for p in peak_qnames:
-            if p in qnames:
-                continue
-            node = next((n for n in graph["nodes"] if n["qname"] == p), None)
-            if node and not node.get("displayName"):
-                qnames.insert(0, p)
-                break  # one root is enough
-    try:
-        result = label_subset(GRAPH_PATH, _graph_source_root(), qnames)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"label failed: {e}") from e
-    return result
+    target = next((n for n in graph["nodes"] if n["qname"] == req.ref or n["id"] == req.ref), None)
+    if not target:
+        raise HTTPException(status_code=404, detail=f"unknown ref: {req.ref}")
+    target["displayName"] = req.displayName
+    target["description"] = req.description
+    GRAPH_PATH.write_text(json.dumps(graph))
+    return {"ok": True, "ref": req.ref}
 
 
 # Static files LAST so the API routes above take precedence.

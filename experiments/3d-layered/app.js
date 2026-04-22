@@ -1567,28 +1567,6 @@ const labelNodeBtn = document.getElementById('label-node');
 const labelBranchBtn = document.getElementById('label-branch');
 const labelStatusEl = document.getElementById('label-status');
 
-// Rolling-median estimator for label latency. Keyed on scope so a "node"
-// run's timing doesn't skew a "branch" estimate. Stored in localStorage so
-// estimates carry across reloads.
-function loadRates() {
-  try { return JSON.parse(localStorage.getItem('flowcode.labelRates') || '{}'); } catch { return {}; }
-}
-function saveRate(scope, ms) {
-  const rates = loadRates();
-  const arr = rates[scope] || [];
-  arr.push(ms);
-  if (arr.length > 20) arr.shift();
-  rates[scope] = arr;
-  try { localStorage.setItem('flowcode.labelRates', JSON.stringify(rates)); } catch {}
-}
-function estimateMs(scope) {
-  const rates = loadRates();
-  const arr = rates[scope] || [];
-  if (!arr.length) return 5000;  // Default: DeepSeek round-trip ~5s regardless of size.
-  const sorted = [...arr].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
-}
-
 // The node id set (+ connecting primary edges) that's being labeled for the
 // current request. Matches the server's resolver for node/branch scopes.
 function collectTargets(id, scope) {
@@ -1617,45 +1595,29 @@ function collectTargets(id, scope) {
   return { ids, edgeKeys };
 }
 
-async function runLabel(scope) {
+// Set of ref strings that are currently queued with the user's AI.
+// Populated at load time from /api/label-queue, updated on click.
+const queuedRefs = new Set();
+
+async function queueLabel(scope) {
   if (!pinnedId) return;
   const mesh = nodeById.get(pinnedId);
   if (!mesh) return;
   const n = mesh.userData.node;
   const { ids, edgeKeys } = collectTargets(pinnedId, scope);
-  const count = ids.size;
-  const est = estimateMs(scope);
-  // Kick off the pulse animation on the targeted nodes + edges.
-  labelingNodes.clear(); labelingEdges.clear();
+  // Start the pulse to visually mark these as "waiting for the AI".
   for (const id of ids) labelingNodes.add(id);
   for (const k of edgeKeys) labelingEdges.add(k);
-  // Progress bar UI: fill proportional to elapsed/estimated, asymptotically
-  // approaching 95% so we never visually "arrive" before the response does.
+
   labelStatusEl.innerHTML = `
     <div class="labeling-row">
-      <span class="labeling-text">Labeling ${count} node${count === 1 ? '' : 's'}…</span>
-      <span class="labeling-eta">~<span id="labeling-eta-sec">${(est / 1000).toFixed(0)}</span>s</span>
+      <span class="labeling-text">Queuing ${ids.size} node${ids.size === 1 ? '' : 's'}…</span>
     </div>
-    <div class="labeling-track"><div class="labeling-fill" id="labeling-fill"></div></div>
   `;
   labelStatusEl.style.display = 'block';
   [labelNodeBtn, labelBranchBtn].forEach(b => b.disabled = true);
-  const t0 = performance.now();
-  let raf;
-  const fillEl = document.getElementById('labeling-fill');
-  const etaEl = document.getElementById('labeling-eta-sec');
-  const updateFill = () => {
-    const elapsed = performance.now() - t0;
-    // Asymptotic approach to 0.95 — never reaches 1 until the response lands.
-    const frac = 1 - Math.exp(-elapsed / est);
-    if (fillEl) fillEl.style.width = `${(frac * 95).toFixed(1)}%`;
-    const remain = Math.max(0, (est - elapsed) / 1000);
-    if (etaEl) etaEl.textContent = remain.toFixed(0);
-    raf = requestAnimationFrame(updateFill);
-  };
-  raf = requestAnimationFrame(updateFill);
   try {
-    const r = await fetch('/api/label', {
+    const r = await fetch('/api/label-queue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ref: n.qname, scope }),
@@ -1664,33 +1626,57 @@ async function runLabel(scope) {
       const text = await r.text().catch(() => '');
       throw new Error(`HTTP ${r.status}: ${text.slice(0, 120)}`);
     }
-    const result = await r.json();
-    const elapsed = performance.now() - t0;
-    saveRate(scope, elapsed);
-    // Patch in-memory nodes + refresh panel / hover tooltip immediately.
-    const byQname = new Map(nodes.map(x => [x.qname, x]));
-    for (const l of result.labeled) {
-      const target = byQname.get(l.ref);
-      if (target) {
-        target.displayName = l.displayName;
-        target.description = l.description;
-      }
-    }
-    renderPinnedPanel(pinnedId);
-    if (fillEl) fillEl.style.width = '100%';
-    labelStatusEl.innerHTML = `<div class="labeling-row"><span class="labeling-text">Labeled ${result.labeled.length} in ${(elapsed / 1000).toFixed(1)}s.</span></div>`;
-    setTimeout(() => { labelStatusEl.style.display = 'none'; }, 2500);
+    queuedRefs.add(`${n.qname}|${scope}`);
+    labelStatusEl.innerHTML = `
+      <div class="labeling-row">
+        <span class="labeling-text">Queued. Your AI will label ${ids.size} node${ids.size === 1 ? '' : 's'} on its next turn.</span>
+      </div>
+      <div class="labeling-track"><div class="labeling-fill labeling-fill-indeterminate"></div></div>
+    `;
   } catch (err) {
-    labelStatusEl.innerHTML = `<div class="labeling-row"><span class="labeling-text" style="color:#ff8b7c">Label failed: ${(err.message || err)}</span></div>`;
-  } finally {
-    cancelAnimationFrame(raf);
+    labelStatusEl.innerHTML = `<div class="labeling-row"><span class="labeling-text" style="color:#ff8b7c">Queue failed: ${(err.message || err)}</span></div>`;
     clearLabelingPulse();
+  } finally {
     [labelNodeBtn, labelBranchBtn].forEach(b => b.disabled = false);
   }
 }
 
-labelNodeBtn?.addEventListener('click', () => runLabel('node'));
-labelBranchBtn?.addEventListener('click', () => runLabel('branch'));
+labelNodeBtn?.addEventListener('click', () => queueLabel('node'));
+labelBranchBtn?.addEventListener('click', () => queueLabel('branch'));
+
+// Poll the queue + graph.json so the viz reflects the AI's progress.
+// When the queue drains OR a labeled node's displayName appears, clear its
+// pulse and refresh the panel.
+async function pollLabelProgress() {
+  try {
+    const qr = await fetch('/api/label-queue', { cache: 'no-store' });
+    if (!qr.ok) return;
+    const { items } = await qr.json();
+    const stillQueued = new Set(items.map(i => `${i.ref}|${i.scope}`));
+    // Detect drain: anything in queuedRefs that's no longer in stillQueued → re-fetch graph.
+    let drained = false;
+    for (const k of queuedRefs) if (!stillQueued.has(k)) { drained = true; break; }
+    if (drained || (queuedRefs.size > 0 && items.length === 0)) {
+      const gr = await fetch('graph.json', { cache: 'no-store' });
+      if (gr.ok) {
+        const fresh = await gr.json();
+        const byQname = new Map(nodes.map(x => [x.qname, x]));
+        for (const fn of fresh.nodes) {
+          const target = byQname.get(fn.qname);
+          if (target && (fn.displayName !== target.displayName || fn.description !== target.description)) {
+            target.displayName = fn.displayName;
+            target.description = fn.description;
+          }
+        }
+        if (pinnedId) renderPinnedPanel(pinnedId);
+      }
+      queuedRefs.clear();
+      clearLabelingPulse();
+      labelStatusEl.style.display = 'none';
+    }
+  } catch (_) { /* sidecar absent, ignore */ }
+}
+setInterval(pollLabelProgress, 2000);
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pinnedId) setPinned(pinnedId);

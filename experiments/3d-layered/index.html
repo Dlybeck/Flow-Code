@@ -75,9 +75,26 @@
     background-size: 40% 100%; background-repeat: no-repeat;
     animation: labelShimmer 1.4s linear infinite;
   }
+  /* Indeterminate state: full-width track with a traveling band, used while
+     we wait for the user's AI to pick up the queued request. */
+  .labeling-fill-indeterminate {
+    width: 100%;
+    background: linear-gradient(90deg,
+      rgba(76,154,255,.0) 0%,
+      rgba(76,154,255,.55) 40%,
+      rgba(125,209,129,.55) 60%,
+      rgba(76,154,255,.0) 100%);
+    background-size: 35% 100%;
+    background-repeat: no-repeat;
+    animation: labelIndeterminate 1.6s linear infinite;
+  }
   @keyframes labelShimmer {
     from { background-position: -40% 0; }
     to   { background-position: 140% 0; }
+  }
+  @keyframes labelIndeterminate {
+    from { background-position: -35% 0; }
+    to   { background-position: 135% 0; }
   }
 
   /* Cursor-following hover tooltip — single line qname. */

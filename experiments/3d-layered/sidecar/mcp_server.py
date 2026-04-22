@@ -28,7 +28,37 @@ GRAPH_FILE = ROOT / "graph.json"
 sys.path.insert(0, str(ROOT))
 from parse_calls import parse_directory  # noqa: E402
 
-mcp = FastMCP("flowcode")
+MCP_INSTRUCTIONS = """\
+FlowCode exposes a 3D call-graph viz. The user can click nodes in the viz and
+request "label this" — which queues a labeling job, not an immediate LLM call.
+YOU are the labeler.
+
+At the START of every user turn, FIRST call `pending_label_requests()`. If the
+queue is non-empty:
+
+  • If your harness supports parallel subagents (Claude Code's Task tool,
+    OpenCode's spawn, etc.), launch one per request so the user's actual
+    question isn't blocked. Each subagent should:
+       1. call `get_source(ref)` and `get_neighbors(ref)` for context
+       2. if scope="branch", also walk descendants via get_descendants()
+       3. compose {displayName, description} — 3-6 word plain-English name
+          + 1-2 short sentences, no code jargon, no "This function…" filler
+       4. call `write_label(ref, display_name, description)` for each node
+       5. call `complete_label_request(id)` when done
+
+  • If you DON'T have subagents, answer the user's question first, then at
+    the end of your reply mention briefly that you'll label the queued items
+    next (or inline if it's small).
+
+  • Always call `complete_label_request(id)` after writing labels so the
+    queue doesn't re-trigger.
+
+Labels belong to graph semantics (node, branch, flow) — not map positions.
+The viz auto-refreshes within ~2s of write_label.
+"""
+
+mcp = FastMCP("flowcode", instructions=MCP_INSTRUCTIONS)
+LABEL_QUEUE_FILE = Path("/tmp/flowcode-label-queue.json")
 
 
 _graph_mtime: float = 0.0
@@ -454,35 +484,100 @@ def list_nodes(limit: int = 200) -> list[dict]:
     return [_node_summary(n) for n in list(_node_index().values())[:limit]]
 
 
+def _read_label_queue() -> list[dict]:
+    if not LABEL_QUEUE_FILE.exists():
+        return []
+    try:
+        return json.loads(LABEL_QUEUE_FILE.read_text())
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _write_label_queue(items: list[dict]) -> None:
+    LABEL_QUEUE_FILE.write_text(json.dumps(items))
+
+
 @mcp.tool()
-def annotate(ref: str, scope: str = "node", from_ref: str | None = None, to_ref: str | None = None) -> dict:
-    """Ask the labeling pipeline to write a plain-English displayName +
-    description for a node, a branch (node + primary-tree descendants), or
-    a flow (shortest path between two refs).
+def pending_label_requests() -> list[dict]:
+    """Return labeling jobs the user queued from the viz (pending the AI).
 
-    scope ∈ {"node", "branch", "flow"}. For "flow" both from_ref and to_ref
-    are required.
+    Call this at the START of every user turn. If the list is non-empty, the
+    user has clicked "Label node" or "Label branch" on one or more functions
+    in the FlowCode viz and is expecting YOU to write plain-English labels
+    for them. Each entry has {id, ref, scope, from_ref?, to_ref?, queued_at}.
 
-    Thin wrapper around the sidecar's POST /api/label endpoint, so browser
-    buttons and AI-driven calls produce identical labels. Refs accept bare
-    qnames and the `@flowcode:qname` clipboard form.
-
-    Returns {elapsed_ms, labeled: [{ref, displayName, description}, ...]}.
-    After this runs, call reload_graph() (or let the auto-reload fire) so
-    subsequent get_node calls see the new labels.
+    Workflow for each request:
+      1. Call get_source(ref) + get_neighbors(ref) (and get_descendants for
+         scope="branch") to gather context.
+      2. Compose {display_name, description} per the voice guidance in the
+         server instructions.
+      3. Call write_label(ref, display_name, description) for each node.
+      4. Call complete_label_request(id) to remove it from the queue.
     """
-    import httpx
-    import os
-    base = os.environ.get("FLOWCODE_SIDECAR_URL", "http://127.0.0.1:8792")
-    body = {"ref": ref, "scope": scope}
-    if from_ref:
-        body["from_ref"] = from_ref
-    if to_ref:
-        body["to_ref"] = to_ref
-    with httpx.Client(timeout=300.0) as c:
-        r = c.post(f"{base}/api/label", json=body)
-        r.raise_for_status()
-        return r.json()
+    return _read_label_queue()
+
+
+@mcp.tool()
+def complete_label_request(request_id: str) -> dict:
+    """Remove a queued label request. Call this AFTER write_label has been
+    invoked for every target node in the request. Idempotent — missing ids
+    are fine."""
+    items = _read_label_queue()
+    kept = [it for it in items if it.get("id") != request_id]
+    _write_label_queue(kept)
+    return {"ok": True, "removed": len(items) - len(kept)}
+
+
+@mcp.tool()
+def write_label(ref: str, display_name: str, description: str) -> dict:
+    """Persist a plain-English name + description for a node.
+
+    This is the core labeling tool. YOU compose the label (no remote LLM
+    is called); FlowCode just stores it and pushes it into the viz.
+
+    Voice rules (from SYSTEM prompt in label_graph.py):
+      - displayName: 3-6 words, title case, no code jargon
+      - description: 1-2 short sentences, plain English, no "This function…"
+        filler, describe EFFECT not implementation
+
+    Refs accept bare qnames or @flowcode:qname. Returns {ok, ref}. The viz
+    refreshes the pinned panel and tooltip within ~2s.
+    """
+    ref = _canon_ref(ref)
+    if ref is None:
+        return {"ok": False, "error": "empty ref"}
+    graph = _graph()
+    target = next((n for n in graph["nodes"] if n["qname"] == ref or n["id"] == ref), None)
+    if not target:
+        return {"ok": False, "error": f"unknown ref: {ref}"}
+    target["displayName"] = display_name
+    target["description"] = description
+    GRAPH_FILE.write_text(json.dumps(graph))
+    _graph_cached.cache_clear()
+    _node_index.cache_clear()
+    return {"ok": True, "ref": ref}
+
+
+@mcp.tool()
+def list_unlabeled(limit: int = 50) -> list[dict]:
+    """Nodes missing a displayName, ranked by importance.
+
+    Useful for "sweep the map" sessions: the user asks "label what's missing"
+    and you iterate on this list calling write_label for each. Each item is
+    a compact summary (qname, file, depth, importance, n_callees) so you can
+    decide prioritization without a get_node per item.
+    """
+    nodes = list(_node_index().values())
+    unlabeled = [n for n in nodes if not n.get("displayName")]
+    unlabeled.sort(key=lambda n: n.get("importance", 0), reverse=True)
+    return [{
+        "ref": n["qname"],
+        "id": n.get("id"),
+        "file": n.get("file"),
+        "depth": n.get("depth"),
+        "importance": n.get("importance"),
+        "n_callees": n.get("n_callees"),
+    } for n in unlabeled[:limit]]
 
 
 @mcp.tool()
