@@ -790,10 +790,9 @@ def main() -> None:
     except Exception as e:
         print(f"WARN: failed to persist embeddings: {e}")
 
-    # Auto-label (branch-by-branch from root) unless explicitly disabled.
-    # Picks up whichever LLM backend the environment advertises; falls back
-    # to a no-op with a warning if none available. See label_graph.py for the
-    # full backend ladder (FLOWCODE_LABELER override env var supported).
+    # Auto-label (branch-by-branch from root) unless FLOWCODE_SKIP_LABEL is set.
+    # Uses Anthropic (Haiku) if ANTHROPIC_API_KEY is set; otherwise falls back
+    # to whichever coding CLI is on PATH (claude -p, then opencode run).
     import os as _os
     if _os.environ.get("FLOWCODE_SKIP_LABEL", "").strip().lower() in ("1", "true", "yes"):
         print("[label] skipped (FLOWCODE_SKIP_LABEL set)")

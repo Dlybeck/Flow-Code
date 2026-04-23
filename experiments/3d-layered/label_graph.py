@@ -1,23 +1,16 @@
 """Label every node in graph.json with a plain-English name + description.
 
 Runs at build time (called from build_graph.py) so the viz loads with labels
-already populated — no runtime LLM calls, no user friction. Pluggable
-backend so the user can pick whichever LLM they have a key for, with a
-subprocess fallback for users who have `claude` / `opencode` on PATH.
+already populated — no runtime LLM calls, no user friction.
 
-## Backend selection
+## Backend selection (two options, picked automatically)
 
-Explicit override: `FLOWCODE_LABELER=<name>` where name ∈
-{anthropic, deepseek, openai, ollama, claude-cli, opencode-cli, noop}.
-
-Otherwise auto-detect:
-  1. ANTHROPIC_API_KEY set → anthropic (default model: claude-haiku-4-5)
-  2. DEEPSEEK_API_KEY set → deepseek
-  3. OPENAI_API_KEY set → openai
-  4. `ollama` responds on http://127.0.0.1:11434 → ollama (default qwen2.5-coder:7b)
-  5. `claude` on PATH → claude-cli (uses user's Claude Code subscription via `claude -p`)
-  6. `opencode` on PATH → opencode-cli
-  7. Fall back to noop (skip labeling, log a warning).
+1. API first: if ANTHROPIC_API_KEY is set, use Anthropic with Haiku.
+2. Otherwise, fall back to whichever coding-agent CLI is on PATH — first
+   `claude -p` (reuses the user's Claude Code subscription), then
+   `opencode run`. Zero extra config: if they're already coding with it,
+   labeling piggybacks on their existing auth.
+3. If neither is available, skip labeling and warn.
 
 ## Usage
 
@@ -184,44 +177,6 @@ def _anthropic_call_factory(model: str) -> Callable[[str], dict]:
     return call
 
 
-# ------------ DeepSeek / OpenAI-compatible ------------
-
-def _openai_compatible_call_factory(base_url: str, model: str, key: str, use_response_format: bool) -> Callable[[str], dict]:
-    def call(user: str) -> dict:
-        body = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user},
-            ],
-            "temperature": 0.3,
-        }
-        if use_response_format:
-            body["response_format"] = {"type": "json_object"}
-        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-        with httpx.Client(timeout=HTTP_TIMEOUT) as c:
-            r = c.post(f"{base_url.rstrip('/')}/v1/chat/completions", headers=headers, json=body)
-            if r.status_code == 400 and use_response_format:
-                body.pop("response_format", None)
-                r = c.post(f"{base_url.rstrip('/')}/v1/chat/completions", headers=headers, json=body)
-            r.raise_for_status()
-            data = r.json()
-        return json.loads(_strip_fences(data["choices"][0]["message"]["content"]))
-
-    return call
-
-
-# ------------ Ollama (local, OpenAI-compatible at /v1) ------------
-
-def _ollama_reachable() -> bool:
-    try:
-        base = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-        with httpx.Client(timeout=1.0) as c:
-            return c.get(f"{base}/api/tags").status_code == 200
-    except Exception:
-        return False
-
-
 # ------------ Subprocess CLI (Claude Code / OpenCode) ------------
 
 def _subprocess_call_factory(argv_template: list[str]) -> Callable[[str], dict]:
@@ -251,68 +206,21 @@ def _subprocess_call_factory(argv_template: list[str]) -> Callable[[str], dict]:
 # ------------ Resolver ------------
 
 def _select_backend() -> Backend | None:
-    override = os.environ.get("FLOWCODE_LABELER", "").strip().lower()
-
-    def _anthropic():
+    """API first (Anthropic), else whichever coding CLI the user already
+    has installed. Nothing to configure — if you're already coding with
+    Claude Code or OpenCode, labeling uses your existing auth."""
+    if os.environ.get("ANTHROPIC_API_KEY", "").strip():
         model = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
         return Backend("anthropic", model, _anthropic_call_factory(model))
-
-    def _deepseek():
-        key = os.environ["DEEPSEEK_API_KEY"].strip()
-        base = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-        model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
-        return Backend("deepseek", model, _openai_compatible_call_factory(base, model, key, True))
-
-    def _openai():
-        key = os.environ["OPENAI_API_KEY"].strip()
-        base = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com")
-        model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        return Backend("openai", model, _openai_compatible_call_factory(base, model, key, True))
-
-    def _ollama():
-        base = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-        model = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b")
-        return Backend("ollama", model, _openai_compatible_call_factory(base, model, "ollama", False))
-
-    def _claude_cli():
+    if shutil.which("claude"):
+        model = os.environ.get("CLAUDE_MODEL", "haiku")
         return Backend(
             "claude-cli",
-            os.environ.get("CLAUDE_MODEL", "haiku"),
-            _subprocess_call_factory(["claude", "-p", "--output-format", "json", "--model", os.environ.get("CLAUDE_MODEL", "haiku")]),
+            model,
+            _subprocess_call_factory(["claude", "-p", "--output-format", "json", "--model", model]),
         )
-
-    def _opencode_cli():
-        return Backend("opencode-cli", "default", _subprocess_call_factory(["opencode", "run"]))
-
-    registry = {
-        "anthropic": _anthropic,
-        "deepseek": _deepseek,
-        "openai": _openai,
-        "ollama": _ollama,
-        "claude-cli": _claude_cli,
-        "opencode-cli": _opencode_cli,
-    }
-
-    if override:
-        if override == "noop":
-            return None
-        if override not in registry:
-            raise SystemExit(f"Unknown FLOWCODE_LABELER: {override}. Options: {sorted(registry)}")
-        return registry[override]()
-
-    # Auto-detect in preference order.
-    if os.environ.get("ANTHROPIC_API_KEY", "").strip():
-        return _anthropic()
-    if os.environ.get("DEEPSEEK_API_KEY", "").strip():
-        return _deepseek()
-    if os.environ.get("OPENAI_API_KEY", "").strip():
-        return _openai()
-    if _ollama_reachable():
-        return _ollama()
-    if shutil.which("claude"):
-        return _claude_cli()
     if shutil.which("opencode"):
-        return _opencode_cli()
+        return Backend("opencode-cli", "default", _subprocess_call_factory(["opencode", "run"]))
     return None
 
 
