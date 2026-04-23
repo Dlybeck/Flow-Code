@@ -3,14 +3,19 @@
 Runs at build time (called from build_graph.py) so the viz loads with labels
 already populated — no runtime LLM calls, no user friction.
 
-## Backend selection (two options, picked automatically)
+## Backend selection (picked automatically)
 
-1. API first: if ANTHROPIC_API_KEY is set, use Anthropic with Haiku.
-2. Otherwise, fall back to whichever coding-agent CLI is on PATH — first
-   `claude -p` (reuses the user's Claude Code subscription), then
-   `opencode run`. Zero extra config: if they're already coding with it,
-   labeling piggybacks on their existing auth.
-3. If neither is available, skip labeling and warn.
+API first — whichever of these env vars is set, in this preference order:
+  - ANTHROPIC_API_KEY → Anthropic (default model: claude-haiku-4-5)
+  - DEEPSEEK_API_KEY  → DeepSeek (default model: deepseek-chat)
+  - OPENAI_API_KEY    → OpenAI (default model: gpt-4o-mini)
+
+Otherwise, fall back to whichever coding-agent CLI is on PATH — first
+`claude -p` (reuses the user's Claude Code subscription), then `opencode
+run`. Zero extra config: if they're already coding with it, labeling
+piggybacks on their existing auth.
+
+If nothing is available, skip labeling and warn.
 
 ## Usage
 
@@ -177,6 +182,36 @@ def _anthropic_call_factory(model: str) -> Callable[[str], dict]:
     return call
 
 
+# ------------ DeepSeek / OpenAI (OpenAI-compatible chat/completions) ------------
+
+def _openai_compatible_call_factory(base_url: str, model: str, key: str) -> Callable[[str], dict]:
+    """Works for DeepSeek, OpenAI, and any gateway implementing the same
+    /v1/chat/completions contract. Tries response_format=json_object first
+    and degrades gracefully if the provider rejects it (some don't support
+    it)."""
+    def call(user: str) -> dict:
+        body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user},
+            ],
+            "temperature": 0.3,
+            "response_format": {"type": "json_object"},
+        }
+        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+        with httpx.Client(timeout=HTTP_TIMEOUT) as c:
+            r = c.post(f"{base_url.rstrip('/')}/v1/chat/completions", headers=headers, json=body)
+            if r.status_code == 400:
+                body.pop("response_format", None)
+                r = c.post(f"{base_url.rstrip('/')}/v1/chat/completions", headers=headers, json=body)
+            r.raise_for_status()
+            data = r.json()
+        return json.loads(_strip_fences(data["choices"][0]["message"]["content"]))
+
+    return call
+
+
 # ------------ Subprocess CLI (Claude Code / OpenCode) ------------
 
 def _subprocess_call_factory(argv_template: list[str]) -> Callable[[str], dict]:
@@ -206,12 +241,23 @@ def _subprocess_call_factory(argv_template: list[str]) -> Callable[[str], dict]:
 # ------------ Resolver ------------
 
 def _select_backend() -> Backend | None:
-    """API first (Anthropic), else whichever coding CLI the user already
-    has installed. Nothing to configure — if you're already coding with
-    Claude Code or OpenCode, labeling uses your existing auth."""
+    """API first (any of Anthropic / DeepSeek / OpenAI), else whichever
+    coding CLI the user already has installed. Zero-config happy path: if
+    you're already coding with Claude Code or OpenCode, labeling uses your
+    existing auth."""
     if os.environ.get("ANTHROPIC_API_KEY", "").strip():
         model = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
         return Backend("anthropic", model, _anthropic_call_factory(model))
+    if os.environ.get("DEEPSEEK_API_KEY", "").strip():
+        key = os.environ["DEEPSEEK_API_KEY"].strip()
+        base = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+        model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+        return Backend("deepseek", model, _openai_compatible_call_factory(base, model, key))
+    if os.environ.get("OPENAI_API_KEY", "").strip():
+        key = os.environ["OPENAI_API_KEY"].strip()
+        base = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com")
+        model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        return Backend("openai", model, _openai_compatible_call_factory(base, model, key))
     if shutil.which("claude"):
         model = os.environ.get("CLAUDE_MODEL", "haiku")
         return Backend(
