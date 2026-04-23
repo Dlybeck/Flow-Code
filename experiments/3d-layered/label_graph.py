@@ -5,10 +5,18 @@ already populated — no runtime LLM calls, no user friction.
 
 ## Backend selection (picked automatically)
 
-API first — whichever of these env vars is set, in this preference order:
-  - ANTHROPIC_API_KEY → Anthropic (default model: claude-haiku-4-5)
-  - DEEPSEEK_API_KEY  → DeepSeek (default model: deepseek-chat)
-  - OPENAI_API_KEY    → OpenAI (default model: gpt-4o-mini)
+API first. Two API paths — Anthropic's native API, and a single generic
+OpenAI-compatible path that covers ~everything else (OpenAI, DeepSeek,
+Groq, Together, Fireworks, OpenRouter, Ollama, vLLM, any gateway).
+
+1. ANTHROPIC_API_KEY → Anthropic (default model: claude-haiku-4-5;
+   override with ANTHROPIC_MODEL).
+2. LLM_API_KEY → OpenAI-compatible. Defaults to api.openai.com /
+   gpt-4o-mini; override with LLM_BASE_URL and LLM_MODEL. Point this at
+   Groq, Ollama, OpenRouter, anything that speaks /v1/chat/completions.
+3. Legacy aliases for convenience: DEEPSEEK_API_KEY (base = deepseek.com,
+   model = deepseek-chat) and OPENAI_API_KEY (base = openai.com,
+   model = gpt-4o-mini).
 
 Otherwise, fall back to whichever coding-agent CLI is on PATH — first
 `claude -p` (reuses the user's Claude Code subscription), then `opencode
@@ -240,14 +248,18 @@ def _subprocess_call_factory(argv_template: list[str]) -> Callable[[str], dict]:
 
 # ------------ Resolver ------------
 
-def _select_backend() -> Backend | None:
-    """API first (any of Anthropic / DeepSeek / OpenAI), else whichever
-    coding CLI the user already has installed. Zero-config happy path: if
-    you're already coding with Claude Code or OpenCode, labeling uses your
-    existing auth."""
-    if os.environ.get("ANTHROPIC_API_KEY", "").strip():
-        model = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
-        return Backend("anthropic", model, _anthropic_call_factory(model))
+def _select_openai_compatible() -> Backend | None:
+    """Single OpenAI-compatible path: works with OpenAI, DeepSeek, Groq,
+    Together, Fireworks, OpenRouter, Ollama, vLLM, or any /v1/chat/completions
+    endpoint. Prefers LLM_API_KEY (fully generic) and falls back to vendor
+    aliases that auto-set the base URL."""
+    key = os.environ.get("LLM_API_KEY", "").strip()
+    if key:
+        base = os.environ.get("LLM_BASE_URL", "https://api.openai.com")
+        model = os.environ.get("LLM_MODEL", "gpt-4o-mini")
+        # Derive a readable backend name from the host.
+        host = base.split("//", 1)[-1].split("/", 1)[0]
+        return Backend(host or "openai-compat", model, _openai_compatible_call_factory(base, model, key))
     if os.environ.get("DEEPSEEK_API_KEY", "").strip():
         key = os.environ["DEEPSEEK_API_KEY"].strip()
         base = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -258,6 +270,18 @@ def _select_backend() -> Backend | None:
         base = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com")
         model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
         return Backend("openai", model, _openai_compatible_call_factory(base, model, key))
+    return None
+
+
+def _select_backend() -> Backend | None:
+    """API first (Anthropic native, then OpenAI-compatible for anything
+    else), else whichever coding CLI the user already has installed."""
+    if os.environ.get("ANTHROPIC_API_KEY", "").strip():
+        model = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
+        return Backend("anthropic", model, _anthropic_call_factory(model))
+    compat = _select_openai_compatible()
+    if compat:
+        return compat
     if shutil.which("claude"):
         model = os.environ.get("CLAUDE_MODEL", "haiku")
         return Backend(

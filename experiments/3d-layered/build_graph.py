@@ -791,8 +791,8 @@ def main() -> None:
         print(f"WARN: failed to persist embeddings: {e}")
 
     # Auto-label (branch-by-branch from root) unless FLOWCODE_SKIP_LABEL is set.
-    # Uses whichever API key is set (ANTHROPIC / DEEPSEEK / OPENAI) or falls
-    # back to whichever coding CLI is on PATH (claude -p, then opencode run).
+    # Uses ANTHROPIC_API_KEY if set, else LLM_API_KEY (any OpenAI-compatible
+    # provider via LLM_BASE_URL), else falls back to a coding CLI on PATH.
     import os as _os
     if _os.environ.get("FLOWCODE_SKIP_LABEL", "").strip().lower() in ("1", "true", "yes"):
         print("[label] skipped (FLOWCODE_SKIP_LABEL set)")
