@@ -3,9 +3,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { Line2 } from 'three/addons/lines/Line2.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { Delaunay } from 'd3-delaunay';
 import cdt2d from 'cdt2d';
 
@@ -28,10 +25,14 @@ const state = {
 
 // ---------- scene ----------
 const scene = new THREE.Scene();
-// A transparent scene lets the portfolio's chalkboard sit behind the real terrain.
-const BOARD_BG = new THREE.Color(0x233b35);
-scene.background = null;
-scene.fog = new THREE.FogExp2(BOARD_BG.getHex(), 0.003);
+// Neon / dataviz aesthetic: deep indigo-black void with subtle gradient,
+// heavy fog for atmospheric falloff so distant geometry dissolves into
+// darkness. The mountain will render as a dark body with luminous
+// contour lines, glowing edges, and emissive node orbs — bloom does the
+// heavy lifting.
+const NEON_BG = new THREE.Color(0x04060f);
+scene.background = NEON_BG.clone();
+scene.fog = new THREE.FogExp2(NEON_BG.getHex(), 0.012);
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 700);
 
@@ -52,12 +53,12 @@ function createRenderer() {
   const errors = [];
   for (const { version, attrs } of attempts) {
     try {
-      const gl = canvas.getContext(version, { ...attrs, alpha: true });
+      const gl = canvas.getContext(version, attrs);
       if (!gl) {
         errors.push(`${version} aa=${attrs.antialias}: getContext returned null`);
         continue;
       }
-      const r = new THREE.WebGLRenderer({ canvas, context: gl, alpha: true, ...attrs });
+      const r = new THREE.WebGLRenderer({ canvas, context: gl, ...attrs });
       // Success. Log diagnostic so future bug reports include GPU info.
       const info = gl.getExtension('WEBGL_debug_renderer_info');
       const vendor = info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : 'unknown';
@@ -81,19 +82,14 @@ if (!webglOK) {
   // Canvas2D fallback — runs on ANY browser, no WebGL required. 2D top-down
   // view of the graph: terrain triangles colored by height, nodes, edges, hover tooltips.
   render2D();
-  document.body.dataset.renderer = 'canvas2d';
-  document.body.dataset.ready = 'true';
-  document.getElementById('controls').hidden = true;
-  document.getElementById('info').hidden = true;
-  document.getElementById('graph-count').textContent = `${nodes.length} functions · ${edges.length} calls · 2D fallback`;
-  document.querySelector('#legend p').textContent = 'Point at a function to see its connections';
   // Stop the three.js setup dead. The 2D view is now running.
   throw new Error('[info] Using 2D Canvas fallback; three.js code skipped');
 }
 
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-// Facet shading supplies depth without the cost of shadow maps.
+renderer.setPixelRatio(window.devicePixelRatio);
+// Shadows are disabled in the neon aesthetic — depth comes from emissive
+// contour lines and fog falloff, not from cast shadows.
 renderer.shadowMap.enabled = false;
 document.body.appendChild(renderer.domElement);
 renderer.domElement.addEventListener('webglcontextlost', (ev) => {
@@ -118,8 +114,7 @@ function render2D() {
 
   // Banner at top explaining what mode we're in
   const topBanner = document.createElement('div');
-  topBanner.className = 'paper';
-  topBanner.style.cssText = 'position:fixed;bottom:85px;left:50%;transform:translateX(-50%);padding:6px 12px;font-size:14px;z-index:10;max-width:90vw;';
+  topBanner.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);background:rgba(23,27,34,.95);color:#ffb454;border:1px solid #3a3530;border-radius:6px;padding:6px 12px;font-size:12px;font-family:sans-serif;z-index:10;';
   topBanner.textContent = 'WebGL unavailable — showing 2D top-down view';
   document.body.appendChild(topBanner);
 
@@ -143,12 +138,10 @@ function render2D() {
   function recomputeFit() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    const left = canvas.width > 860 ? 355 : pad;
-    const top = 235, bottom = canvas.height - 125;
-    const scale = Math.min((canvas.width - left - pad) / spanX, (bottom - top) / spanY);
+    const scale = Math.min((canvas.width - pad * 2) / spanX, (canvas.height - pad * 2) / spanY);
     fitScale = scale;
-    fitOx = (left + canvas.width - pad) / 2 - ((xMin + xMax) / 2) * scale;
-    fitOy = (top + bottom) / 2 - ((yMin + yMax) / 2) * scale;
+    fitOx = canvas.width / 2 - ((xMin + xMax) / 2) * scale;
+    fitOy = canvas.height / 2 - ((yMin + yMax) / 2) * scale;
   }
   function toScreen(x, y) {
     return [x * fitScale + fitOx, y * fitScale + fitOy];
@@ -200,7 +193,8 @@ function render2D() {
 
   function draw(hoverId) {
     recomputeFit();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#1a2230';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Terrain triangles
     for (let i = 0; i < tri.length; i += 3) {
@@ -334,16 +328,29 @@ function render2D() {
 }
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minPolarAngle = 0.05;
 controls.maxPolarAngle = Math.PI * 0.48;
 
-// Warm paper colours and stepped shading keep the terrain close to the portfolio.
-scene.add(new THREE.HemisphereLight(0xfff9e9, 0x61766c, 1.6));
-const rim = new THREE.DirectionalLight(0xfff3d6, 1.7);
-rim.position.set(-20, 50, -20);
+// Neon aesthetic: minimal lighting. Emissive orbs + vertex-colored contour
+// lines carry the visual weight. A weak rim light touches node spheres so
+// they aren't flat silhouettes.
+scene.add(new THREE.HemisphereLight(0x152040, 0x020408, 0.35));
+const rim = new THREE.DirectionalLight(0x6a7aff, 0.45);
+rim.position.set(15, 30, -25);
 scene.add(rim);
+
+// Neon floor grid: provides spatial reference below the apron. Positioned
+// per rebuild() so it tracks the mountain's apron height.
+const grid = new THREE.GridHelper(400, 80, 0x1d3a5c, 0x0a1528);
+grid.material.transparent = true;
+grid.material.opacity = 0.55;
+grid.material.fog = true;
+scene.add(grid);
+
+// No separate ground plane — the terrain mesh extends far enough via its
+// outermost grounding arc to cover the whole visible ground. One mesh = no seam.
 
 // ---------- derived geometry containers (rebuilt on state change) ----------
 let terrainMesh = null;
@@ -396,14 +403,20 @@ function computeHeights() {
   return h;
 }
 
-// Sage, pale blue and cream borrow the portfolio's paper palette.
+// Neon / dataviz palette: dark body with a slight cool-to-warm vertical
+// gradient, so height still reads faintly but the surface stays near-black.
+// Contour bands (bright cyan) and glowing edges do the real visual work.
 const TERRAIN_STOPS = [
-  [0.00, new THREE.Color(0x536f65)],
-  [0.25, new THREE.Color(0x91afa0)],
-  [0.52, new THREE.Color(0xa4bec3)],
-  [0.77, new THREE.Color(0xccc7a6)],
-  [1.00, new THREE.Color(0xf5eedd)],
+  [0.00, new THREE.Color(0x070a18)], // near-black base
+  [0.30, new THREE.Color(0x0a1030)], // deep indigo
+  [0.60, new THREE.Color(0x12143d)], // dim violet
+  [0.85, new THREE.Color(0x1b1e55)], // upper indigo
+  [1.00, new THREE.Color(0x2a2d72)], // summit indigo (very dim)
 ];
+// Rock tiers: bare → dark (near-cliff) → shadow
+const ROCK = new THREE.Color(0x7d7366);      // cool gray-brown — contrasts the warm slope
+const ROCK_DARK = new THREE.Color(0x2e2a25);  // near-black cliff tone
+
 // Sharpens u: plateau near 0, plateau near 1, narrow transition in the middle.
 // Produces distinct zones with visible boundaries instead of a continuous gradient.
 function sharpen(u) {
@@ -435,8 +448,8 @@ function hash(i) {
 const FILE_COLORS = {};
 function fileColor(file) {
   if (FILE_COLORS[file]) return FILE_COLORS[file];
-  const colours = [0xe8d9a5, 0xbdd4bf, 0xa8c7d1, 0xe0bda6, 0xc5bfdb, 0xe2d8c4];
-  FILE_COLORS[file] = new THREE.Color(colours[Object.keys(FILE_COLORS).length % colours.length]);
+  const hue = (Object.keys(FILE_COLORS).length * 137.5) % 360;
+  FILE_COLORS[file] = new THREE.Color(`hsl(${hue | 0}, 70%, 65%)`);
   return FILE_COLORS[file];
 }
 
@@ -561,10 +574,7 @@ function rebuild() {
   const primaryKeys = new Set();
   const constraintEdges = [];
   for (const e of edges) {
-    // Similarity coordinates can cross call paths in 2D. Crossing segments are
-    // invalid CDT constraints, so only the call-path layout forces terrain ridges.
-    // The similarity view still draws every real call as a separate graph edge.
-    if (state.layout !== 'fan' || !e.is_primary) continue;
+    if (!e.is_primary) continue;
     const ia = idToIndex.get(e.from);
     const ib = idToIndex.get(e.to);
     if (ia == null || ib == null || ia === ib) continue;
@@ -663,8 +673,15 @@ function rebuild() {
   geom.setIndex(Array.from(triangles));
   geom.computeVertexNormals();
 
-  // Colour by the existing height values; lighting supplies the facet shading.
+  // Read computed normals and build vertex colors with slope and sun-direction awareness.
+  // Steiner points pick up the same logic — they blend seamlessly with node vertices.
+  const normals = geom.attributes.normal.array;
   const colArr = new Float32Array(finalCount * 3);
+  // Sun direction ≈ matches our DirectionalLight ( (20, 50, 20), normalized )
+  const SUN = (() => {
+    const v = new THREE.Vector3(20, 50, 20).normalize();
+    return { x: v.x, y: v.y, z: v.z };
+  })();
   // Mountain vertices = original nodes + steiner. Everything past that is either
   // a grounding-arc vertex or a triangle-centroid subdivision point. Classify by
   // height: anything at or below hMin (the lowest mountain point) belongs to the
@@ -674,14 +691,30 @@ function rebuild() {
   for (let i = 0; i < finalCount; i++) {
     const vy = posArr[i * 3 + 1];
     if (i >= nMountain && vy <= groundThreshold) {
-      // The apron fades into the chalkboard in the material shader below.
-      const baseGround = BOARD_BG.clone();
+      // Apron stays near-black so the grid mesh (added separately as floor)
+      // carries the ground plane's visual reference. Slight darkening with
+      // radial distance for fog-falloff feel.
+      const r2d = Math.hypot(posArr[i * 3], posArr[i * 3 + 2]);
+      const fade = Math.min(1, Math.max(0, (r2d - 30) / 60));
+      const baseGround = new THREE.Color(0x070a16).lerp(new THREE.Color(0x04060d), fade * 0.8);
       colArr[i * 3] = baseGround.r;
       colArr[i * 3 + 1] = baseGround.g;
       colArr[i * 3 + 2] = baseGround.b;
       continue;
     }
     const y = posArr[i * 3 + 1];
+    const nx = normals[i * 3];
+    const ny = normals[i * 3 + 1];
+    const nz = normals[i * 3 + 2];
+    // steepness: 0 = flat, 1 = vertical cliff
+    const steep = Math.max(0, 1 - Math.abs(ny));
+    // sun-facing dot product (−1 shadow, +1 full sun)
+    const sunDot = nx * SUN.x + ny * SUN.y + nz * SUN.z;
+    const shadowT = Math.max(0, Math.min(1, (0.25 - sunDot) / 0.55)); // 0 in sun, 1 in shadow
+
+    // Minimal dark low-poly: flat shading does the visual work. Each polygon
+    // gets a slightly different dark shade based on its height so the form
+    // reads through lighting + facet orientation, no contour lines, no glow.
     const t = (y - hMin) / hRange;
     let mixed = terrainColor(t);
     // Tiny grain to break up dead-uniform triangles, but nothing textured.
@@ -689,49 +722,40 @@ function rebuild() {
     mixed.r = Math.max(0, Math.min(1, mixed.r + fine));
     mixed.g = Math.max(0, Math.min(1, mixed.g + fine));
     mixed.b = Math.max(0, Math.min(1, mixed.b + fine));
+    void steep; void shadowT;
     colArr[i * 3] = mixed.r; colArr[i * 3 + 1] = mixed.g; colArr[i * 3 + 2] = mixed.b;
   }
   geom.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
 
-  // Keep every terrain vertex and triangle. Fade only the flat grounding apron
-  // into the board, so its distant horizon does not look like a second backdrop.
-  function fadeApron(material) {
-    material.onBeforeCompile = shader => {
-      shader.uniforms.apronHeight = { value: hMin };
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nvarying float surfaceHeight;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nsurfaceHeight = position.y;');
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float surfaceHeight;\nuniform float apronHeight;')
-        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (surfaceHeight <= apronHeight + 0.02) discard;')
-        .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= smoothstep(apronHeight, apronHeight + 1.2, surfaceHeight);');
-    };
-  }
-  const terrainMaterial = new THREE.MeshToonMaterial({
+  // Minimal low-poly dark: flat shading on MeshStandardMaterial so the
+  // facet orientations catch the dim hemisphere / rim light and the form
+  // reads through shading contrast rather than texture or contour glow.
+  terrainMesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
     vertexColors: true,
+    roughness: 1.0,
+    metalness: 0.0,
     side: THREE.DoubleSide,
+    flatShading: true,
     fog: true,
-    transparent: true,
-  });
-  terrainMaterial.flatShading = true;
-  fadeApron(terrainMaterial);
-  terrainMesh = new THREE.Mesh(geom, terrainMaterial);
+  }));
   scene.add(terrainMesh);
   // Debug handle for inspection via chrome MCP.
-  window.__debug = { scene, terrainMesh, camera, controls, THREE, graph, nodeById, edgeLines, currentPositions, state, selectNode: selectFunction, renderer };
+  window.__debug = { scene, terrainMesh, camera, THREE };
 
-  // Ink only the stronger terrain creases; call paths remain the main lines.
-  const edgesGeom = new THREE.EdgesGeometry(geom, 38);
+  // Subtle neon wireframe overlay: thin muted cyan lines along every
+  // polygon edge. Core of the low-poly-dark aesthetic — the dark facets
+  // carry form, wireframe lights up the geometry at low intensity so the
+  // call-graph edges still own the foreground.
+  const edgesGeom = new THREE.EdgesGeometry(geom, 1);
   wireMesh = new THREE.LineSegments(
     edgesGeom,
     new THREE.LineBasicMaterial({
-      color: 0x24463e,
+      color: 0x2a7da8,
       transparent: true,
-      opacity: 0.38,
+      opacity: 0.14,
       fog: true,
     }),
   );
-  fadeApron(wireMesh.material);
   scene.add(wireMesh);
 
   // Minimal aesthetic: no peak beacon, no dust motes.
@@ -743,14 +767,18 @@ function rebuild() {
     dustParticles = null;
   }
 
+  // Position the floor grid at apron level so it reads as the ground.
+  grid.position.y = hMin - 2.5;
+
+
   // --- Nodes ---
-  const sphereGeo = new THREE.SphereGeometry(0.38, 14, 10);
+  const sphereGeo = new THREE.SphereGeometry(0.3, 14, 10);
   for (const n of nodes) {
     const isPeak = peakSet.has(n.id);
     const isOrphan = !!n.is_orphan;
-    const base = isOrphan ? new THREE.Color(0x809889) : fileColor(n.file).clone();
-    // Small paper-coloured markers retain the original file grouping and size cues.
-    const emissiveStrength = 0.04;
+    const base = isOrphan ? new THREE.Color(0x4c5a80) : fileColor(n.file).clone();
+    // Minimal node: solid neon color, no halo/bloom. Peak slightly brighter.
+    const emissiveStrength = isOrphan ? 0.1 : (isPeak ? 0.8 : 0.5);
     const mat = new THREE.MeshStandardMaterial({
       color: base,
       roughness: 0.8,
@@ -807,32 +835,67 @@ function rebuild() {
       );
       geomPts = curve.getPoints(16);
     }
-    const g = new LineGeometry().setPositions(geomPts.flatMap(p => p.toArray()));
-    // Screen-sized ink strokes stay readable as the responsive camera pulls back.
-    // Depth testing preserves the original occlusion of paths behind the terrain.
-    const baseOp = isPrimary ? 0.82 : 0.65;
-    const baseColor = isPrimary ? 0x244b49 : 0x795538;
-    const mat = new LineMaterial({
-      color: baseColor, transparent: true, opacity: baseOp,
-      linewidth: isPrimary ? 1.9 : 1.5,
-      dashed: !isPrimary, dashSize: 0.22, gapSize: 0.42,
-      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
-    });
-    const line = new Line2(g, mat);
-    line.computeLineDistances();
+    const g = new THREE.BufferGeometry().setFromPoints(geomPts);
+    // Neon edges at rest. Both types use their signature color all the
+    // time; paintFamilyTree dims unrelated edges on hover/pin.
+    // Primary edges disable depth-test so their straight lines always
+    // render on top of the terrain (otherwise they clip into the
+    // mountain between nodes).
+    const baseOp = isPrimary ? 1.0 : 0.75;
+    const baseColor = isPrimary ? 0x6aeaff : 0xff7ce0;
+    const mat = isPrimary
+      ? new THREE.LineBasicMaterial({
+          color: baseColor,
+          transparent: true,
+          opacity: baseOp,
+          // depthTest on: edges behind the mountain are correctly occluded.
+        })
+      : new THREE.LineDashedMaterial({
+          color: baseColor,
+          transparent: true,
+          opacity: baseOp,
+          dashSize: 0.22,
+          gapSize: 0.42,
+        });
+    const line = new THREE.Line(g, mat);
+    if (!isPrimary) line.computeLineDistances();  // required for dashed
     line.userData = { edge: e, baseOpacity: baseOp, baseColor };
     scene.add(line);
     edgeLines.push(line);
     edgeByPair.set(`${e.from}→${e.to}`, line);
   }
 
+  // Center camera target
+  const xMid = (Math.min(...xy.map(p => p[0])) + Math.max(...xy.map(p => p[0]))) / 2;
+  const zMid = (Math.min(...xy.map(p => p[1])) + Math.max(...xy.map(p => p[1]))) / 2;
+  const yMid = (hMin + hMax) / 2;
+  controls.target.set(xMid, yMid, zMid);
+  if (!camera.position.lengthSq() || initialCameraPlacement) {
+    // Place the camera on the SLOPE-FACING side of the mountain.
+    // The fan opens toward -Z in world space (south in the original polar
+    // layout), so camera at -Z sits in front of the slope looking back at the
+    // peak. Height slightly below peak gives a classic "standing at base
+    // looking up" view that shows the full slope shape.
+    const zSouth = Math.min(...xy.map(p => p[1]));  // most-negative world Z
+    // Higher + closer in so the mountain fills the frame. With shallow ridges
+    // the mountain is wider than tall; pulling the camera in makes the vertical
+    // profile read more clearly against the horizon.
+    camera.position.set(xMid, hMax * 1.1, zSouth - 32);
+    camera.lookAt(xMid, yMid, zMid);
+    initialCameraPlacement = false;
+  }
 }
+
+let initialCameraPlacement = true;
 
 // ---------- hover ----------
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let hoveredId = null;
-let pinnedId = null; // A click keeps the selected family and note visible until cleared.
+let pinnedId = null;   // when set, the family tree of this node stays highlighted
+                       // regardless of hover. Click the same node again (or the
+                       // background) to unpin. Hover still updates the info panel
+                       // so you can inspect other nodes without losing your pin.
 
 function bfsCone(startId, adj) {
   const seen = new Set([startId]);
@@ -844,10 +907,10 @@ function bfsCone(startId, adj) {
   return seen;
 }
 
-const UP = new THREE.Color(0xa9cdb4);
-const DOWN = new THREE.Color(0xe7ae8a);
-const HOVER = new THREE.Color(0xf0d982);
-const DIM = new THREE.Color(0x667e71);
+const UP = new THREE.Color(0x7dd181);
+const DOWN = new THREE.Color(0xffb454);
+const HOVER = new THREE.Color(0x4c9aff);
+const DIM = new THREE.Color(0x2a3240);
 
 const infoEl = document.getElementById('info');
 const qEl = document.getElementById('i-qname');
@@ -867,7 +930,7 @@ function paintFamilyTree(id) {
       m.material.opacity = 1; m.material.transparent = false;
     }
     for (const l of edgeLines) {
-      // Restore each edge's ink colour and opacity at rest.
+      // Restore each edge's own neon base color + opacity at rest.
       l.material.color.setHex(l.userData.baseColor);
       l.material.opacity = l.userData.baseOpacity;
     }
@@ -893,19 +956,16 @@ function paintFamilyTree(id) {
     const touchesRoot = from === id || to === id;
     let color = 0x1a2028, opac = 0.08;
     if (touchesRoot) {
-      if (to === id || up.has(from)) { color = 0xa9cdb4; opac = 0.95; }
-      if (from === id || down.has(to)) { color = 0xe7ae8a; opac = 0.95; }
-    } else if (up.has(from) && up.has(to)) { color = 0xa9cdb4; opac = 0.55; }
-    else if (down.has(from) && down.has(to)) { color = 0xe7ae8a; opac = 0.55; }
+      if (to === id || up.has(from)) { color = 0x7dd181; opac = 0.95; }
+      if (from === id || down.has(to)) { color = 0xffb454; opac = 0.95; }
+    } else if (up.has(from) && up.has(to)) { color = 0x7dd181; opac = 0.55; }
+    else if (down.has(from) && down.has(to)) { color = 0xffb454; opac = 0.55; }
     l.material.color.setHex(color);
     l.material.opacity = opac;
   }
 }
 
 function showInfoPanel(id) {
-  document.getElementById('empty-info').hidden = !!id;
-  document.getElementById('selected-info').hidden = !id;
-  document.getElementById('function-picker').value = id || '';
   if (!id) { infoEl.classList.remove('visible'); return; }
   const mesh = nodeById.get(id);
   if (!mesh) { infoEl.classList.remove('visible'); return; }
@@ -916,34 +976,45 @@ function showInfoPanel(id) {
   const down = bfsCone(id, callees); down.delete(id);
   qEl.textContent = n.displayName || n.label || n.qname;
   subEl.textContent = `${n.qname} · ${n.file} · depth ${n.depth}${peakTag}${pinnedTag}`;
-  descEl.textContent = n.description || `A function in ${n.file}. Select another point to follow its connections.`;
+  descEl.textContent = n.description || '(no description)';
   statsEl.innerHTML = `
-    <span>source lines in snapshot</span><b>${n.source_lines}</b>
+    <span>source lines</span><b>${n.source_lines}</b>
     <span>direct callees</span><b>${n.n_callees}</b>
     <span>direct callers</span><b>${(callers.get(id) || []).length}</b>
-    <span>layout importance</span><b>${(n.importance || 0).toFixed(3)}</b>
+    <span>importance</span><b>${(n.importance || 0).toFixed(3)}</b>
     <span>semantic density</span><b>${(n.semantic_density || 0).toFixed(3)}</b>
   `;
   conesEl.innerHTML = `
-    <span class="up">↑ ${up.size} upstream function${up.size === 1 ? '' : 's'}</span>
-    <span class="down">↓ ${down.size} downstream function${down.size === 1 ? '' : 's'}</span>
+    <span class="up">↑ ${up.size} caller${up.size === 1 ? '' : 's'}</span>
+    <span class="down">↓ ${down.size} callee${down.size === 1 ? '' : 's'}</span>
   `;
   infoEl.classList.add('visible');
 }
 
-// Hover previews a function only when a persistent selection is not active.
+// Unified hover handler: info panel ONLY appears while hovering a node.
+// Highlight coloring tracks hover when nothing is pinned; when pinned, the
+// pinned node's family tree stays lit regardless of hover.
 function setHover(id) {
   hoveredId = id;
-  showInfoPanel(pinnedId || id);
+  showInfoPanel(id);  // hides panel when id is null, even if something is pinned
   if (!pinnedId) paintFamilyTree(id);
 }
 
 function setPinned(id) {
-  selectFunction(pinnedId === id ? null : id);
+  if (pinnedId === id) {
+    pinnedId = null;
+    paintFamilyTree(hoveredId);
+  } else {
+    pinnedId = id;
+    paintFamilyTree(id);
+  }
+  // Keep the panel aligned with whatever the mouse is currently over,
+  // regardless of pin state. A click on a node implicitly means the mouse
+  // is over that node, so showInfoPanel(hoveredId) lands on it naturally.
+  showInfoPanel(hoveredId);
 }
 
 window.addEventListener('pointermove', (e) => {
-  if (e.target.closest?.('[data-ui]')) return;
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
@@ -958,13 +1029,13 @@ window.addEventListener('pointermove', (e) => {
 // it was a camera drag by OrbitControls, leave things alone.
 let clickDownX = 0, clickDownY = 0;
 const CLICK_SLOP = 5;
-window.addEventListener('pointerdown', (e) => {
+window.addEventListener('mousedown', (e) => {
   clickDownX = e.clientX; clickDownY = e.clientY;
 });
 window.addEventListener('click', (e) => {
   const dx = e.clientX - clickDownX, dy = e.clientY - clickDownY;
   if (Math.hypot(dx, dy) > CLICK_SLOP) return;  // was a drag, not a click
-  if (e.target && e.target.closest && e.target.closest('[data-ui]')) return;
+  if (e.target && e.target.closest && e.target.closest('#hud, #controls, #info, #legend')) return;
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
@@ -977,86 +1048,23 @@ window.addEventListener('click', (e) => {
 });
 
 window.addEventListener('resize', () => {
-  updateFraming();
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // ---------- control wiring ----------
 for (const r of document.querySelectorAll('input[name="layout"]')) {
-  r.addEventListener('change', () => { state.layout = r.value; rebuild(); updateFraming(); selectFunction(pinnedId); });
+  r.addEventListener('change', () => { state.layout = r.value; initialCameraPlacement = true; rebuild(); });
 }
-
-function updateFraming() {
-  const w = window.innerWidth, h = window.innerHeight;
-  // Drain residual orbit motion before placing the camera, so Reset is exact.
-  const damping = controls.enableDamping;
-  controls.enableDamping = false;
-  controls.update();
-  controls.enableDamping = damping;
-  camera.aspect = w / h;
-  // Fit the actual functions into the space left by the paper controls. Reserve
-  // the taller empty note even while selection changes, to avoid camera jumps.
-  const mobile = w <= 860;
-  const left = mobile ? 22 : 345, right = w - (mobile ? 22 : 40);
-  const top = mobile ? 260 : 225, bottom = mobile ? h - 260 : h - 110;
-  const availableW = Math.max(100, right - left), availableH = Math.max(120, bottom - top);
-  camera.setViewOffset(w, h, w / 2 - (left + right) / 2, h / 2 - (top + bottom) / 2, w, h);
-  const points = [...currentPositions.values()].map(p => new THREE.Vector3(p[0], p[1] + LIFT, p[2]));
-  const surface = terrainMesh.geometry.getAttribute('position');
-  const baseHeight = Math.min(...currentHeights.values());
-  for (let i = 0; i < surface.count; i++) {
-    if (surface.getY(i) > baseHeight + 0.02) points.push(new THREE.Vector3().fromBufferAttribute(surface, i));
-  }
-  const target = new THREE.Box3().setFromPoints(points).getCenter(new THREE.Vector3());
-  const backward = new THREE.Vector3(0, 0.45, -1).normalize();
-  const rightward = new THREE.Vector3().crossVectors(camera.up, backward).normalize();
-  const upward = new THREE.Vector3().crossVectors(backward, rightward).normalize();
-  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  const tanH = tanV * camera.aspect;
-  let distance = 30;
-  for (const point of points) {
-    const delta = point.clone().sub(target);
-    const depth = delta.dot(backward);
-    distance = Math.max(distance,
-      depth + (Math.abs(delta.dot(rightward)) + 2) / (tanH * availableW / w),
-      depth + (Math.abs(delta.dot(upward)) + 2) / (tanV * availableH / h));
-  }
-  camera.position.copy(target).addScaledVector(backward, distance * 1.08);
-  controls.target.copy(target);
-  camera.lookAt(target);
-  controls.update();
-  for (const line of edgeLines) line.material.resolution.set(w, h);
-  camera.updateProjectionMatrix();
-}
-
-function selectFunction(id) {
-  pinnedId = nodeById.has(id) ? id : null;
-  hoveredId = null;
-  paintFamilyTree(pinnedId);
-  showInfoPanel(pinnedId);
-  document.body.dataset.selectedNode = pinnedId || '';
-}
-
-const picker = document.getElementById('function-picker');
-for (const n of [...nodes].sort((a,b) => a.id.localeCompare(b.id))) {
-  const option = document.createElement('option');
-  option.value = n.id;
-  option.textContent = n.qname;
-  picker.appendChild(option);
-}
-picker.addEventListener('change', () => selectFunction(picker.value));
-document.getElementById('start-exploring').addEventListener('click', () => selectFunction(peakList[0]));
-document.getElementById('clear-selection').addEventListener('click', () => selectFunction(null));
-document.getElementById('reset-view').addEventListener('click', () => { updateFraming(); selectFunction(null); });
-document.getElementById('graph-count').textContent = `${nodes.length} functions · ${edges.length} calls · saved example`;
 
 rebuild();
-updateFraming();
 
-// OutputPass preserves the renderer's colour management on the transparent board.
+// Minimal dark/neon aesthetic: no bloom. Composer kept only so we can add
+// a passthrough in case we want a subtle post-pass later.
 const composer = new EffectComposer(renderer);
 composer.setSize(window.innerWidth, window.innerHeight);
-composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+composer.setPixelRatio(window.devicePixelRatio);
 composer.addPass(new RenderPass(scene, camera));
 composer.addPass(new OutputPass());
 
@@ -1068,20 +1076,8 @@ function animate() {
   requestAnimationFrame(animate);
   if (contextLost) return;
   controls.update();
-  const label = document.getElementById('node-label');
-  const selected = nodeById.get(pinnedId || hoveredId);
-  label.hidden = !selected;
-  if (selected) {
-    const position = selected.position.clone().project(camera);
-    label.hidden = Math.abs(position.x) > 1 || Math.abs(position.y) > 1 || Math.abs(position.z) > 1;
-    label.textContent = selected.userData.node.qname;
-    label.style.left = `${(position.x + 1) * window.innerWidth / 2}px`;
-    label.style.top = `${(1 - position.y) * window.innerHeight / 2 - 14}px`;
-  }
   composer.render();
 }
 animate();
 
-document.body.dataset.renderer = 'webgl';
-document.body.dataset.ready = 'true';
 console.log(`loaded ${nodes.length} nodes, ${edges.length} edges, ${peakList.length} peaks, max_depth=${max_depth}`);

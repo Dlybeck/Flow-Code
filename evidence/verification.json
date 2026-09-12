@@ -1,0 +1,86 @@
+{
+  "checks": [
+    {
+      "name": "Exact upstream terrain, node positions and edge paths: call layout",
+      "nodes": 46,
+      "edges": 49,
+      "triangles": 1268
+    },
+    {
+      "name": "Entry point button selects the real root"
+    },
+    {
+      "name": "Selection persists after pointer leaves"
+    },
+    {
+      "name": "Selected node label follows the actual function"
+    },
+    {
+      "name": "Similarity layout renders all real connections with valid new terrain",
+      "triangles": 1678
+    },
+    {
+      "name": "Selection survives layout change"
+    },
+    {
+      "name": "Clear selection restores browse state"
+    },
+    {
+      "name": "Clicking the 3D sphere selects its function"
+    },
+    {
+      "name": "Dragging rotates the real camera without clearing selection"
+    },
+    {
+      "name": "Wheel zoom changes camera distance"
+    },
+    {
+      "name": "Reset clears selection and restores framing"
+    },
+    {
+      "name": "Keyboard can select a function"
+    },
+    {
+      "name": "Function picker includes the complete graph"
+    },
+    {
+      "name": "UI fits 390x844"
+    },
+    {
+      "name": "Touch selects actual 3D function at 390x844"
+    },
+    {
+      "name": "Function picker works at 390x844"
+    },
+    {
+      "name": "UI fits 360x740"
+    },
+    {
+      "name": "Touch selects actual 3D function at 360x740"
+    },
+    {
+      "name": "Function picker works at 360x740"
+    },
+    {
+      "name": "UI fits 1024x768"
+    },
+    {
+      "name": "Reduced motion disables camera damping"
+    },
+    {
+      "name": "Unsupported WebGL keeps the existing 2D graph available"
+    },
+    {
+      "name": "No browser errors or failed requests",
+      "errors": []
+    },
+    {
+      "name": "No third-party runtime requests",
+      "requests": []
+    }
+  ],
+  "browser": "Chromium with SwiftShader WebGL2",
+  "status": "passed",
+  "fan_geometry_sha256": "3815a7a802aa12bd60ad0acdd1535a1d4159c7b5b29d088b94e8cc7ab090fe5b",
+  "browser_errors": []
+}

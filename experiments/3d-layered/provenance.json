@@ -1,0 +1,8 @@
+{
+  "upstream_commit": "1e05ba91e8c599f66fd31424518e6b7606ad3631",
+  "graph_sha256": "88abd91ffcab761a07c2816e31578efcf8d7f024b29fdac16a87b0b0fe45adc3",
+  "graph_nodes": 46,
+  "graph_edges": 49,
+  "graph_kind": "upstream committed Flow-Code snapshot; not regenerated in this task",
+  "portfolio_palette_source": "Portfolio c6cf613 static/themes/canonical/presentation.json"
+}
