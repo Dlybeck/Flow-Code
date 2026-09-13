@@ -48,6 +48,7 @@ def generate_graph(
         "entrypoints": ir_doc["entrypoints"],
         "nodes": ir_doc["nodes"],
         "edges": ir_doc["edges"],
+        "analysis": ir_doc.get('analysis', {}),
     }
 
     if include_overlay:

@@ -9,8 +9,9 @@ from pathlib import Path
 
 from flowcode.diagnostics_pyright import attach_diagnostics_to_raw
 from flowcode.diff_raw import diff_raw, format_diff_report
-from flowcode.execution_ir import build_execution_ir_from_raw
-from flowcode.index import index_repo, write_index
+from flowcode.execution_ir import build_execution_ir
+from flowcode.index import write_index
+from flowcode.language_adapter import index_repo_auto
 from flowcode.overlay import report_orphans
 from flowcode.overlay_migrate import migrate_overlay_files
 
@@ -18,6 +19,13 @@ from flowcode.overlay_migrate import migrate_overlay_files
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="flowcode", description="Graph generation for Python and TypeScript repos")
     sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_export = sub.add_parser('export', help='Export a portable terrain snapshot (no model calls)')
+    p_export.add_argument('path', type=Path)
+    p_export.add_argument('--project', required=True)
+    p_export.add_argument('--src-root', action='append', dest='src_roots')
+    p_export.add_argument('--entry', action='append', dest='entries', help='Exact function ID or qualified name; repeatable')
+    p_export.add_argument('-o', '--out', type=Path, required=True)
 
     p_index = sub.add_parser("index", help="Emit RAW JSON for a repo")
     p_index.add_argument("path", type=Path, help="Repository root")
@@ -27,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         dest="src_roots",
         default=None,
-        help="Relative source root (repeatable), default: src/ if present else .",
+        help="Relative source root (repeatable), default: all supported source trees",
     )
     p_index.add_argument(
         "--diagnostics",
@@ -46,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         dest="src_roots",
         default=None,
-        help="Relative source root (repeatable), default: src/ if present else .",
+        help="Relative source root (repeatable), default: all supported source trees",
     )
     p_ir.add_argument(
         "--diagnostics",
@@ -88,18 +96,25 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
+    if args.cmd == 'export':
+        from flowcode.terrain import export_terrain
+        doc = export_terrain(args.path, project=args.project, src_roots=args.src_roots, entries=args.entries)
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        return 0
+
     if args.cmd == "index":
-        doc = index_repo(args.path, src_roots=args.src_roots)
+        doc = index_repo_auto(args.path, src_roots=args.src_roots)
         if getattr(args, "diagnostics", False):
             doc = attach_diagnostics_to_raw(doc, args.path.resolve())
         write_index(doc, args.out)
         return 0
 
     if args.cmd == "execution-ir":
-        doc = index_repo(args.path, src_roots=args.src_roots)
+        doc = index_repo_auto(args.path, src_roots=args.src_roots)
         if getattr(args, "diagnostics", False):
             doc = attach_diagnostics_to_raw(doc, args.path.resolve())
-        ir_doc = build_execution_ir_from_raw(doc)
+        ir_doc = build_execution_ir(doc)
         text = json.dumps(ir_doc, indent=2, sort_keys=True) + "\n"
         if args.out:
             args.out.write_text(text, encoding="utf-8")

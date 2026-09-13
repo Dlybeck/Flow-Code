@@ -10,8 +10,23 @@ from flowcode.execution_ir.python_from_raw import build_execution_ir_from_raw
 from flowcode.execution_ir.validate import EXECUTION_IR_SCHEMA_VERSION, validate_execution_ir
 
 
-def build_execution_ir(raw_doc: dict[str, Any]) -> dict[str, Any]:
+def _build_execution_ir(raw_doc: dict[str, Any]) -> dict[str, Any]:
     """Dispatch to the correct language adapter based on raw_doc['indexer']."""
+    if raw_doc.get("indexer") == "flowcode.multi_v0":
+        documents = [_build_execution_ir(doc) for doc in raw_doc["documents"]]
+        merged = {
+            "schema_version": EXECUTION_IR_SCHEMA_VERSION,
+            "repo_root": raw_doc["root"],
+            "languages": sorted({lang for doc in documents for lang in doc["languages"]}),
+            "entrypoints": sorted({entry for doc in documents for entry in doc["entrypoints"]}),
+            "nodes": [n for doc in documents for n in doc["nodes"]],
+            "edges": [dict(e, id=f"producer:{i}:{e['id']}") for i, doc in enumerate(documents) for e in doc["edges"]],
+            "producers": [p for doc in documents for p in doc.get("producers", [])],
+        }
+        errors = validate_execution_ir(merged)
+        if errors:
+            raise ValueError("invalid merged graph: " + "; ".join(errors))
+        return merged
     indexer = str(raw_doc.get("indexer", ""))
     if "ts_v0" in indexer or any(
         lang in ("typescript", "javascript")
@@ -20,6 +35,16 @@ def build_execution_ir(raw_doc: dict[str, Any]) -> dict[str, Any]:
         from flowcode.execution_ir.typescript_from_raw import build_execution_ir_from_ts_raw
         return build_execution_ir_from_ts_raw(raw_doc)
     return build_execution_ir_from_raw(raw_doc)
+
+
+def build_execution_ir(raw_doc: dict[str, Any]) -> dict[str, Any]:
+    from flowcode.application_edges import attach_application_edges
+    graph = _build_execution_ir(raw_doc)
+    attach_application_edges(graph, raw_doc)
+    errors = validate_execution_ir(graph)
+    if errors:
+        raise ValueError('invalid application graph: ' + '; '.join(errors))
+    return graph
 
 
 __all__ = [

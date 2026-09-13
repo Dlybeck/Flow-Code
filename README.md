@@ -1,5 +1,49 @@
 # flowcode
 
+## Portable code maps
+
+Python, JavaScript and TypeScript can now coexist in one analysis. The same
+exporter powers the three Portfolio maps; it does not execute application code
+or call a model:
+
+```sh
+uv sync --extra dev --extra ts
+uv run flowcode export /path/to/repo --project example --src-root src --src-root static/js --entry package.start -o map.json
+uv run pytest tests -q
+```
+
+`--src-root` accepts a file or directory and is repeatable. The default scans
+supported source trees, excluding hidden paths, dependencies, generated output,
+minified files, declarations and symlinks. `--entry` uses an exact qualified
+function name or graph ID. Snapshots contain a focused three-step view and all
+functions in the selected sources, with source hashes and visible limitations.
+Call paths handle multiple entries, shared functions and cycles. **By file** is
+a deterministic grouping, not a similarity embedding. Height is a layout cue.
+
+Resolved calls retain their source line. HTTP route matches, event registrations
+and module-bound service dispatch are explicitly inferred. Imported targets
+outside selected modules and recognized browser APIs are marked external;
+remaining dynamic calls stay unresolved. These distinctions describe static
+evidence, not observed runtime behavior. Source argument snippets are omitted
+from portable exports.
+
+Build the viewer in `experiments/3d-layered` with `npm ci` and `npm run build`, then:
+
+```sh
+uv run python scripts/export_portfolio.py --portfolio /path/to/Portfolio --scribblescan /path/to/ScribbleScan
+```
+
+This installs that same viewer, its template, and three snapshots into Portfolio.
+The Original ScribbleScan checkout is a read-only input. Local snapshots derived
+from private repositories are **not publication approval**. Review selected scope
+before publishing. The preserved comparison graph remains available in the
+standalone viewer with `?example=saved`; its original renderer is `original.html`.
+
+The Portfolio page is `/how-it-works?project=portfolio`; it also accepts `flowcode`
+and `scribblescan`. Selection, layout, view scope, theme and return context stay
+in the URL. Controls and terrain consume Portfolio's validated Theme Packs.
+The viewer falls back to a selectable 2D map when WebGL is unavailable.
+
 **A visualization layer that sits alongside your AI coding assistant** (Claude Code, OpenCode, Cursor — anything that speaks MCP). It shows your codebase as a 3D execution terrain: peak at the entry point, height encoding architectural importance, ridges tracing the substantive call spine. You and the AI share the map as a pointing surface — select a branch and ask a question, and the AI gets both your functional intent and the underlying source; when the AI references something back, it highlights the region for you. You stay in functionality-space instead of translating every question into file paths.
 
 Under the hood, flowcode is a Python + TypeScript static analysis pipeline that produces an **execution IR** — a call graph of functions as nodes and calls/contains as edges — using only the standard library (Python) or tree-sitter (TypeScript). No language server required.

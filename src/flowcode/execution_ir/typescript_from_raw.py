@@ -11,9 +11,11 @@ Boundary node:  ts:boundary:unresolved
 from __future__ import annotations
 
 from pathlib import Path
+import posixpath
 from typing import Any
 
 from flowcode.execution_ir.validate import EXECUTION_IR_SCHEMA_VERSION, validate_execution_ir
+from flowcode.browser_syntax import FUNCTION_EXPRESSIONS, expression_name
 
 BOUNDARY_UNRESOLVED_ID = "ts:boundary:unresolved"
 
@@ -22,7 +24,7 @@ def ts_fn_id(qualified_name: str) -> str:
     return f"ts:fn:{qualified_name}"
 
 
-def _get_parser():
+def _get_parser(tsx: bool = False):
     try:
         import tree_sitter as ts
         import tree_sitter_typescript as tsts
@@ -30,14 +32,14 @@ def _get_parser():
         raise ImportError(
             "TypeScript IR builder requires tree-sitter: pip install flowcode[ts]"
         ) from e
-    return ts.Parser(ts.Language(tsts.language_typescript()))
+    return ts.Parser(ts.Language(tsts.language_tsx() if tsx else tsts.language_typescript()))
 
 
 def _node_text(node: Any, source: bytes) -> str:
     return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
-def _build_import_map(root_node: Any, source: bytes) -> dict[str, str]:
+def _build_import_map(root_node: Any, source: bytes, relpath: str = '') -> dict[str, str]:
     """local_name -> module specifier for imported names."""
     imp_map: dict[str, str] = {}
     for child in root_node.children:
@@ -46,7 +48,6 @@ def _build_import_map(root_node: Any, source: bytes) -> dict[str, str]:
             for gc in child.children:
                 if gc.type == "string":
                     module = _node_text(gc, source).strip("\"'")
-            clause = child.child_by_field_name("source") or None
             # Find import_clause child
             for gc in child.children:
                 if gc.type == "import_clause":
@@ -60,11 +61,15 @@ def _build_import_map(root_node: Any, source: bytes) -> dict[str, str]:
                                     if name_node:
                                         orig = _node_text(name_node, source)
                                         local = _node_text(alias_node, source) if alias_node else orig
-                                        imp_map[local] = f"{module}.{orig}"
+                                        target = 'external:' + module
+                                        if module.startswith('.'):
+                                            from flowcode.ts_indexer import _ts_module_qualname
+                                            target = _ts_module_qualname(Path(posixpath.normpath(posixpath.join(posixpath.dirname(relpath), module))))
+                                        imp_map[local] = f"{target}.{orig}"
                         elif ggc.type == "identifier":
                             # default import: import foo from "..."
                             local = _node_text(ggc, source)
-                            imp_map[local] = module
+                            imp_map[local] = ('external:' + module) if not module.startswith('.') else module
     return imp_map
 
 
@@ -75,7 +80,7 @@ class _CallVisitor:
         sym_by_qual: dict[str, Any],
         import_map: dict[str, str],
         source: bytes,
-        resolved_edges: set[tuple[str, str]],
+        resolved_edges: set[tuple[str, str, int]],
         unknown_records: list[tuple[str, dict[str, Any]]],
     ) -> None:
         self.module_q = module_q
@@ -98,11 +103,7 @@ class _CallVisitor:
             # Try direct lookup
             if imp in self.sym_by_qual:
                 return imp
-            # Strip module prefix, try name portion
-            _, _, sym_name = imp.rpartition(".")
-            for qual in self.sym_by_qual:
-                if qual.endswith(f".{sym_name}") or qual == sym_name:
-                    return qual
+            # A same-named function in another module is not import evidence.
             return None
         # Try in-scope lookups
         for i in range(len(self._scope), -1, -1):
@@ -130,7 +131,7 @@ class _CallVisitor:
             name = _node_text(func_node, self.source)
             resolved = self._resolve_name(name)
             if resolved:
-                self.resolved_edges.add((fr, ts_fn_id(resolved)))
+                self.resolved_edges.add((fr, ts_fn_id(resolved), line))
             else:
                 imp = self.import_map.get(name)
                 pay: dict[str, Any] = {"callee": name, "line": line}
@@ -164,10 +165,17 @@ class _CallVisitor:
                 self._scope.pop()
                 return
 
-        if t in ("arrow_function", "function"):
-            # May be named via variable_declarator — scope already pushed by parent
-            for child in node.children:
-                self.visit(child)
+        if t in FUNCTION_EXPRESSIONS:
+            name = expression_name(node, self.source)
+            self._scope.append(name)
+            prev = self._current_fn_qual
+            cq = '.'.join(([self.module_q] if self.module_q else []) + self._scope)
+            self._current_fn_qual = cq if cq in self.sym_by_qual else None
+            body = node.child_by_field_name('body')
+            if body is not None:
+                self.visit(body)
+            self._current_fn_qual = prev
+            self._scope.pop()
             return
 
         if t in ("variable_declaration", "lexical_declaration"):
@@ -175,15 +183,15 @@ class _CallVisitor:
                 if child.type == "variable_declarator":
                     name_node = child.child_by_field_name("name")
                     val_node = child.child_by_field_name("value")
-                    if name_node and val_node and val_node.type in (
-                        "arrow_function", "function", "generator_function"
-                    ):
+                    if name_node and val_node and val_node.type in FUNCTION_EXPRESSIONS:
                         name = _node_text(name_node, self.source)
                         self._scope.append(name)
                         prev = self._current_fn_qual
                         cq = ".".join(([self.module_q] if self.module_q else []) + self._scope)
                         self._current_fn_qual = cq if cq in self.sym_by_qual else prev
-                        self.visit(val_node)
+                        body = val_node.child_by_field_name('body')
+                        if body is not None:
+                            self.visit(body)
                         self._current_fn_qual = prev
                         self._scope.pop()
                     else:
@@ -251,23 +259,26 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         nodes.append({
             "id": ts_fn_id(qn),
             "kind": "function",
-            "language": "typescript",
+            "language": "javascript" if Path(rel).suffix in {".js", ".jsx", ".mjs", ".cjs"} else "typescript",
             "label": qn,
             "location": {
                 "path": rel,
                 "start_line": int(s.get("line") or 0),
                 "end_line": int(s.get("end_line") or s.get("line") or 0),
+                "start_column": int(s.get('column', 1)),
+                "end_column": int(s.get('end_column', 1000000)),
             },
             "raw_symbol_id": s.get("id"),
         })
 
     try:
         parser = _get_parser()
+        jsx_parser = _get_parser(tsx=True)
     except ImportError:
         raise
 
     files = {str(f.get("id")): f for f in raw_doc.get("files", []) if isinstance(f, dict)}
-    resolved_edges: set[tuple[str, str]] = set()
+    resolved_edges: set[tuple[str, str, int]] = set()
     unknown_records: list[tuple[str, dict[str, Any]]] = []
 
     # Group symbols by file
@@ -288,13 +299,13 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             continue
         try:
             source = path.read_bytes()
-            tree = parser.parse(source)
+            tree = (jsx_parser if path.suffix in {'.jsx', '.tsx'} else parser).parse(source)
         except Exception:
             continue
 
         from flowcode.ts_indexer import _ts_module_qualname
         module_q = _ts_module_qualname(Path(rel))
-        imp_map = _build_import_map(tree.root_node, source)
+        imp_map = _build_import_map(tree.root_node, source, rel)
 
         vis = _CallVisitor(
             module_q=module_q,
@@ -331,8 +342,8 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
     edge_rows: list[tuple[str, str, str, str, dict[str, Any] | None]] = []
     for fr, to in sorted(contains_pairs):
         edge_rows.append(("contains", fr, to, "resolved", None))
-    for fr, to in sorted(resolved_edges):
-        edge_rows.append(("calls", fr, to, "resolved", None))
+    for fr, to, line in sorted(resolved_edges):
+        edge_rows.append(("calls", fr, to, "resolved", {"line": line}))
     for fr, cs in sorted(unknown_records, key=_unk_key):
         edge_rows.append(("calls", fr, BOUNDARY_UNRESOLVED_ID, "unknown", cs))
 
@@ -347,8 +358,8 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         }
         if confidence == "unknown":
             edge["evidence"] = "unresolved_name_or_attribute_call"
-            if callsite is not None:
-                edge["callsite"] = callsite
+        if callsite is not None:
+            edge["callsite"] = callsite
         edges.append(edge)
 
     config = load_flowcode_config(root)
@@ -357,7 +368,7 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
     doc: dict[str, Any] = {
         "schema_version": EXECUTION_IR_SCHEMA_VERSION,
         "repo_root": str(root),
-        "languages": ["typescript"],
+        "languages": sorted({n["language"] for n in nodes if n["kind"] == "function"}) or ["typescript"],
         "entrypoints": entrypoints,
         "producers": [{"name": "flowcode.execution_ir.typescript_from_raw", "version": "0"}],
         "nodes": nodes,

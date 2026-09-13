@@ -8,9 +8,9 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { Delaunay } from 'd3-delaunay';
 import cdt2d from 'cdt2d';
+import { graph, snapshot, saved, initialSelection, setupSnapshotUI, setupThemes, updateURL } from './snapshot.js';
 
 // ---------- load ----------
-const graph = await fetch('graph.json', { cache: 'no-store' }).then(r => r.json());
 const { nodes, edges, max_depth, peaks: peakList } = graph;
 const peakSet = new Set(peakList);
 
@@ -23,7 +23,7 @@ for (const e of edges) {
 
 // ---------- state ----------
 const state = {
-  layout: 'fan', // 'fan' | 'umap'
+  layout: new URLSearchParams(location.search).get('layout') === 'umap' ? 'umap' : 'fan',
 };
 
 // ---------- scene ----------
@@ -80,11 +80,33 @@ let webglOK = renderer !== null;
 if (!webglOK) {
   // Canvas2D fallback — runs on ANY browser, no WebGL required. 2D top-down
   // view of the graph: terrain triangles colored by height, nodes, edges, hover tooltips.
-  render2D();
+  const paint = render2D(selectFlat);
   document.body.dataset.renderer = 'canvas2d';
   document.body.dataset.ready = 'true';
   document.getElementById('controls').hidden = true;
-  document.getElementById('info').hidden = true;
+  const evidence = setupSnapshotUI(selectFlat);
+  function selectFlat(id) {
+    const node = nodes.find(n => n.id === id);
+    document.getElementById('empty-info').hidden = !!node;
+    document.getElementById('selected-info').hidden = !node;
+    document.getElementById('function-picker').value = node?.id || '';
+    if (node) {
+      document.getElementById('i-qname').textContent = node.displayName || node.label;
+      document.getElementById('i-sub').textContent = `${node.file}:${node.location?.start_line || '?'} · 2D map`;
+      document.getElementById('i-desc').textContent = node.description || '';
+      evidence(node);
+    }
+    paint(node?.id);
+    document.body.dataset.selectedNode = node?.id || '';
+    updateURL({node: node?.id});
+  }
+  const picker = document.getElementById('function-picker');
+  for (const node of nodes) picker.add(new Option(`${node.displayName || node.label} · ${node.file}`, node.id));
+  picker.addEventListener('change', () => selectFlat(picker.value));
+  document.getElementById('start-exploring').addEventListener('click', () => selectFlat(peakList[0]));
+  document.getElementById('clear-selection').addEventListener('click', () => selectFlat(null));
+  selectFlat(initialSelection);
+  await setupThemes(() => paint(document.body.dataset.selectedNode));
   document.getElementById('graph-count').textContent = `${nodes.length} functions · ${edges.length} calls · 2D fallback`;
   document.querySelector('#legend p').textContent = 'Point at a function to see its connections';
   // Stop the three.js setup dead. The 2D view is now running.
@@ -108,7 +130,7 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
 });
 
 // ---------- Canvas2D fallback view ----------
-function render2D() {
+function render2D(onSelect) {
   const canvas = document.createElement('canvas');
   canvas.style.cssText = 'position:fixed;inset:0;display:block;';
   canvas.width = window.innerWidth;
@@ -119,7 +141,7 @@ function render2D() {
   // Banner at top explaining what mode we're in
   const topBanner = document.createElement('div');
   topBanner.className = 'paper';
-  topBanner.style.cssText = 'position:fixed;bottom:85px;left:50%;transform:translateX(-50%);padding:6px 12px;font-size:14px;z-index:10;max-width:90vw;';
+  topBanner.style.cssText = 'position:fixed;top:235px;left:50%;transform:translateX(-50%);padding:6px 12px;font-size:14px;z-index:10;max-width:90vw;pointer-events:none;';
   topBanner.textContent = 'WebGL unavailable — showing 2D top-down view';
   document.body.appendChild(topBanner);
 
@@ -198,7 +220,9 @@ function render2D() {
     return FILE_COLORS[file];
   }
 
+  let flatSelection = null;
   function draw(hoverId) {
+    hoverId = flatSelection || hoverId;
     recomputeFit();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -321,16 +345,21 @@ function render2D() {
       tip.style.left = Math.min(e.clientX + 12, window.innerWidth - 360) + 'px';
       tip.style.top = (e.clientY + 12) + 'px';
       const n = closest.n;
-      tip.innerHTML = `<div style="font-weight:600;color:#4c9aff;margin-bottom:4px">${n.displayName || n.label || n.id}</div><div style="font-size:11px;color:#8b93a1;margin-bottom:6px">${n.qname} · ${n.file} · depth ${n.depth}</div><div style="line-height:1.5">${n.description || ''}</div>`;
+      tip.textContent = `${n.displayName || n.label || n.id} · ${n.file} · ${n.description || ''}`;
     } else {
       tip.style.display = 'none';
     }
   });
   canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; hoverId = null; draw(null); });
+  canvas.addEventListener('click', event => {
+    const hit = pts.map(p => ({p, distance: Math.hypot(toScreen(p.x, p.y)[0] - event.clientX, toScreen(p.x, p.y)[1] - event.clientY)})).sort((a, b) => a.distance - b.distance)[0];
+    if (hit?.distance < 16) onSelect(hit.p.id);
+  });
 
   window.addEventListener('resize', () => draw(hoverId));
 
   console.log(`[2D fallback] rendered ${pts.length} nodes, ${edges.length} edges`);
+  return id => { flatSelection = id; draw(id); };
 }
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -564,7 +593,7 @@ function rebuild() {
     // Similarity coordinates can cross call paths in 2D. Crossing segments are
     // invalid CDT constraints, so only the call-path layout forces terrain ridges.
     // The similarity view still draws every real call as a separate graph edge.
-    if (state.layout !== 'fan' || !e.is_primary) continue;
+    if (state.layout !== 'fan' || !e.is_primary || graph.constrained_spines === false) continue;
     const ia = idToIndex.get(e.from);
     const ib = idToIndex.get(e.to);
     if (ia == null || ib == null || ia === ib) continue;
@@ -782,7 +811,7 @@ function rebuild() {
     const a = currentPositions.get(e.from);
     const b = currentPositions.get(e.to);
     if (!a || !b) continue;
-    const isPrimary = !!e.is_primary;
+    const isPrimary = !!e.is_primary && graph.constrained_spines !== false;
     let geomPts;
     if (isPrimary) {
       geomPts = [
@@ -815,7 +844,7 @@ function rebuild() {
     const mat = new LineMaterial({
       color: baseColor, transparent: true, opacity: baseOp,
       linewidth: isPrimary ? 1.9 : 1.5,
-      dashed: !isPrimary, dashSize: 0.22, gapSize: 0.42,
+      dashed: saved ? !isPrimary : e.confidence !== 'resolved', dashSize: 0.22, gapSize: 0.42,
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
     });
     const line = new Line2(g, mat);
@@ -910,6 +939,7 @@ function showInfoPanel(id) {
   const mesh = nodeById.get(id);
   if (!mesh) { infoEl.classList.remove('visible'); return; }
   const n = mesh.userData.node;
+  showEvidence?.(n);
   const peakTag = peakSet.has(id) ? ' · PEAK' : '';
   const pinnedTag = id === pinnedId ? ' · PINNED' : '';
   const up = bfsCone(id, callers); up.delete(id);
@@ -924,6 +954,7 @@ function showInfoPanel(id) {
     <span>layout importance</span><b>${(n.importance || 0).toFixed(3)}</b>
     <span>semantic density</span><b>${(n.semantic_density || 0).toFixed(3)}</b>
   `;
+  if (!saved) statsEl.textContent = `${n.source_lines} source lines · ${n.boundaries?.length || 0} unresolved / external calls. See evidence below.`;
   conesEl.innerHTML = `
     <span class="up">↑ ${up.size} upstream function${up.size === 1 ? '' : 's'}</span>
     <span class="down">↓ ${down.size} downstream function${down.size === 1 ? '' : 's'}</span>
@@ -983,7 +1014,8 @@ window.addEventListener('resize', () => {
 
 // ---------- control wiring ----------
 for (const r of document.querySelectorAll('input[name="layout"]')) {
-  r.addEventListener('change', () => { state.layout = r.value; rebuild(); updateFraming(); selectFunction(pinnedId); });
+  r.checked = r.value === state.layout;
+  r.addEventListener('change', () => { state.layout = r.value; updateURL({layout: r.value}); rebuild(); updateFraming(); selectFunction(pinnedId); });
 }
 
 function updateFraming() {
@@ -1035,23 +1067,41 @@ function selectFunction(id) {
   paintFamilyTree(pinnedId);
   showInfoPanel(pinnedId);
   document.body.dataset.selectedNode = pinnedId || '';
+  updateURL({node: pinnedId});
 }
 
 const picker = document.getElementById('function-picker');
 for (const n of [...nodes].sort((a,b) => a.id.localeCompare(b.id))) {
   const option = document.createElement('option');
   option.value = n.id;
-  option.textContent = n.qname;
+  option.textContent = saved ? n.qname : `${n.displayName || n.label} · ${n.file}:${n.location.start_line}`;
   picker.appendChild(option);
 }
 picker.addEventListener('change', () => selectFunction(picker.value));
 document.getElementById('start-exploring').addEventListener('click', () => selectFunction(peakList[0]));
 document.getElementById('clear-selection').addEventListener('click', () => selectFunction(null));
 document.getElementById('reset-view').addEventListener('click', () => { updateFraming(); selectFunction(null); });
-document.getElementById('graph-count').textContent = `${nodes.length} functions · ${edges.length} calls · saved example`;
+document.getElementById('graph-count').textContent = `${nodes.length} functions · ${edges.length} connections · ${saved ? 'saved example' : 'partial static map'}`;
+
+const showEvidence = setupSnapshotUI(selectFunction);
 
 rebuild();
 updateFraming();
+selectFunction(initialSelection);
+await setupThemes((v, id) => {
+  BOARD_BG.setStyle(v['board-bg-color']);
+  scene.fog.color.copy(BOARD_BG);
+  if (id !== 'canonical') {
+    const low = new THREE.Color(v['board-bg-color']);
+    const paper = new THREE.Color(v['nav-bg']);
+    const high = paper.getHSL({}).l < .25 ? new THREE.Color(v['nav-ink']) : paper;
+    TERRAIN_STOPS.forEach(([t, color]) => color.copy(low).lerp(high, .2 + .8 * t));
+  } else {
+    [0x536f65, 0x91afa0, 0xa4bec3, 0xccc7a6, 0xf5eedd].forEach((hex, i) => TERRAIN_STOPS[i][1].setHex(hex));
+  }
+  rebuild();
+  selectFunction(pinnedId);
+});
 
 // OutputPass preserves the renderer's colour management on the transparent board.
 const composer = new EffectComposer(renderer);
@@ -1074,7 +1124,7 @@ function animate() {
   if (selected) {
     const position = selected.position.clone().project(camera);
     label.hidden = Math.abs(position.x) > 1 || Math.abs(position.y) > 1 || Math.abs(position.z) > 1;
-    label.textContent = selected.userData.node.qname;
+    label.textContent = selected.userData.node.displayName || selected.userData.node.qname;
     label.style.left = `${(position.x + 1) * window.innerWidth / 2}px`;
     label.style.top = `${(1 - position.y) * window.innerHeight / 2 - 14}px`;
   }

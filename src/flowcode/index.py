@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -69,28 +70,32 @@ class IndexBuild:
     edges: list[dict[str, Any]] = field(default_factory=list)
 
     def to_document(self) -> dict[str, Any]:
+        counts = Counter(s['qualified_name'] for s in self.symbols)
+        # Framework decorators can retain several functions sharing one Python name.
+        # Keep those definitions distinct without guessing which a later name call uses.
+        symbols = []
+        for original in self.symbols:
+            symbol = dict(original)
+            if counts[symbol['qualified_name']] > 1:
+                symbol['lexical_name'] = symbol['qualified_name']
+                suffix = f"@{symbol['file_id'][5:]}:{symbol['line']}"
+                symbol['qualified_name'] += suffix
+                symbol['id'] += suffix
+            symbols.append(symbol)
         return {
             "schema_version": SCHEMA_VERSION,
             "indexer": "flowcode.ast_v0",
             "index_meta": dict(INDEX_META_V0),
             "root": str(self.root.resolve()),
             "files": self.files,
-            "symbols": self.symbols,
+            "symbols": symbols,
             "edges": self.edges,
         }
 
 
 def _iter_py_files(root: Path, rel_roots: list[str]) -> list[Path]:
-    out: list[Path] = []
-    for rel in rel_roots:
-        base = (root / rel).resolve()
-        if not base.is_dir():
-            continue
-        for p in base.rglob("*.py"):
-            if any(part in SKIP_DIR_NAMES for part in p.parts):
-                continue
-            out.append(p)
-    return sorted(out, key=lambda x: str(x))
+    from flowcode.sources import source_files
+    return source_files(root, rel_roots, {'.py'})
 
 
 def _detect_src_roots(root: Path) -> list[str]:

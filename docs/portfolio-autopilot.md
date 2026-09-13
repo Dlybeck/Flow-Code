@@ -75,7 +75,7 @@ Portfolio's remote `dev` is `c25d62e7f2d03fd31b110716e52f11a24e8a20f4`, an ances
 of the selected main baseline. No Flow-Code remote `dev` exists. These are facts,
 not authority to update either branch.
 
-Create dedicated linked worktrees after confirmation. The Flow-Code checkout
+Dedicated linked worktrees were created after confirmation. The Flow-Code checkout
 holding the reskin is a primary clone with uncommitted task changes; only those
 accepted changes may be carried into the new worktree. Portfolio's primary
 checkout and existing theme worktrees contain unrelated work and remain untouched.
@@ -114,15 +114,18 @@ image and Python dependency cache were used successfully in this task for actual
 WebGL2 rendering, emulated touch, screenshots and console checks. The portfolio
 also supplies browser/server test fixtures and canonical fidelity validation.
 
-After confirmation, follow the pursue-goal skill and its Codex adapter, establish
-the linked worktrees, record exact validation commands in the checkpoint, and
-create one native goal containing this complete confirmed contract and worktree
-paths. Reuse this document as the compact execution checkpoint rather than
+The pursue-goal Codex adapter and confirmed native goal govern this run. The linked worktrees and exact validation commands are recorded below. Reuse this document as the compact execution checkpoint rather than
 creating competing plans.
 
-## Execution checkpoint
+## Execution checkpoint — 2026-09-12
 
-- Both linked worktrees created at the bases above; accepted reskin files copied with per-file SHA-256 equality. Original preview and unrelated work preserved.
-- First slice: verify existing Python/TS graph-generation behavior, introduce mixed-language fixtures, unify graph producers and terrain export.
-- Validation commands: Flow-Code `uv run --extra dev --extra ts pytest`; targeted fixture tests during delivery; viewer `npm ci && npm run build` through Node Docker; Playwright via the existing browser container. Portfolio `pytest` with its environment/browser fixtures, `python scripts/check_canonical_fidelity.py`, and theme capture scripts after integration. Commands will be refined from the actual dependency manifests.
-- Native goal activation follows this checkpoint. No implementation beyond preserving the accepted reskin yet.
+- Goal active; both phases implemented locally, verification and delivery still in progress. Original preview and unrelated work preserved. Flow-Code base reskin checkpoint is a504cc5.
+- Analysis now merges Python/browser producers, indexes IIFEs/closures/JSX, keeps duplicate Python route definitions separate, fixes import resolution, exports deterministic terrain and retains confidence/source evidence. 78 Flow-Code tests pass; ruff passes. Use `uv run --no-sync pytest tests -q` (repository-wide discovery also collects an uninstalled example application under fixtures).
+- Actual source proof: Portfolio activate -> loadPack -> theme_pack_payload; ScribbleScan DemoHandler.processDemoFiles -> demo_digitize -> DemoService.process_demo_files (scheduled by asyncio.create_task). HTTP/service links remain heuristic. Original source unchanged at d08d4c33d02a62df3a6d9d42ff0a0ce1059f84d9.
+- One exporter installs the viewer and all three maps: `uv run --no-sync python scripts/export_portfolio.py --portfolio /home/dlybeck/Projects/Portfolio-worktrees/flowcode-integration --scribblescan /home/dlybeck/Projects/ScribbleScan`. Latest inputs change during delivery; regenerate and verify final hashes before committing snapshots.
+- Portfolio adds /how-it-works, Flow-Code's document under existing Programs, corresponding project links, a small Home link, bounded return routes and theme-preserving URLs. Board relationships and Programs' original destination retained.
+- Private preview: http://100.118.63.4:8097/ from the integration worktree, uvicorn PID recorded in tests/results/flowcode/preview.pid. Original 8096 preview unchanged.
+- First browser receipt: 48 passed, /tmp/flowcode-review/acceptance-1/receipt.json. Inspected desktop/phone contact sheets for all seven themes. Found/fixed light-theme label contrast, long floating labels, Planets control/terrain contrast. Added functional 2D evidence/selection fallback; final browser run pending.
+- First Portfolio full run timed out at 600s with failures caused by Home's extra row overflowing content-fit. Exact failing 320px Clouds test + Home theme dial now 5 passed after moving the link into existing writing. Full 423-test rerun active (exec session 74167); OS wrapper records /tmp/flowcode-review/portfolio-suite-final.log, .xml, .json, with a 900s timeout. Do not poll. Wait for completion while doing remaining review work.
+- Disk filled during work. Preserved task npm dependencies in /tmp/flowcode-capability-node-modules and /tmp/flowcode-original-node-modules, and stale July package-cache temp content in /tmp/flowcode-disk-recovery/uv-tmpFYM1Zw (receipt there). No project source or built preview assets deleted. New evidence uses /tmp/flowcode-review. For Docker builds bind the capability dependency directory to /app/node_modules alongside the viewer /app mount. About 756 MiB was available after recovery; do not broadly clean unrelated data.
+- Outstanding: finalize browser/phone/reduced-motion/fallback/real click evidence, resolve full-suite findings, recheck canonical fidelity and final source digests, complete local Standards + Spec review, scoped commits in both feature branches, final private preview screenshots and completion receipt. Native goal must stay active until these finish.

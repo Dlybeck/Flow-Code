@@ -14,13 +14,14 @@ import builtins
 from pathlib import Path
 from typing import Any
 
+from flowcode.execution_ir.validate import EXECUTION_IR_SCHEMA_VERSION, validate_execution_ir
+from flowcode.index import module_qualname_from_path
+
 # Unresolved `Name(...)` callees in this set are skipped (no unknown edge) — avoids noise
 # from `dict()`, `len()`, etc. Unresolved non-builtins (e.g. third-party constructors) still
 # become `confidence: unknown` to the boundary node.
 _BUILTIN_NAMES = frozenset(vars(builtins))
 
-from flowcode.execution_ir.validate import EXECUTION_IR_SCHEMA_VERSION, validate_execution_ir
-from flowcode.index import module_qualname_from_path
 
 BOUNDARY_UNRESOLVED_ID = "py:boundary:unresolved"
 
@@ -118,9 +119,10 @@ class _CallGraphVisitor(ast.NodeVisitor):
         module_q: str,
         sym_by_qual: dict[str, dict[str, Any]],
         import_map: dict[str, str],
-        resolved_edges: set[tuple[str, str]],
+        resolved_edges: set[tuple[str, str, int]],
         unknown_records: list[tuple[str, dict[str, Any]]],
         source: str,
+        definition_names: dict[int, str] | None = None,
     ) -> None:
         self.module_q = module_q
         self.sym_by_qual = sym_by_qual
@@ -128,6 +130,7 @@ class _CallGraphVisitor(ast.NodeVisitor):
         self._resolved_edges = resolved_edges
         self._unknown_records = unknown_records
         self._source = source
+        self.definition_names = definition_names or {}
         self._scope: list[str] = []
         self._current_fn_qual: str | None = None
 
@@ -149,7 +152,7 @@ class _CallGraphVisitor(ast.NodeVisitor):
         name = getattr(node, "name", "")
         self._scope.append(name)
         prev_fn = self._current_fn_qual
-        cq = self._qual_path()
+        cq = self.definition_names.get(getattr(node, 'lineno', 0), self._qual_path())
         self._current_fn_qual = cq if cq in self.sym_by_qual else prev_fn
 
         local_imports = _collect_function_local_imports(node, self.module_q)
@@ -216,7 +219,7 @@ class _CallGraphVisitor(ast.NodeVisitor):
             if isinstance(node.func, ast.Name):
                 callee_qual = self._resolve_name_callee(node.func.id)
                 if callee_qual:
-                    self._resolved_edges.add((fr, flow_fn_id(callee_qual)))
+                    self._resolved_edges.add((fr, flow_fn_id(callee_qual), node.lineno))
                 elif node.func.id not in _BUILTIN_NAMES:
                     name = node.func.id
                     pay: dict[str, Any] = {"callee": name}
@@ -270,7 +273,7 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             },
         )
 
-    resolved_edges: set[tuple[str, str]] = set()
+    resolved_edges: set[tuple[str, str, int]] = set()
     unknown_records: list[tuple[str, dict[str, Any]]] = []
     files = {str(f.get("id")): f for f in raw_doc.get("files", []) if isinstance(f, dict)}
 
@@ -304,6 +307,7 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             resolved_edges=resolved_edges,
             unknown_records=unknown_records,
             source=text,
+            definition_names={int(item['line']): item['qualified_name'] for item in symbols if item['file_id'] == fid},
         )
         vis.visit(tree)
 
@@ -335,8 +339,8 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
     edge_rows: list[tuple[str, str, str, str, dict[str, Any] | None]] = []
     for fr, to in sorted(contains_pairs):
         edge_rows.append(("contains", fr, to, "resolved", None))
-    for fr, to in sorted(resolved_edges):
-        edge_rows.append(("calls", fr, to, "resolved", None))
+    for fr, to, line in sorted(resolved_edges):
+        edge_rows.append(("calls", fr, to, "resolved", {"line": line}))
     for fr, cs in sorted(unknown_records, key=_unknown_sort_key):
         edge_rows.append(("calls", fr, BOUNDARY_UNRESOLVED_ID, "unknown", cs))
 
@@ -351,8 +355,8 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         }
         if confidence == "unknown":
             edge["evidence"] = "unresolved_name_or_attribute_call"
-            if callsite is not None:
-                edge["callsite"] = callsite
+        if callsite is not None:
+            edge["callsite"] = callsite
         edges.append(edge)
 
     # Use generalized entrypoint detection

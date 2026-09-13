@@ -8,11 +8,19 @@
     <link rel="stylesheet" href="portfolio.css" />
   </head>
   <body>
+    <div id="map-background" aria-hidden="true"></div>
     <header id="portfolio-header" data-ui>
       <a class="paper home-link" href="https://davidlybeck.com/"
         >David Lybeck <span>↖ portfolio</span></a
       ><a class="compare" href="original.html">See original Flow-Code ↗</a>
     </header>
+    <nav id="map-tools" data-ui aria-label="Code map options">
+      <label>Project <select id="project-picker"></select></label>
+      <label>View <select id="scope-picker"><option value="feature">Featured path</option><option value="overview">All functions</option></select></label>
+      <label>Theme <select id="map-theme"></select></label>
+      <button id="share-map" type="button">Copy link</button>
+      <span id="theme-error" role="status"></span>
+    </nav>
     <section id="hud" data-ui>
       <p class="eyebrow">A look behind the pages</p>
       <h1>How it<br />works.</h1>
@@ -49,8 +57,9 @@
         <div class="desc" id="i-desc"></div>
         <div class="cones" id="i-cones"></div>
         <details>
-          <summary>Code details</summary>
+          <summary>Source &amp; connections</summary>
           <div class="stats" id="i-stats"></div>
+          <ul id="connection-evidence"></ul>
         </details>
       </div>
       <label class="function-label" for="function-picker"
@@ -65,11 +74,11 @@
         ><input type="radio" name="layout" value="fan" checked /> Call
         paths</label
       ><label
-        ><input type="radio" name="layout" value="umap" /> Code
-        similarity</label
+        ><input type="radio" name="layout" value="umap" /> <span id="alternate-layout-label">Code similarity</span></label
       ><button id="reset-view" type="button" class="ink-link">
         Reset view ↺
       </button>
+      <small class="confidence-key">Solid: resolved · Dashed: inferred</small>
     </fieldset>
     <footer id="legend" data-ui>
       <div class="key">
@@ -81,6 +90,7 @@
         >Flow-Code reskin study · saved example graph · height is a layout cue,
         not runtime</small
       >
+      <details id="snapshot-notes"><summary>About this snapshot</summary><p id="snapshot-summary"></p></details>
     </footer>
     <div id="load-error" role="alert" class="paper" hidden></div>
     <div id="node-label" class="paper" aria-hidden="true" hidden></div>

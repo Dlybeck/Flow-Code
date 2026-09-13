@@ -13,8 +13,10 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 from typing import Any
+from flowcode.sources import BROWSER_EXTENSIONS, source_files
+from flowcode.browser_syntax import FUNCTION_EXPRESSIONS, expression_name
 
-_TS_EXTENSIONS = frozenset({".ts", ".tsx", ".js", ".mjs", ".jsx"})
+_TS_EXTENSIONS = BROWSER_EXTENSIONS
 
 
 def _ts_module_qualname(relpath: Path) -> str:
@@ -25,7 +27,7 @@ def _ts_module_qualname(relpath: Path) -> str:
     if not parts:
         return ""
     stem = parts[-1]
-    for ext in (".ts", ".tsx", ".js", ".mjs", ".jsx"):
+    for ext in sorted(_TS_EXTENSIONS):
         if stem.endswith(ext):
             stem = stem[: -len(ext)]
             break
@@ -42,7 +44,7 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _get_language():
+def _get_language(tsx: bool = False):
     try:
         import tree_sitter as ts
         import tree_sitter_typescript as tsts
@@ -50,7 +52,7 @@ def _get_language():
         raise ImportError(
             "TypeScript indexer requires tree-sitter: pip install flowcode[ts]"
         ) from e
-    return ts.Language(tsts.language_typescript()), ts
+    return ts.Language(tsts.language_tsx() if tsx else tsts.language_typescript()), ts
 
 
 def _node_text(node: Any, source: bytes) -> str:
@@ -95,6 +97,8 @@ class _SymbolExtractor:
             "file_id": self.file_id,
             "line": node.start_point[0] + 1,
             "end_line": node.end_point[0] + 1,
+            "column": node.start_point[1] + 1,
+            "end_column": node.end_point[1] + 1,
         }
         if is_exported:
             sym["exported"] = True
@@ -115,8 +119,14 @@ class _SymbolExtractor:
                 self._scope.pop()
             return
 
-        if t in ("function", "arrow_function", "generator_function"):
-            # Anonymous function assigned via variable_declarator — handled by parent
+        if t in FUNCTION_EXPRESSIONS:
+            name = expression_name(node, self.source)
+            self._add_fn(name, node)
+            self._scope.append(name)
+            body = node.child_by_field_name('body')
+            if body is not None:
+                self._visit_body(body)
+            self._scope.pop()
             return
 
         if t == "variable_declaration" or t == "lexical_declaration":
@@ -124,9 +134,7 @@ class _SymbolExtractor:
                 if child.type == "variable_declarator":
                     name_node = child.child_by_field_name("name")
                     val_node = child.child_by_field_name("value")
-                    if name_node and val_node and val_node.type in (
-                        "arrow_function", "function", "generator_function"
-                    ):
+                    if name_node and val_node and val_node.type in FUNCTION_EXPRESSIONS:
                         name = _node_text(name_node, self.source)
                         # strip type annotation if present (identifier node)
                         if name_node.type == "identifier":
@@ -136,6 +144,8 @@ class _SymbolExtractor:
                             if body:
                                 self._visit_body(body)
                             self._scope.pop()
+                    elif val_node is not None:
+                        self.visit(val_node)
             return
 
         if t == "class_declaration":
@@ -170,21 +180,12 @@ class _SymbolExtractor:
                     self.visit(child, exported=True)
             return
 
-        # Recurse into top-level statements
-        if t == "program":
-            for child in node.children:
-                self.visit(child, exported=False)
+        # Browser applications frequently put functions inside IIFEs and handlers.
+        for child in node.named_children:
+            self.visit(child, exported=False)
 
     def _visit_body(self, body_node: Any) -> None:
-        for child in body_node.children:
-            if child.type in (
-                "function_declaration",
-                "lexical_declaration",
-                "variable_declaration",
-                "class_declaration",
-                "export_statement",
-            ):
-                self.visit(child)
+        self.visit(body_node)
 
 
 def _extract_imports(root_node: Any, source: bytes, module_q: str) -> list[dict[str, Any]]:
@@ -213,20 +214,11 @@ def index_ts_repo(
     """Index a TypeScript/JavaScript repo and return a RAW JSON document."""
     lang, ts_mod = _get_language()
     parser = ts_mod.Parser(lang)
+    jsx_parser = ts_mod.Parser(_get_language(tsx=True)[0])
 
     repo_root = repo_root.resolve()
-    if src_roots:
-        search_roots = [repo_root / sr for sr in src_roots]
-    else:
-        default_src = repo_root / "src"
-        search_roots = [default_src] if default_src.is_dir() else [repo_root]
-
-    ts_files: list[Path] = []
-    for sr in search_roots:
-        if sr.is_dir():
-            for ext in _TS_EXTENSIONS:
-                ts_files.extend(sr.rglob(f"*{ext}"))
-    ts_files.sort()
+    roots = src_roots if src_roots is not None else (["src"] if (repo_root / "src").is_dir() else ["."])
+    ts_files = source_files(repo_root, roots, _TS_EXTENSIONS)
 
     file_rows: list[dict[str, Any]] = []
     symbol_rows: list[dict[str, Any]] = []
@@ -252,7 +244,7 @@ def index_ts_repo(
             continue
 
         try:
-            tree = parser.parse(source)
+            tree = (jsx_parser if abs_path.suffix in {'.tsx', '.jsx'} else parser).parse(source)
         except Exception as e:
             file_rows.append({
                 "id": file_id,
