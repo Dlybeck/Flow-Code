@@ -547,3 +547,18 @@ body[data-theme]::before { display: none; }
   #empty-info p { display: none; }
   #node-label { max-width: 170px; font-size: 12px; }
 }
+
+/* Expanded notes stay below the introduction and scroll within their paper. */
+@media (min-width: 861px) and (min-height: 801px) {
+  #info { max-height: calc(100vh - 560px); overflow-y: auto; }
+}
+#similar-functions { padding-left: 18px; }
+#similar-functions a { color: var(--ink); overflow-wrap: anywhere; }
+
+.map-landmark { position: fixed; z-index: 2; pointer-events: none; padding: 4px 8px;
+  transform: translate(-50%, -100%); max-width: 160px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; font-size: 13px; font-family: var(--font-title, "Architects Daughter"), sans-serif; }
+@media (max-width: 860px) {
+  #controls { top: 236px; }
+  #legend small { display: block; font-size: 10px; line-height: 1.2; max-width: 350px; margin-top: 5px; }
+}

@@ -10,6 +10,14 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
+terrain = [
+    "torch==2.5.1",
+    "transformers==4.44.2",
+    "numpy==1.26.4",
+    "umap-learn==0.5.7",
+    "scikit-learn==1.5.2",
+    "einops==0.8.1",
+]
 ts = [
     "tree-sitter>=0.23",
     "tree-sitter-typescript>=0.23",

@@ -17,6 +17,9 @@ export function updateURL(values, navigate = false) {
 const response = await fetch(params.get('example') === 'saved' ? 'graph.json' : `${config.dataRoot || 'maps'}/${project.id}.json`);
 if (!response.ok) throw new Error('This code map is unavailable. Please return to the portfolio.');
 export const snapshot = await response.json();
+if (snapshot.views && !snapshot.analysis?.embedding) {
+  throw new Error('This map needs a semantic rebuild before it can be displayed.');
+}
 export const graph = snapshot.views ? snapshot.views[scope] : snapshot;
 export const saved = !snapshot.views;
 export const initialSelection = params.get('node');
@@ -30,12 +33,19 @@ export function setupSnapshotUI(selectFunction) {
   scopePicker.value = scope;
   scopePicker.addEventListener('change', () => updateURL({scope: scopePicker.value}, true));
   document.querySelector('.graph-label').textContent = `Exploring ${project.label}`;
-  document.querySelector('#legend small').textContent = 'A static code map · height shows traversal depth, not runtime';
-  if (!saved) document.getElementById('alternate-layout-label').textContent = 'By file';
+  function explainLayout() {
+    const layout = document.querySelector('input[name="layout"]:checked')?.value;
+    document.querySelector('#legend small').textContent = layout === 'umap'
+      ? 'Nearby: similar code · Higher: closer to the project’s purpose · Height contrast expanded'
+      : 'Follow calls downhill · Important functions descend gently, forming ridges · Height scaled to fit';
+  }
+  document.querySelectorAll('input[name="layout"]').forEach(r => r.addEventListener('change', explainLayout));
+  queueMicrotask(explainLayout);
   const summary = document.getElementById('snapshot-summary');
   if (snapshot.analysis) {
     const a = snapshot.analysis;
-    summary.textContent = `${a.files.length} files · ${a.function_count} functions in selected sources. Snapshot ${a.source_digest.slice(0, 12)}. Roots: ${a.source_roots.join(', ')}. ${a.known_limits.join(' ')} Excludes: ${[...a.excluded_directories, ...a.excluded_patterns].join(', ')}.`;
+    summary.textContent = `${a.embedding ? 'Precomputed with ' + a.embedding.model + ' @ ' + a.embedding.revision.slice(0, 12) + '. No model runs on this website. Importance combines purpose relevance with novelty × source substance; it is not a measure of business value. Scores are computed across the selected project, including functions outside this view. ' : ''}${a.files.length} files · ${a.function_count} functions in selected sources. Snapshot ${a.source_digest.slice(0, 12)}. Roots: ${a.source_roots.join(', ')}. ${a.known_limits.join(' ')} Excludes: ${[...a.excluded_directories, ...a.excluded_patterns].join(', ')}.`;
+    if (a.purpose) summary.textContent = `Project purpose: ${a.purpose.text} ${summary.textContent}`;
     const failed = a.files.filter(f => !f.analysis?.parse_ok).map(f => f.path);
     summary.textContent += failed.length ? ` Files that did not parse: ${failed.join(', ')}.` : ' All selected files parsed.';
   } else summary.textContent = 'The preserved 46-function Flow-Code example.';
@@ -65,7 +75,23 @@ export function setupSnapshotUI(selectFunction) {
   const evidence = document.getElementById('connection-evidence');
   return function showEvidence(node) {
     evidence.replaceChildren();
+    const similar = document.getElementById('similar-functions');
+    similar.replaceChildren();
     if (!node || saved) return;
+    const allNodes = new Map(snapshot.views.overview.nodes.map(n => [n.id, n]));
+    for (const match of node.similar || []) {
+      const other = allNodes.get(match.id);
+      if (!other) continue;
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      const url = new URL(location.href);
+      url.searchParams.set('node', match.id);
+      if (!graph.nodes.some(n => n.id === match.id)) url.searchParams.set('scope', 'overview');
+      link.href = url.pathname + url.search;
+      link.textContent = `${other.displayName || other.label} · ${(match.cosine * 100).toFixed(0)}% similarity`;
+      link.title = `${other.file}:${other.location.start_line}. Cosine similarity, not a probability.`;
+      item.append(link); similar.append(item);
+    }
     const links = [
       ...graph.edges.filter(e => e.from === node.id || e.to === node.id),
       ...(node.boundaries || []),

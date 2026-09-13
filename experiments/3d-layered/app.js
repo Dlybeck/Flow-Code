@@ -22,9 +22,9 @@ for (const e of edges) {
 }
 
 // ---------- state ----------
-const state = {
-  layout: new URLSearchParams(location.search).get('layout') === 'umap' ? 'umap' : 'fan',
-};
+const requestedLayout = new URLSearchParams(location.search).get('layout');
+const state = {layout: ['fan', 'umap'].includes(requestedLayout) ? requestedLayout : (saved ? 'fan' : 'umap')};
+for (const radio of document.querySelectorAll('input[name="layout"]')) radio.checked = radio.value === state.layout;
 
 // ---------- scene ----------
 const scene = new THREE.Scene();
@@ -103,7 +103,7 @@ if (!webglOK) {
   const picker = document.getElementById('function-picker');
   for (const node of nodes) picker.add(new Option(`${node.displayName || node.label} · ${node.file}`, node.id));
   picker.addEventListener('change', () => selectFlat(picker.value));
-  document.getElementById('start-exploring').addEventListener('click', () => selectFlat(peakList[0]));
+  document.getElementById('start-exploring').addEventListener('click', () => selectFlat(snapshot.entries?.find(id => nodes.some(n => n.id === id)) || peakList[0]));
   document.getElementById('clear-selection').addEventListener('click', () => selectFlat(null));
   selectFlat(initialSelection);
   await setupThemes(() => paint(document.body.dataset.selectedNode));
@@ -142,7 +142,7 @@ function render2D(onSelect) {
   const topBanner = document.createElement('div');
   topBanner.className = 'paper';
   topBanner.style.cssText = 'position:fixed;top:235px;left:50%;transform:translateX(-50%);padding:6px 12px;font-size:14px;z-index:10;max-width:90vw;pointer-events:none;';
-  topBanner.textContent = 'WebGL unavailable — showing 2D top-down view';
+  topBanner.textContent = '2D map · color shows prominence';
   document.body.appendChild(topBanner);
 
   // Tooltip element
@@ -153,7 +153,7 @@ function render2D(onSelect) {
   // Layout: flip y so the peak (y_fan ≈ 0 in polar layout) sits at the TOP of
   // the screen and the outward fan spreads downward — matches the user's
   // "peak at top, slopes descend" mental model.
-  const pts = nodes.map(n => ({ id: n.id, x: n.x_fan, y: -n.y_fan, n }));
+  const pts = nodes.map(n => ({ id: n.id, x: state.layout === 'umap' ? n.x_umap : n.x_fan, y: -(state.layout === 'umap' ? n.y_umap : n.y_fan), n }));
   const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
   const xMin = Math.min(...xs), xMax = Math.max(...xs);
   const yMin = Math.min(...ys), yMax = Math.max(...ys);
@@ -183,7 +183,8 @@ function render2D(onSelect) {
   const tri = d.triangles;
 
   // Height colormap — same terrain palette, driven by n.height
-  const heights = active.map(p => p.n.height || 0);
+  const flatHeight = n => state.layout === 'umap' ? (n.semantic_height ?? n.height) : n.height;
+  const heights = active.map(p => flatHeight(p.n) || 0);
   const hMin = Math.min(...heights), hMax = Math.max(...heights);
   const hRange = (hMax - hMin) || 1;
   function heightColor(h) {
@@ -232,7 +233,7 @@ function render2D(onSelect) {
       const [ax, ay] = toScreen(a.x, a.y);
       const [bx, by] = toScreen(b.x, b.y);
       const [cx, cy] = toScreen(c.x, c.y);
-      const avgH = ((a.n.height || 0) + (b.n.height || 0) + (c.n.height || 0)) / 3;
+      const avgH = ((flatHeight(a.n) || 0) + (flatHeight(b.n) || 0) + (flatHeight(c.n) || 0)) / 3;
       const [r, g, bl] = heightColor(avgH);
       ctx.fillStyle = `rgb(${r},${g},${bl})`;
       ctx.beginPath();
@@ -413,13 +414,13 @@ function normalizedXY() {
 
 function computeHeights() {
   // In ski-slope layout the height is computed by Python (relative-descent rule).
-  // For the pure-embedding layout we fall back to a simple depth-based height.
+  // Semantic maps use baked importance heights in the embedding projection.
   const h = new Map();
   if (state.layout === 'fan') {
     for (const n of nodes) h.set(n.id, n.height);
   } else {
     for (const n of nodes) {
-      h.set(n.id, ((max_depth - n.depth) / Math.max(1, max_depth)) * DEPTH_H);
+      h.set(n.id, n.semantic_height ?? ((max_depth - n.depth) / Math.max(1, max_depth)) * DEPTH_H);
     }
   }
   return h;
@@ -940,7 +941,7 @@ function showInfoPanel(id) {
   if (!mesh) { infoEl.classList.remove('visible'); return; }
   const n = mesh.userData.node;
   showEvidence?.(n);
-  const peakTag = peakSet.has(id) ? ' · PEAK' : '';
+  const peakTag = peakSet.has(id) ? ' · CALL ENTRY' : '';
   const pinnedTag = id === pinnedId ? ' · PINNED' : '';
   const up = bfsCone(id, callers); up.delete(id);
   const down = bfsCone(id, callees); down.delete(id);
@@ -951,10 +952,11 @@ function showInfoPanel(id) {
     <span>source lines in snapshot</span><b>${n.source_lines}</b>
     <span>direct callees</span><b>${n.n_callees}</b>
     <span>direct callers</span><b>${(callers.get(id) || []).length}</b>
-    <span>layout importance</span><b>${(n.importance || 0).toFixed(3)}</b>
-    <span>semantic density</span><b>${(n.semantic_density || 0).toFixed(3)}</b>
+    <span>estimated importance</span><b>${(n.importance || 0).toFixed(3)}</b>
+    <span>purpose similarity</span><b>${((n.purpose_similarity || 0) * 100).toFixed(0)}%</b>
+    <span>semantic density (relative)</span><b>${(n.semantic_density || 0).toFixed(3)}</b>
   `;
-  if (!saved) statsEl.textContent = `${n.source_lines} source lines · ${n.boundaries?.length || 0} unresolved / external calls. See evidence below.`;
+
   conesEl.innerHTML = `
     <span class="up">↑ ${up.size} upstream function${up.size === 1 ? '' : 's'}</span>
     <span class="down">↓ ${down.size} downstream function${down.size === 1 ? '' : 's'}</span>
@@ -1078,7 +1080,7 @@ for (const n of [...nodes].sort((a,b) => a.id.localeCompare(b.id))) {
   picker.appendChild(option);
 }
 picker.addEventListener('change', () => selectFunction(picker.value));
-document.getElementById('start-exploring').addEventListener('click', () => selectFunction(peakList[0]));
+document.getElementById('start-exploring').addEventListener('click', () => selectFunction(snapshot.entries?.find(id => nodeById.has(id)) || peakList[0]));
 document.getElementById('clear-selection').addEventListener('click', () => selectFunction(null));
 document.getElementById('reset-view').addEventListener('click', () => { updateFraming(); selectFunction(null); });
 document.getElementById('graph-count').textContent = `${nodes.length} functions · ${edges.length} connections · ${saved ? 'saved example' : 'partial static map'}`;
@@ -1114,6 +1116,34 @@ window.addEventListener('resize', () => {
   composer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// A few named landmarks make the first view readable before selection.
+const landmarks = saved ? [] : [...nodes].sort((a, b) => b.importance - a.importance)
+  .filter(n => !n.label.startsWith('$')).slice(0, 8).map(node => {
+    const label = document.createElement('div');
+    label.className = 'map-landmark paper';
+    label.textContent = node.label.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
+    document.body.append(label);
+    return {node, label};
+  });
+function placeLandmarks() {
+  const occupied = [...document.querySelectorAll('[data-ui]')]
+    .filter(el => !el.hidden).map(el => el.getBoundingClientRect());
+  let visible = 0;
+  for (const {node, label} of landmarks) {
+    label.hidden = true;
+    if (visible >= (innerWidth <= 860 ? 2 : 3) || node.id === pinnedId || node.id === hoveredId) continue;
+    const mesh = nodeById.get(node.id);
+    if (!mesh) continue;
+    const p = mesh.position.clone().project(camera);
+    const x = (p.x + 1) * innerWidth / 2, y = (1 - p.y) * innerHeight / 2 - 17;
+    const box = {left: x - 80, right: x + 80, top: y - 28, bottom: y};
+    if (Math.abs(p.z) > 1 || box.left < 8 || box.right > innerWidth - 8 || box.top < 8 || box.bottom > innerHeight - 8) continue;
+    if (occupied.some(r => box.left < r.right && box.right > r.left && box.top < r.bottom && box.bottom > r.top)) continue;
+    label.style.left = `${x}px`; label.style.top = `${y}px`; label.hidden = false;
+    occupied.push(box); visible++;
+  }
+}
+
 function animate() {
   requestAnimationFrame(animate);
   if (contextLost) return;
@@ -1128,6 +1158,7 @@ function animate() {
     label.style.left = `${(position.x + 1) * window.innerWidth / 2}px`;
     label.style.top = `${(1 - position.y) * window.innerHeight / 2 - 14}px`;
   }
+  placeLandmarks();
   composer.render();
 }
 animate();

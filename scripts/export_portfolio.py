@@ -1,7 +1,7 @@
 """Build three reference snapshots and install the same viewer into Portfolio.
 
-Run npm ci && npm run build in experiments/3d-layered first. No model, network,
-application startup, or publishing is performed by this command.
+Run npm ci && npm run build in experiments/3d-layered first. Embeddings run
+locally at build time, with content-addressed caching. Nothing is published.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import json
 import shutil
 from pathlib import Path
 
+from flowcode.embeddings import CodeEmbedder
 from flowcode.terrain import export_terrain
 
 
@@ -22,6 +23,51 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     viewer = root / "experiments/3d-layered"
+    references = [
+        (
+            "flowcode",
+            root,
+            [
+                "src/flowcode",
+                "experiments/3d-layered/app.js",
+                "experiments/3d-layered/snapshot.js",
+            ],
+            ["flowcode.generate_graph"],
+        ),
+        (
+            "portfolio",
+            args.portfolio,
+            ["main.py", "apis/route_portfolio.py", "core", "static/scripts"],
+            ["static.scripts.themeEngine.$callback_8_2.activate"],
+        ),
+        (
+            "scribblescan",
+            args.scribblescan,
+            ["app", "static/js"],
+            [
+                "static.js.uploads.demo.DemoHandler.processDemoFiles",
+                "static.js.uploads.demo.DemoHandler.init",
+            ],
+        ),
+    ]
+    purposes = {
+        "scribblescan": "ScribbleScan turns uploaded handwritten notes and document images into editable digital text. It processes uploaded files, recognizes handwriting with OCR, and returns organized transcription results to the user.",
+        "portfolio": "An interactive personal portfolio where visitors explore connected projects and interests on a spatial board, open project documents, and switch coherent visual themes while preserving navigation.",
+        "flowcode": "Flow-Code analyzes source code across programming languages, extracts functions and call relationships, embeds code to measure semantic similarity, and visualizes meaningful code architecture as an interactive 3D terrain.",
+    }
+    documents = {}
+    embedder = CodeEmbedder()
+    for project, path, roots, entries in references:
+        print(f"Baking {project}", flush=True)
+        documents[project] = export_terrain(
+            path,
+            project=project,
+            src_roots=roots,
+            entries=entries,
+            embedder=embedder,
+            purpose=purposes[project],
+        )
+    # Install only after every project's semantic analysis succeeds.
     target = args.portfolio / "static/flowcode"
     target.mkdir(parents=True, exist_ok=True)
     for name in ["portfolio.css", "assets"]:
@@ -50,43 +96,14 @@ def main():
     (args.portfolio / "templates/pages/code_map.html").write_text(
         '{% extends "shared/code_map.html" %}\n'
     )
-    references = [
-        (
-            "flowcode",
-            root,
-            [
-                "src/flowcode",
-                "experiments/3d-layered/app.js",
-                "experiments/3d-layered/snapshot.js",
-            ],
-            ["flowcode.generate_graph"],
-        ),
-        (
-            "portfolio",
-            args.portfolio,
-            ["main.py", "apis/route_portfolio.py", "core", "static/scripts"],
-            ["static.scripts.themeEngine.$callback_8_2.activate"],
-        ),
-        (
-            "scribblescan",
-            args.scribblescan,
-            ["app", "static/js"],
-            [
-                "static.js.uploads.demo.DemoHandler.processDemoFiles",
-                "static.js.uploads.demo.DemoHandler.init",
-            ],
-        ),
-    ]
     receipt = {}
-    for project, path, roots, entries in references:
-        document = export_terrain(
-            path, project=project, src_roots=roots, entries=entries
-        )
+    for project, document in documents.items():
         content = json.dumps(document, indent=2, sort_keys=True) + "\n"
         for destination in [viewer / "maps", target / "maps"]:
             destination.mkdir(exist_ok=True)
             (destination / (project + ".json")).write_text(content)
         receipt[project] = {
+            "embedding": document["analysis"]["embedding"],
             "source_digest": document["analysis"]["source_digest"],
             "export_sha256": hashlib.sha256(content.encode()).hexdigest(),
             "functions": document["analysis"]["function_count"],

@@ -4,11 +4,11 @@
 
 Python, JavaScript and TypeScript can now coexist in one analysis. The same
 exporter powers the three Portfolio maps; it does not execute application code
-or call a model:
+at runtime. Semantic maps are baked with a local model:
 
 ```sh
-uv sync --extra dev --extra ts
-uv run flowcode export /path/to/repo --project example --src-root src --src-root static/js --entry package.start -o map.json
+uv sync --extra dev --extra ts --extra terrain
+uv run flowcode export /path/to/repo --project example --purpose "What the project does" --src-root src --src-root static/js --entry package.start -o map.json
 uv run pytest tests -q
 ```
 
@@ -17,8 +17,32 @@ supported source trees, excluding hidden paths, dependencies, generated output,
 minified files, declarations and symlinks. `--entry` uses an exact qualified
 function name or graph ID. Snapshots contain a focused three-step view and all
 functions in the selected sources, with source hashes and visible limitations.
-Call paths handle multiple entries, shared functions and cycles. **By file** is
-a deterministic grouping, not a similarity embedding. Height is a layout cue.
+**Code similarity** is the default: UMAP projects actual normalized 768-dimensional
+Jina code embeddings, and height shows estimated importance. **Call paths** uses
+a purpose-relevance score with Flow-Code's original novelty × substance estimate to control the descent along a
+primary call tree: important functions stay on ridges. Heights are not runtime
+measurements or proven business value. Scores are relative to the selected project. The build embeds a short project
+purpose (explicit `--purpose`, or the first 4000 README characters). Positive
+purpose cosine, squared and normalized, is the main signal; the original
+novelty/substance estimate contributes a bounded 25% multiplier. This avoids
+rewarding unusual infrastructure helpers simply for being unusual. The exact
+purpose, its embedding receipt, and both component scores are exported.
+
+All model work happens at build time. The pinned Jina weights and implementation
+run locally; no repository source is sent to an inference service. Complete
+512-token chunks are mean-pooled with token weighting, then normalized. This is
+an explicit adaptation of the original function embedding pipeline to avoid
+truncating large browser closures. Vectors are cached by model recipe and exact
+source content. Set `HF_HOME` and `FLOWCODE_EMBEDDING_CACHE` to choose cache paths.
+Weights may download on the first bake; cached builds work offline. Missing or
+invalid vectors fail the export; there is no geometry-only fallback.
+
+Similarity heights use `2 + 18 * sqrt(importance)` to expand visible differences
+without changing score order. Call-path heights use one positive linear scale.
+Raw scores, source and vector hashes, model revisions, and nearest-neighbor
+cosines remain in the snapshot. Featured views retain project-wide scores. The
+browser and FastAPI app only serve JSON and assets; neither imports the model.
+The source model is [Jina's code embedding model](https://huggingface.co/jinaai/jina-embeddings-v2-base-code).
 
 Resolved calls retain their source line. HTTP route matches, event registrations
 and module-bound service dispatch are explicitly inferred. Imported targets

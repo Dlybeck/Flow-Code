@@ -117,7 +117,34 @@ also supplies browser/server test fixtures and canonical fidelity validation.
 The pursue-goal Codex adapter and confirmed native goal govern this run. The linked worktrees and exact validation commands are recorded below. Reuse this document as the compact execution checkpoint rather than
 creating competing plans.
 
-## Completed delivery — 2026-09-13
+## Owner correction — semantic terrain required, 2026-09-13
+
+The owner rejected the delivered depth-only mountain. The previous completion
+claim is superseded: language extraction and portfolio wiring worked, but the
+terrain omitted Flow-Code's embedding-based similarity and importance semantics.
+The required correction is precomputed local vectorization, meaningful terrain,
+and readable scaling that preserves the underlying scores. The website serves
+static maps; it must never load an embedding model or require inference.
+
+Correction implemented and verified in the private preview. The same build now
+embeds all 1,142 selected functions locally with pinned Jina weights and code,
+projects semantic similarity, and exports inspectable source/vector receipts.
+The original novelty/substance estimate overpromoted unusual utilities in real
+ScribbleScan data. The final score primarily uses similarity to the stated
+project purpose, with the original estimate as a bounded secondary signal. Both
+signals, the purpose text, and score-preserving height transformations are explicit.
+No missing-vector geometric fallback is allowed. Long functions use complete
+512-token chunks with token-weighted pooling, avoiding silent truncation.
+
+Verification: 92 Flow-Code tests, 3 focused Portfolio tests, 64 browser regression
+checks, 35 final rendered checks, and exact source/vector/neighbor audits pass.
+Desktop/phone evidence across all themes, source pins, and review limits are in
+Portfolio's `docs/evidence/flowcode/semantic` and `docs/flowcode-integration.md`.
+Local Standards and Spec review was performed by the implementing agent, without
+independent delegation. All changes remain on the authorized local branches;
+public deployment and owner aesthetic acceptance are not claimed.
+
+## Previous delivery — superseded by owner correction, 2026-09-13
 
 Both phases are implemented, reviewed and committed locally. The implementing
 source revisions are Flow-Code `55dcd172d722` and Portfolio `6e4c73aa4abb`;
@@ -156,7 +183,7 @@ Portfolio JUnit receipt and selected reviewed screenshots are in
 `/home/dlybeck/Projects/Portfolio-worktrees/flowcode-integration/docs/evidence/flowcode/`.
 The local Standards and Spec review is in that worktree's
 `docs/flowcode-integration.md`. Review was performed by the implementing agent,
-without independent subagents. No required implementation or review work remains.
+without independent subagents. The semantic-terrain correction above remains required.
 
 ### Reproduction and environment notes
 

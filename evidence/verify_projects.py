@@ -31,6 +31,9 @@ with sync_playwright() as p:
     for project in ['portfolio', 'flowcode', 'scribblescan']:
         page.goto(args.origin + '/how-it-works?project=' + project, wait_until='domcontentloaded')
         ready()
+        check(project + ': semantic layout by default', page.evaluate('__debug.state.layout') == 'umap')
+        check(project + ': importance controls rendered heights', page.evaluate('''() => __debug.graph.nodes.every(n => Math.abs(__debug.currentPositions.get(n.id)[1] - n.semantic_height) < 1e-8)'''))
+        page.screenshot(path=str(args.output / (project + '-similarity.png')))
         page.locator('#start-exploring').click()
         selection = page.locator('body').get_attribute('data-selected-node')
         check(project + ': entry selection', bool(selection))
@@ -38,7 +41,8 @@ with sync_playwright() as p:
             page.locator('input[value="' + layout + '"]').check()
             check(project + ': ' + layout + ' finite layout', page.evaluate('Array.from(__debug.currentPositions.values()).flat().every(Number.isFinite)'))
             check(project + ': selection survives ' + layout, page.locator('body').get_attribute('data-selected-node') == selection)
-        page.locator('#selected-info details').evaluate('(el) => el.open = true')
+        page.locator('#selected-info details').last.evaluate('(el) => el.open = true')
+        check(project + ': inspectable semantic neighbors', page.locator('#similar-functions a').count() == 3)
         check(project + ': source evidence', page.locator('#connection-evidence li').count() > 0)
         page.screenshot(path=str(args.output / (project + '-evidence.png')))
         page.reload(wait_until='domcontentloaded')
@@ -50,7 +54,7 @@ with sync_playwright() as p:
         check(project + ': whole selected-source graph', page.evaluate('__debug.graph.nodes.length') > 100)
         check(project + ': selection survives scope change', page.locator('body').get_attribute('data-selected-node') == selection)
         page.locator('input[value="umap"]').check()
-        check(project + ': whole graph by file', page.evaluate('Array.from(__debug.currentPositions.values()).flat().every(Number.isFinite)'))
+        check(project + ': whole graph code similarity', page.evaluate('Array.from(__debug.currentPositions.values()).flat().every(Number.isFinite)'))
 
     page.goto(args.origin + '/how-it-works?project=flowcode&from=/projects/flowcode', wait_until='domcontentloaded')
     ready()
