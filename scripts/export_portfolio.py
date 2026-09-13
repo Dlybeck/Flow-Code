@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 
 from flowcode.embeddings import CodeEmbedder
+from flowcode.guides import attach_guide
 from flowcode.terrain import export_terrain
 
 
@@ -32,7 +33,7 @@ def main():
                 "experiments/3d-layered/app.js",
                 "experiments/3d-layered/snapshot.js",
             ],
-            ["flowcode.generate_graph"],
+            ["flowcode.terrain.export_terrain"],
         ),
         (
             "portfolio",
@@ -55,6 +56,7 @@ def main():
         "portfolio": "An interactive personal portfolio where visitors explore connected projects and interests on a spatial board, open project documents, and switch coherent visual themes while preserving navigation.",
         "flowcode": "Flow-Code analyzes source code across programming languages, extracts functions and call relationships, embeds code to measure semantic similarity, and visualizes meaningful code architecture as an interactive 3D terrain.",
     }
+    guides = json.loads((root / "scripts/portfolio_guides.json").read_text())
     documents = {}
     embedder = CodeEmbedder()
     for project, path, roots, entries in references:
@@ -67,6 +69,7 @@ def main():
             embedder=embedder,
             purpose=purposes[project],
         )
+        documents[project] = attach_guide(documents[project], guides[project])
     # Install only after every project's semantic analysis succeeds.
     target = args.portfolio / "static/flowcode"
     target.mkdir(parents=True, exist_ok=True)

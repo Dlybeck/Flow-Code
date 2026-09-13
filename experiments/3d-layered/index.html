@@ -52,12 +52,21 @@
       </div>
       <div id="selected-info" hidden>
         <div class="qname" id="i-qname">—</div>
-        <div class="sub" id="i-sub">—</div>
         <div class="desc" id="i-desc"></div>
+        <nav id="source-tour" aria-label="Source tour" hidden>
+          <div id="tour-navigation">
+            <button id="tour-previous" type="button" class="ink-link" aria-label="Previous source tour stop">← Back</button>
+            <span id="tour-progress" aria-live="polite"></span>
+            <button id="tour-next" type="button" class="ink-link" aria-label="Next source tour stop">Next →</button>
+          </div>
+          <small id="tour-evidence"></small>
+          <button id="tour-restart" type="button" class="ink-link" hidden>Return to source tour →</button>
+        </nav>
         <div class="cones" id="i-cones"></div>
         <details><summary>Similar code</summary><ul id="similar-functions"></ul></details>
         <details>
           <summary>Source &amp; connections</summary>
+          <div class="sub" id="i-sub">—</div>
           <div class="stats" id="i-stats"></div>
           <ul id="connection-evidence"></ul>
         </details>

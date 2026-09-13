@@ -92,10 +92,10 @@ if (!webglOK) {
     document.getElementById('function-picker').value = node?.id || '';
     if (node) {
       document.getElementById('i-qname').textContent = node.displayName || node.label;
-      document.getElementById('i-sub').textContent = `${node.file}:${node.location?.start_line || '?'} · 2D map`;
+      document.getElementById('i-sub').textContent = `${node.qname} · ${node.file}:${node.location?.start_line || '?'} · 2D map`;
       document.getElementById('i-desc').textContent = node.description || '';
-      evidence(node);
     }
+    evidence(node);
     paint(node?.id);
     document.body.dataset.selectedNode = node?.id || '';
     updateURL({node: node?.id});
@@ -936,17 +936,16 @@ function showInfoPanel(id) {
   document.getElementById('empty-info').hidden = !!id;
   document.getElementById('selected-info').hidden = !id;
   document.getElementById('function-picker').value = id || '';
-  if (!id) { infoEl.classList.remove('visible'); return; }
+  if (!id) { showEvidence?.(null); infoEl.classList.remove('visible'); return; }
   const mesh = nodeById.get(id);
   if (!mesh) { infoEl.classList.remove('visible'); return; }
   const n = mesh.userData.node;
-  showEvidence?.(n);
   const peakTag = peakSet.has(id) ? ' · CALL ENTRY' : '';
   const pinnedTag = id === pinnedId ? ' · PINNED' : '';
   const up = bfsCone(id, callers); up.delete(id);
   const down = bfsCone(id, callees); down.delete(id);
   qEl.textContent = n.displayName || n.label || n.qname;
-  subEl.textContent = `${n.qname} · ${n.file} · depth ${n.depth}${peakTag}${pinnedTag}`;
+  subEl.textContent = `${n.qname} · ${n.file}:${n.location?.start_line || '?'} · depth ${n.depth}${peakTag}${pinnedTag}`;
   descEl.textContent = n.description || `A function in ${n.file}. Select another point to follow its connections.`;
   statsEl.innerHTML = `
     <span>source lines in snapshot</span><b>${n.source_lines}</b>
@@ -961,6 +960,7 @@ function showInfoPanel(id) {
     <span class="up">↑ ${up.size} upstream function${up.size === 1 ? '' : 's'}</span>
     <span class="down">↓ ${down.size} downstream function${down.size === 1 ? '' : 's'}</span>
   `;
+  showEvidence?.(n);
   infoEl.classList.add('visible');
 }
 
@@ -1126,7 +1126,7 @@ const landmarks = saved ? [] : [...nodes].sort((a, b) => b.importance - a.import
     return {node, label};
   });
 function placeLandmarks() {
-  const occupied = [...document.querySelectorAll('[data-ui]')]
+  const occupied = [...document.querySelectorAll('[data-ui], #node-label')]
     .filter(el => !el.hidden).map(el => el.getBoundingClientRect());
   let visible = 0;
   for (const {node, label} of landmarks) {

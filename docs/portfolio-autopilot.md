@@ -117,6 +117,41 @@ also supplies browser/server test fixtures and canonical fidelity validation.
 The pursue-goal Codex adapter and confirmed native goal govern this run. The linked worktrees and exact validation commands are recorded below. Reuse this document as the compact execution checkpoint rather than
 creating competing plans.
 
+## Source-tour follow-up — verified local preview, 2026-09-13
+
+The owner's "Please continue" authorized a clarity pass on the semantic maps.
+The generic featured view now names a real feature. Optional authored tours
+explain theme switching, ScribbleScan's saved demo, and Flow-Code's semantic
+export pipeline. Every stop must resolve uniquely in the featured graph and
+every transition must have a resolved or inferred source edge. Inferred links
+remain explicit. ScribbleScan's demo replays saved HTML/timings; the tour does
+not imply that this path performs new OCR.
+
+Tour descriptions are attached after baking and never influence the vectors,
+scores, or layout. Portfolio and ScribbleScan exports are exactly equal to the
+previous semantic snapshots after removing the new guide field. Flow-Code was
+rebaked from its updated source, now 256 functions with 22 in its featured view.
+The complete audit verifies 1,148 functions. All three maps reproduce exactly
+offline with model loading disabled and cached source vectors only.
+
+Validation: 103 package tests, 3 focused Portfolio tests, 122 tour browser checks,
+and 17 compatibility/narrow-screen checks pass. The larger Portfolio suite and
+earlier 64-check semantic regression remain historical evidence. The final
+scoped browser review covers all tour stops, inferred/direct evidence, back/next,
+shared selections, layout/scope changes, free exploration, seven themes on
+desktop/390px phone, 320px notes, and the 2D fallback. The original guide-free
+46-function snapshot still renders. Original's 8096 graph hash is unchanged.
+
+Rendered verdict: ready within this follow-up's scope. Inspected actual captures
+and fixed selected-label collisions, hidden phone explanations, 320px legend
+overlap, and an empty standalone theme control. Existing Board/navigation,
+Original assets, document flow, camera motion, and connector meaning are intact.
+Local Standards and Spec review was performed by the implementing agent, not
+independently. No remaining finding was observed in this scope; owner aesthetic
+acceptance remains separate. Receipts and reviewed captures are in Portfolio's
+`docs/evidence/flowcode/source-tours`. Delivery remains local feature branches and
+the private 8097 preview; no push or publication occurred.
+
 ## Owner correction — semantic terrain required, 2026-09-13
 
 The owner rejected the delivered depth-only mountain. The previous completion

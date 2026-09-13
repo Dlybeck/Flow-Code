@@ -509,6 +509,7 @@ h1, .home-link, .qname, .note-header, #node-label { font-family: var(--font-titl
 body[data-theme]::before { display: none; }
 #map-tools { top: 85px; left: 38px; display: flex; flex-wrap: wrap; gap: 7px 12px; align-items: center; max-width: calc(100vw - 430px); }
 #map-tools label { display: flex; align-items: center; gap: 5px; font-size: 14px; }
+#map-tools label[hidden] { display: none; }
 #map-tools select, #map-tools button { background: var(--paper); color: var(--ink); border: 1px solid #7778; padding: 5px 8px; border-radius: 3px; min-height: 32px; }
 #theme-error { font-size: 13px; }
 .confidence-key { display: block; font-size: 12px; margin-top: 6px; }
@@ -554,6 +555,26 @@ body[data-theme]::before { display: none; }
 }
 #similar-functions { padding-left: 18px; }
 #similar-functions a { color: var(--ink); overflow-wrap: anywhere; }
+
+/* Authored explanations sit beside the map; the source remains one click away. */
+#i-desc { display: block; margin-top: 8px; max-height: none; }
+#source-tour { border-top: 1px solid #7775; margin-top: 10px; padding-top: 4px; }
+#tour-navigation { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#tour-navigation[hidden] { display: none; }
+#tour-navigation button { min-height: 32px; font-size: 14px; flex-shrink: 0; }
+#tour-navigation button:disabled { opacity: .4; cursor: default; text-decoration: none; }
+#tour-progress { font-size: 12px; }
+#tour-evidence { display: block; font-size: 11px; line-height: 1.3; opacity: .85; }
+#tour-evidence[hidden] { display: none; }
+@media (max-width: 360px) {
+  #info { bottom: 92px; }
+}
+@media (max-width: 860px) {
+  #empty-info.has-guide p { display: block; font-size: 14px; }
+  #i-desc { font-size: 14px; line-height: 1.35; }
+  #info:has(#selected-info:not([hidden])) { max-height: 36vh; }
+  #info:has(details[open]) { max-height: 48vh; }
+}
 
 .map-landmark { position: fixed; z-index: 2; pointer-events: none; padding: 4px 8px;
   transform: translate(-50%, -100%); max-width: 160px; white-space: nowrap; overflow: hidden;

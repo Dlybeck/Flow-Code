@@ -84,6 +84,55 @@ def test_export_refuses_missing_embeddings(tmp_path, monkeypatch):
         export_terrain(tmp_path, project="missing", purpose="Example")
 
 
+def test_cli_attaches_source_tour_and_preserves_output_on_stale_stop(
+    tmp_path, deterministic_embeddings
+):
+    (tmp_path / "server.py").write_text("def entry(): handle()\ndef handle(): pass\n")
+    guide_path = tmp_path / "guide.json"
+    guide = {
+        "title": "Handle a request",
+        "summary": "A source tour.",
+        "stops": [
+            {
+                "symbol": "server.entry",
+                "title": "Enter",
+                "summary": "Call the handler.",
+            },
+            {
+                "symbol": "server.handle",
+                "title": "Handle",
+                "summary": "Finish the call.",
+            },
+        ],
+    }
+    guide_path.write_text(json.dumps(guide))
+    output = tmp_path / "map.json"
+    args = [
+        "export",
+        str(tmp_path),
+        "--project",
+        "example",
+        "--purpose",
+        "Handle requests",
+        "--src-root",
+        "server.py",
+        "--entry",
+        "server.entry",
+        "--guide",
+        str(guide_path),
+        "-o",
+        str(output),
+    ]
+    assert main(args) == 0
+    first = output.read_bytes()
+    assert json.loads(first)["guide"]["stops"][1]["via"]["confidence"] == "resolved"
+    guide["stops"][1]["symbol"] = "server.removed"
+    guide_path.write_text(json.dumps(guide))
+    with pytest.raises(ValueError, match="one featured function"):
+        main(args)
+    assert output.read_bytes() == first
+
+
 def test_semantic_neighbors_and_heights_follow_vectors_not_call_depth():
     from flowcode.terrain import _semantic_signals
 

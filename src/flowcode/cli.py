@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     p_export = sub.add_parser('export', help='Bake a portable semantic terrain snapshot (local model)')
     p_export.add_argument('path', type=Path)
     p_export.add_argument('--project', required=True)
+    p_export.add_argument('--guide', type=Path, help='Optional JSON source tour; stops and links are validated')
     p_export.add_argument('--purpose', help='Short project purpose; defaults to README excerpt')
     p_export.add_argument('--src-root', action='append', dest='src_roots')
     p_export.add_argument('--entry', action='append', dest='entries', help='Exact function ID or qualified name; repeatable')
@@ -100,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == 'export':
         from flowcode.terrain import export_terrain
         doc = export_terrain(args.path, project=args.project, src_roots=args.src_roots, entries=args.entries, purpose=args.purpose)
+        if args.guide:
+            from flowcode.guides import attach_guide
+            doc = attach_guide(doc, json.loads(args.guide.read_text()))
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
         return 0

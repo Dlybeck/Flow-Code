@@ -51,6 +51,19 @@ remaining dynamic calls stay unresolved. These distinctions describe static
 evidence, not observed runtime behavior. Source argument snippets are omitted
 from portable exports.
 
+An optional `--guide guide.json` adds a short, authored source tour after the
+semantic bake. It never changes vectors, scores, or geometry. The JSON contains
+`title`, `summary`, and ordered `stops`, each with `symbol` (qualified function
+name or ID), `title`, and `summary`. The first stop must be a featured entry;
+each following stop must have a mapped call from its predecessor. Missing,
+ambiguous, disconnected, or unknown-confidence stops fail before writing output.
+The viewer labels inferred links and keeps source details available. These are
+explanations of static source, not recordings of a running application.
+
+The three reference tours live in `scripts/portfolio_guides.json`: Portfolio
+theme switching, ScribbleScan's saved demo, and Flow-Code's semantic map builder.
+The ScribbleScan demo replays saved HTML and timing records; it does not run OCR.
+
 Build the viewer in `experiments/3d-layered` with `npm ci` and `npm run build`, then:
 
 ```sh

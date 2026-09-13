@@ -30,9 +30,18 @@ export function setupSnapshotUI(selectFunction) {
   projectPicker.value = project.id;
   projectPicker.addEventListener('change', () => updateURL({project: projectPicker.value, node: null}, true));
   const scopePicker = document.getElementById('scope-picker');
+  const guide = saved ? null : snapshot.guide;
+  if (guide) {
+    scopePicker.querySelector('[value="feature"]').textContent = guide.title;
+    document.querySelector('#empty-info h2').textContent = guide.title;
+    document.querySelector('#empty-info p').textContent = guide.summary;
+    document.getElementById('empty-info').classList.add('has-guide');
+    document.getElementById('start-exploring').textContent = 'Start the source tour →';
+  }
   scopePicker.value = scope;
   scopePicker.addEventListener('change', () => updateURL({scope: scopePicker.value}, true));
-  document.querySelector('.graph-label').textContent = `Exploring ${project.label}`;
+  document.querySelector('.graph-label').textContent = guide && scope === 'feature'
+    ? `${project.label} · ${guide.title}` : `Exploring ${project.label}`;
   function explainLayout() {
     const layout = document.querySelector('input[name="layout"]:checked')?.value;
     document.querySelector('#legend small').textContent = layout === 'umap'
@@ -73,10 +82,42 @@ export function setupSnapshotUI(selectFunction) {
     catch { window.prompt('Copy this map link', location.href); }
   });
   const evidence = document.getElementById('connection-evidence');
+  const tour = document.getElementById('source-tour');
+  const tourNavigation = document.getElementById('tour-navigation');
+  const previous = document.getElementById('tour-previous');
+  const next = document.getElementById('tour-next');
+  const restart = document.getElementById('tour-restart');
+  const tourEvidence = document.getElementById('tour-evidence');
+  let tourIndex = -1;
+  function visitStop(index) {
+    const stop = guide?.stops[index];
+    if (!stop) return;
+    selectFunction(stop.node);
+    document.getElementById('info').scrollTop = 0;
+  }
+  previous.addEventListener('click', () => visitStop(tourIndex - 1));
+  next.addEventListener('click', () => visitStop(tourIndex + 1));
+  restart.addEventListener('click', () => visitStop(0));
   return function showEvidence(node) {
     evidence.replaceChildren();
     const similar = document.getElementById('similar-functions');
     similar.replaceChildren();
+    tour.hidden = !node || !guide;
+    tourIndex = guide?.stops.findIndex(stop => stop.node === node?.id) ?? -1;
+    const stop = guide?.stops[tourIndex];
+    tourNavigation.hidden = !stop;
+    restart.hidden = !!stop;
+    tourEvidence.hidden = !stop;
+    if (stop) {
+      document.getElementById('i-qname').textContent = stop.title;
+      document.getElementById('i-desc').textContent = stop.summary;
+      document.getElementById('tour-progress').textContent = `Source tour · ${tourIndex + 1} / ${guide.stops.length}`;
+      previous.disabled = tourIndex === 0;
+      next.disabled = tourIndex === guide.stops.length - 1;
+      tourEvidence.textContent = stop.via
+        ? `${stop.via.confidence === 'resolved' ? 'Resolved' : 'Inferred'} connection from the previous step`
+        : 'An explanation of the source, not a recorded run';
+    }
     if (!node || saved) return;
     const allNodes = new Map(snapshot.views.overview.nodes.map(n => [n.id, n]));
     for (const match of node.similar || []) {

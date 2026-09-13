@@ -1,0 +1,65 @@
+{
+  "portfolio": {
+    "title": "Theme switching",
+    "summary": "How a theme choice reaches the browser and changes the board’s appearance.",
+    "stops": [
+      {
+        "symbol": "static.scripts.themeEngine.$callback_8_2.activate",
+        "title": "Change the board’s appearance",
+        "summary": "Coordinates loading the chosen theme and restyling the board, its connections and open documents. It keeps the existing destinations and falls back to Original if the theme cannot load."
+      },
+      {
+        "symbol": "static.scripts.themeEngine.$callback_8_2.loadPack",
+        "title": "Fetch a complete theme",
+        "summary": "Reuses a cached theme when possible. Otherwise it requests the theme’s JSON, checks that the pack is complete, and keeps it for later switches."
+      },
+      {
+        "symbol": "apis.route_portfolio.theme_pack_payload",
+        "title": "Serve the validated pack",
+        "summary": "On the server, this route looks up an enabled theme in the validated registry and returns its data. Unknown or disabled themes receive a 404 response."
+      }
+    ]
+  },
+  "scribblescan": {
+    "title": "The saved demo",
+    "summary": "Follow selected example pages to their saved results. This demo replays earlier processing.",
+    "stops": [
+      {
+        "symbol": "static.js.uploads.demo.DemoHandler.processDemoFiles",
+        "title": "Send the selected examples",
+        "summary": "Collects the chosen demo pages, assigns a task ID, and sends the selection to /demo/digitize. It checks that the server accepted the request."
+      },
+      {
+        "symbol": "app.api.routes.route_demo.demo_digitize",
+        "title": "Start a background demo task",
+        "summary": "Checks the selected file names, schedules the demo service in the background, and returns the task ID so the browser can follow progress."
+      },
+      {
+        "symbol": "app.api.services.demo_service.DemoService.process_demo_files",
+        "title": "Replay the saved results",
+        "summary": "Loads saved HTML results and timing records for the example pages. It updates progress using those records; this preserved demo does not run fresh OCR."
+      }
+    ]
+  },
+  "flowcode": {
+    "title": "Building the map",
+    "summary": "How source code becomes a saved landscape of related functions and central ideas.",
+    "stops": [
+      {
+        "symbol": "flowcode.terrain.export_terrain",
+        "title": "Read and vectorize the source",
+        "summary": "Indexes the selected source, computes or reuses local code embeddings, and builds the terrain views for export. The website later loads the finished snapshot."
+      },
+      {
+        "symbol": "flowcode.terrain._semantic_signals",
+        "title": "Position the ideas",
+        "summary": "Uses vector similarity to place related functions nearby and estimates relevance to the project’s stated purpose. It scales that estimate into height while retaining the underlying scores."
+      },
+      {
+        "symbol": "flowcode.semantic_layout.compute_semantic_density",
+        "title": "Compare neighboring functions",
+        "summary": "Averages similarity to the ten closest functions, or fewer in small projects. This supplies the novelty part of the score; relevance to the project’s purpose remains the main signal."
+      }
+    ]
+  }
+}
