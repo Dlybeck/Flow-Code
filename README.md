@@ -41,7 +41,7 @@ standalone viewer with `?example=saved`; its original renderer is `original.html
 
 The Portfolio page is `/how-it-works?project=portfolio`; it also accepts `flowcode`
 and `scribblescan`. Selection, layout, view scope, theme and return context stay
-in the URL. Controls and terrain consume Portfolio's validated Theme Packs.
+in the URL. Controls and 3D terrain consume Portfolio's validated Theme Packs.
 The viewer falls back to a selectable 2D map when WebGL is unavailable.
 
 **A visualization layer that sits alongside your AI coding assistant** (Claude Code, OpenCode, Cursor — anything that speaks MCP). It shows your codebase as a 3D execution terrain: peak at the entry point, height encoding architectural importance, ridges tracing the substantive call spine. You and the AI share the map as a pointing surface — select a branch and ask a question, and the AI gets both your functional intent and the underlying source; when the AI references something back, it highlights the region for you. You stay in functionality-space instead of translating every question into file paths.

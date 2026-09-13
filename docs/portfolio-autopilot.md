@@ -117,15 +117,64 @@ also supplies browser/server test fixtures and canonical fidelity validation.
 The pursue-goal Codex adapter and confirmed native goal govern this run. The linked worktrees and exact validation commands are recorded below. Reuse this document as the compact execution checkpoint rather than
 creating competing plans.
 
-## Execution checkpoint — 2026-09-12
+## Completed delivery — 2026-09-13
 
-- Goal active; both phases implemented locally, verification and delivery still in progress. Original preview and unrelated work preserved. Flow-Code base reskin checkpoint is a504cc5.
-- Analysis now merges Python/browser producers, indexes IIFEs/closures/JSX, keeps duplicate Python route definitions separate, fixes import resolution, exports deterministic terrain and retains confidence/source evidence. 78 Flow-Code tests pass; ruff passes. Use `uv run --no-sync pytest tests -q` (repository-wide discovery also collects an uninstalled example application under fixtures).
-- Actual source proof: Portfolio activate -> loadPack -> theme_pack_payload; ScribbleScan DemoHandler.processDemoFiles -> demo_digitize -> DemoService.process_demo_files (scheduled by asyncio.create_task). HTTP/service links remain heuristic. Original source unchanged at d08d4c33d02a62df3a6d9d42ff0a0ce1059f84d9.
-- One exporter installs the viewer and all three maps: `uv run --no-sync python scripts/export_portfolio.py --portfolio /home/dlybeck/Projects/Portfolio-worktrees/flowcode-integration --scribblescan /home/dlybeck/Projects/ScribbleScan`. Latest inputs change during delivery; regenerate and verify final hashes before committing snapshots.
-- Portfolio adds /how-it-works, Flow-Code's document under existing Programs, corresponding project links, a small Home link, bounded return routes and theme-preserving URLs. Board relationships and Programs' original destination retained.
-- Private preview: http://100.118.63.4:8097/ from the integration worktree, uvicorn PID recorded in tests/results/flowcode/preview.pid. Original 8096 preview unchanged.
-- First browser receipt: 48 passed, /tmp/flowcode-review/acceptance-1/receipt.json. Inspected desktop/phone contact sheets for all seven themes. Found/fixed light-theme label contrast, long floating labels, Planets control/terrain contrast. Added functional 2D evidence/selection fallback; final browser run pending.
-- First Portfolio full run timed out at 600s with failures caused by Home's extra row overflowing content-fit. Exact failing 320px Clouds test + Home theme dial now 5 passed after moving the link into existing writing. Full 423-test rerun active (exec session 74167); OS wrapper records /tmp/flowcode-review/portfolio-suite-final.log, .xml, .json, with a 900s timeout. Do not poll. Wait for completion while doing remaining review work.
-- Disk filled during work. Preserved task npm dependencies in /tmp/flowcode-capability-node-modules and /tmp/flowcode-original-node-modules, and stale July package-cache temp content in /tmp/flowcode-disk-recovery/uv-tmpFYM1Zw (receipt there). No project source or built preview assets deleted. New evidence uses /tmp/flowcode-review. For Docker builds bind the capability dependency directory to /app/node_modules alongside the viewer /app mount. About 756 MiB was available after recovery; do not broadly clean unrelated data.
-- Outstanding: finalize browser/phone/reduced-motion/fallback/real click evidence, resolve full-suite findings, recheck canonical fidelity and final source digests, complete local Standards + Spec review, scoped commits in both feature branches, final private preview screenshots and completion receipt. Native goal must stay active until these finish.
+Both phases are implemented, reviewed and committed locally. The implementing
+source revisions are Flow-Code `55dcd172d722` and Portfolio `6e4c73aa4abb`;
+Portfolio's delivery/evidence commit is `cb3a612e376b`. Later Flow-Code commits
+only close this checkpoint. No branches were pushed or merged into main/dev,
+no public site was deployed, and no repository visibility changed.
+
+- One offline pipeline generates mixed Python/browser maps for all three
+  reference projects. Flow-Code has 224 functions (38 featured), Portfolio 293
+  (19 featured), and ScribbleScan 599 (7 featured). The 101 selected files all
+  parsed, their hashes match, and repeated exports are identical.
+- Source proof connects Portfolio activate -> loadPack -> theme_pack_payload,
+  and ScribbleScan DemoHandler.processDemoFiles -> demo_digitize ->
+  DemoService.process_demo_files through its scheduled task. Framework links
+  are inferred; external and unresolved calls stay explicit. Source argument
+  snippets are omitted from portable maps. No model/OCR services were invoked.
+- Home's optional link and Alt+C open the Portfolio map. Existing Neighborhood
+  Tab order, relationships and Programs destination remain unchanged. Eligible
+  project documents open the right maps, with shareable state and themed return.
+- All seven themes were inspected at desktop/phone sizes, plus all Home scenes
+  at 320px and desktop and the three eligible project documents. Corrected Home
+  fitting, floating labels, light/dark contrast and the 2D notice placement.
+  Final verdict: ready within the authorized scope, not owner aesthetic approval.
+- Validation: **78 Flow-Code tests, 424 Portfolio tests, 55 browser checks** all
+  passed. Portfolio reports zero errors, failures or skips. Ruff and Canonical
+  fidelity pass. Actual point selection, zoom/reset, layouts, full graphs,
+  shared selection, theme preservation, reduced motion and 2D touch selection
+  were exercised. All observed whole-suite failures were fixed and rerun.
+- Private preview: <http://100.118.63.4:8097/>. The original 8096 comparison
+  remains available with its built assets intact. Preview process details are
+  under Portfolio tests/results/flowcode; run uvicorn from the integration
+  worktree to restart it if needed.
+
+The durable delivery receipt, source/asset hashes, browser receipt, complete
+Portfolio JUnit receipt and selected reviewed screenshots are in
+`/home/dlybeck/Projects/Portfolio-worktrees/flowcode-integration/docs/evidence/flowcode/`.
+The local Standards and Spec review is in that worktree's
+`docs/flowcode-integration.md`. Review was performed by the implementing agent,
+without independent subagents. No required implementation or review work remains.
+
+### Reproduction and environment notes
+
+Use `uv run --no-sync pytest tests -q` in Flow-Code. Repository-wide pytest
+also collects an example FastAPI application's tests; those are fixtures, not
+this package's test suite. Build experiments/3d-layered with npm ci / npm run
+build, then run scripts/export_portfolio.py with the two source checkout paths.
+The installed runtime assets were verified byte-for-byte against that build.
+
+The Portfolio suite ran inside mcr.microsoft.com/playwright:v1.62.0-noble using
+its pinned requirements-dev dependencies; final completion took 636.8 seconds.
+The operating-system process wrote a log and terminal receipt without recurring
+AI status inspection. Browser acceptance uses evidence/verify_projects.py.
+
+Disk space filled during delivery. Reproducible task npm dependencies were
+preserved in /tmp/flowcode-capability-node-modules and
+/tmp/flowcode-original-node-modules. A stale July temporary package cache was
+preserved in /tmp/flowcode-disk-recovery/uv-tmpFYM1Zw, with its original path in
+that directory's receipt.json. No project sources or built preview assets were
+deleted. Docker builds in this session mounted the capability dependency
+folder at /app/node_modules. A fresh npm ci recreates these dependencies later.
