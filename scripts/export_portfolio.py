@@ -46,7 +46,10 @@ def main():
         'href="original.html">See original Flow-Code ↗',
         'href="/projects/flowcode">About Flow-Code ↗',
     )
-    (args.portfolio / "templates/pages/code_map.html").write_text(html)
+    (args.portfolio / "templates/shared/code_map.html").write_text(html)
+    (args.portfolio / "templates/pages/code_map.html").write_text(
+        '{% extends "shared/code_map.html" %}\n'
+    )
     references = [
         (
             "flowcode",
