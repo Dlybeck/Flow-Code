@@ -1,4 +1,4 @@
-"""flowcode — static analysis graph generation for Python and TypeScript codebases."""
+"""Flow-Code: deterministic codebase maps for unfamiliar readers."""
 
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ def generate_graph(
     src_roots: list[str] | None = None,
     include_overlay: bool = True,
     overlay_path: str | Path | None = None,
-    use_llm: bool | None = None,
+    use_llm: bool | None = False,
 ) -> dict[str, Any]:
     """
     Index a repository and return its execution graph.
 
-    Chains: index_repo_auto → build_execution_ir → generate_auto_overlay → merge.
+    Chains: source adapter → execution IR → deterministic structural overlay.
 
     Args:
         repo_path: Path to the repository root.
@@ -27,12 +27,19 @@ def generate_graph(
         include_overlay: If True (default), attach auto-generated use-case overlay.
         overlay_path: Optional path to an existing overlay.json to merge instead of
                       auto-generating one.
-        use_llm: Passed to generate_auto_overlay. None = auto-detect via ANTHROPIC_API_KEY.
+        use_llm: Compatibility parameter. True is rejected because generative
+                 enrichment is outside core map generation.
 
     Returns:
         dict with keys: schema_version, repo_root, languages, entrypoints,
         nodes, edges, and (if include_overlay) use_cases.
     """
+    if use_llm:
+        raise ValueError(
+            "Generative enrichment is not part of core map generation; "
+            "use a separate optional one-time artifact when one is implemented"
+        )
+
     from flowcode.auto_overlay import generate_auto_overlay
     from flowcode.execution_ir import build_execution_ir
     from flowcode.language_adapter import index_repo_auto
@@ -56,7 +63,7 @@ def generate_graph(
             import json
             ov = json.loads(Path(overlay_path).read_text(encoding="utf-8"))
         else:
-            ov = generate_auto_overlay(ir_doc, repo_root=root, use_llm=use_llm)
+            ov = generate_auto_overlay(ir_doc, repo_root=root, use_llm=False)
         result["use_cases"] = ov.get("by_flow_node_id", {})
 
     return result

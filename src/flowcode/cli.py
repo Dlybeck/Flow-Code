@@ -1,4 +1,4 @@
-"""CLI: index | execution-ir | diff | orphans | overlay-migrate"""
+"""Flow-Code command-line interface."""
 
 from __future__ import annotations
 
@@ -17,17 +17,33 @@ from flowcode.overlay_migrate import migrate_overlay_files
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="flowcode", description="Graph generation for Python and TypeScript repos")
+    parser = argparse.ArgumentParser(
+        prog="flowcode", description="Build deterministic terrain maps of codebases"
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_export = sub.add_parser('export', help='Bake a portable semantic terrain snapshot (local model)')
     p_export.add_argument('path', type=Path)
     p_export.add_argument('--project', required=True)
     p_export.add_argument('--guide', type=Path, help='Optional JSON source tour; stops and links are validated')
-    p_export.add_argument('--purpose', help='Short project purpose; defaults to README excerpt')
+    p_export.add_argument(
+        '--purpose',
+        help='Optional human-written project purpose used as a vector-scoring hint',
+    )
     p_export.add_argument('--src-root', action='append', dest='src_roots')
     p_export.add_argument('--entry', action='append', dest='entries', help='Exact function ID or qualified name; repeatable')
     p_export.add_argument('-o', '--out', type=Path, required=True)
+
+    p_site = sub.add_parser(
+        "site", help="Package one terrain snapshot as an independent static viewer"
+    )
+    p_site.add_argument("snapshot", type=Path, help="Terrain JSON from `flowcode export`")
+    p_site.add_argument("-o", "--out", type=Path, required=True, help="Static site directory")
+    p_site.add_argument(
+        "--viewer-root",
+        type=Path,
+        help="Built 3D viewer directory (defaults to this Flow-Code checkout)",
+    )
 
     p_index = sub.add_parser("index", help="Emit RAW JSON for a repo")
     p_index.add_argument("path", type=Path, help="Repository root")
@@ -106,6 +122,15 @@ def main(argv: list[str] | None = None) -> int:
             doc = attach_guide(doc, json.loads(args.guide.read_text()))
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        return 0
+
+    if args.cmd == "site":
+        from flowcode.standalone import build_standalone_site
+
+        result = build_standalone_site(
+            args.snapshot, args.out, viewer_root=args.viewer_root
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
         return 0
 
     if args.cmd == "index":

@@ -1,10 +1,7 @@
 // The viewer consumes portable snapshots; it never reads repositories or runs code.
 export const config = JSON.parse(document.getElementById('viewer-config')?.textContent || '{}');
 const params = new URLSearchParams(location.search);
-const projects = config.projects || [
-  {id: 'flowcode', label: 'Flow-Code'}, {id: 'portfolio', label: 'This portfolio'},
-  {id: 'scribblescan', label: 'ScribbleScan'},
-];
+const projects = config.projects || [{id: 'graph', label: 'Codebase'}];
 export const project = projects.find(p => p.id === params.get('project')) || projects.find(p => p.id === config.project) || projects[0];
 export const scope = params.get('scope') === 'overview' ? 'overview' : 'feature';
 export function updateURL(values, navigate = false) {
@@ -14,8 +11,11 @@ export function updateURL(values, navigate = false) {
   }
   if (navigate) location.assign(url); else history.replaceState(null, '', url);
 }
-const response = await fetch(params.get('example') === 'saved' ? 'graph.json' : `${config.dataRoot || 'maps'}/${project.id}.json`);
-if (!response.ok) throw new Error('This code map is unavailable. Please return to the portfolio.');
+const mapURL = params.get('example') === 'saved'
+  ? 'graph.json'
+  : config.mapUrl || `${config.dataRoot || 'maps'}/${project.id}.json`;
+const response = await fetch(mapURL);
+if (!response.ok) throw new Error(`This code map is unavailable (${response.status}).`);
 export const snapshot = await response.json();
 if (snapshot.views && !snapshot.analysis?.embedding) {
   throw new Error('This map needs a semantic rebuild before it can be displayed.');
@@ -28,6 +28,7 @@ export function setupSnapshotUI(selectFunction) {
   const projectPicker = document.getElementById('project-picker');
   for (const p of projects) projectPicker.add(new Option(p.label, p.id));
   projectPicker.value = project.id;
+  projectPicker.parentElement.hidden = projects.length < 2;
   projectPicker.addEventListener('change', () => updateURL({project: projectPicker.value, node: null}, true));
   const scopePicker = document.getElementById('scope-picker');
   const guide = saved ? null : snapshot.guide;
@@ -44,8 +45,11 @@ export function setupSnapshotUI(selectFunction) {
     ? `${project.label} · ${guide.title}` : `Exploring ${project.label}`;
   function explainLayout() {
     const layout = document.querySelector('input[name="layout"]:checked')?.value;
+    const purposeHint = snapshot.analysis?.purpose
+      ? 'closer to the human-written project purpose'
+      : 'more distinctive, substantive, and connected in this codebase';
     document.querySelector('#legend small').textContent = layout === 'umap'
-      ? 'Nearby: similar code · Higher: closer to the project’s purpose · Height contrast expanded'
+      ? `Nearby: similar code · Higher: ${purposeHint} · Height contrast expanded`
       : 'Follow calls downhill · Important functions descend gently, forming ridges · Height scaled to fit';
   }
   document.querySelectorAll('input[name="layout"]').forEach(r => r.addEventListener('change', explainLayout));
@@ -53,19 +57,22 @@ export function setupSnapshotUI(selectFunction) {
   const summary = document.getElementById('snapshot-summary');
   if (snapshot.analysis) {
     const a = snapshot.analysis;
-    summary.textContent = `${a.embedding ? 'Precomputed with ' + a.embedding.model + ' @ ' + a.embedding.revision.slice(0, 12) + '. No model runs on this website. Importance combines purpose relevance with novelty × source substance; it is not a measure of business value. Scores are computed across the selected project, including functions outside this view. ' : ''}${a.files.length} files · ${a.function_count} functions in selected sources. Snapshot ${a.source_digest.slice(0, 12)}. Roots: ${a.source_roots.join(', ')}. ${a.known_limits.join(' ')} Excludes: ${[...a.excluded_directories, ...a.excluded_patterns].join(', ')}.`;
+    summary.textContent = `${a.embedding ? 'Precomputed locally with ' + a.embedding.model + ' @ ' + a.embedding.revision.slice(0, 12) + '. Flow-Code uses code vectors and deterministic analysis; no generative AI is required. Importance method: ' + a.terrain.method + '. Scores are relative to the selected project and are not measured business value. ' : ''}${a.files.length} files · ${a.function_count} functions in selected sources. Snapshot ${a.source_digest.slice(0, 12)}. Roots: ${a.source_roots.join(', ')}. ${a.known_limits.join(' ')} Excludes: ${[...a.excluded_directories, ...a.excluded_patterns].join(', ')}.`;
     if (a.purpose) summary.textContent = `Project purpose: ${a.purpose.text} ${summary.textContent}`;
     const failed = a.files.filter(f => !f.analysis?.parse_ok).map(f => f.path);
     summary.textContent += failed.length ? ` Files that did not parse: ${failed.join(', ')}.` : ' All selected files parsed.';
   } else summary.textContent = 'The preserved 46-function Flow-Code example.';
   const returnLink = document.querySelector('.home-link');
   function setReturn() {
-    const destination = new URL(config.returnTo || '/', location.origin);
+    const destination = new URL(config.returnTo || config.homeUrl || './', location.href);
     if (params.get('theme')) destination.searchParams.set('theme', params.get('theme'));
     returnLink.href = destination.pathname + destination.search;
-    returnLink.querySelector('span').textContent = config.returnTo && config.returnTo !== '/' ? '↖ back to project' : '↖ portfolio';
-    if (config.themes?.length) {
-      const about = document.querySelector('.compare');
+    returnLink.querySelector('span').textContent = config.returnLabel || (config.returnTo ? '↖ back to project' : '↖ visualizer');
+    const about = document.querySelector('.compare');
+    if (config.aboutUrl) {
+      about.href = config.aboutUrl;
+      about.hidden = false;
+    } else if (config.themes?.length && new URL(about.href).origin === location.origin) {
       const aboutURL = new URL(about.href);
       if (params.get('theme')) aboutURL.searchParams.set('theme', params.get('theme'));
       about.href = aboutURL.pathname + aboutURL.search;
@@ -164,7 +171,8 @@ export async function setupThemes(onChange) {
   let request = 0;
   async function apply(id) {
     const ownRequest = ++request;
-    const response = await fetch(`/_theme-packs/${encodeURIComponent(id)}.json`);
+    const themeRoot = config.themeRoot || '/_theme-packs';
+    const response = await fetch(`${themeRoot}/${encodeURIComponent(id)}.json`);
     if (!response.ok) throw new Error('Theme could not load');
     const pack = await response.json();
     if (request !== ownRequest) return;

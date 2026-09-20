@@ -1,31 +1,29 @@
-# Product vision — consolidated spec
+# Product vision
 
-This folder holds the design docs for **`flowcode`** — a visualization layer for AI-assisted development, powered by a Python + TypeScript static analysis graph generator.
-
-flowcode runs as a local MCP server alongside existing AI coding assistants (Claude Code, OpenCode, Cursor, Zed, etc.). It surfaces the codebase as a 3D execution terrain the user and the AI can both point at — a shared coordinate system that keeps functional questions anchored to real source without forcing the user back into the file tree.
+This folder records the current design for Flow-Code, an independent codebase
+familiarization tool for people who have not seen the source before.
 
 | File | Purpose |
-|------|---------|
-| **[goal.md](./goal.md)** | Narrative **why**: AI-assisted development creates an understanding gap, and this is the bridge across it. **Start here.** |
-| **[SPEC.md](./SPEC.md)** | Detailed engineering invariants: RAW/overlay split, pipeline, language strategy. Still accurate on the technical substrate; its higher-level framing predates the explicit execution-space-navigator thesis and should be read alongside **goal.md**. |
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | **Logical** diagram: workspace, indexer, RAW store, diff, overlay, API, UI, agent — must stay consistent with SPEC §0–§9. |
-| **[EXECUTION-MAP-PLAN.md](./EXECUTION-MAP-PLAN.md)** | Deprecated brainstorming from the structure-vs-execution-first debate. Execution-first won; see **goal.md** and **ARCHITECTURE.md** for the current framing. |
+|---|---|
+| [goal.md](./goal.md) | Audience, experience, terrain meaning, independence, and AI boundary. Start here. |
+| [SPEC.md](./SPEC.md) | Product invariants, supported languages, artifacts, and current non-goals. |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | The implemented source-to-static-viewer pipeline and host boundary. |
+| [EXECUTION-MAP-PLAN.md](./EXECUTION-MAP-PLAN.md) | Historical execution-IR plan with a note showing what shipped. |
 
-## Current implementation status
+## Current implementation
 
-- **`flowcode` package** (`src/flowcode/`): Python + TypeScript indexing → execution IR → overlay. Working, tested against golden fixtures.
-- **3D viz experiment** (`experiments/3d-layered/`): active iteration on the mountain renderer — height encodes importance via per-edge slope driven by the child node's own novelty-×-substance score.
-- **MCP server**: next step. Target tools exposed to AI clients: `get_selected_node`, `get_upstream`, `get_downstream`, `get_important_nodes`, `highlight`.
+- Python, JavaScript, TypeScript, Java, C, C#, and Haskell each produce a
+  single-language execution graph and semantic terrain.
+- Terrain uses local code embeddings plus deterministic scoring. An optional
+  human-written purpose is embedded locally.
+- The 3D viewer works as a self-contained static site and has a 2D fallback.
+- Portfolio integration is an adapter around the same static output.
+- General mixed-language semantics, Kotlin, and Go are later phases.
 
-See the [top-level README](../../README.md) for API, CLI, schema, and `.flowcode.toml` config reference.
+## Direction change
 
-## Changelog
-
-| Date | Note |
-|------|------|
-| 2025-03-21 | Created `product-vision/` + **SPEC.md** to isolate final brainstorming from mixed repo context. |
-| 2025-03-21 | **SPEC §0** coherent vision spine. |
-| 2025-03-21 | **`ARCHITECTURE.md`** — component diagram + table. |
-| 2026-03-21 | **SPEC §9** — Python-native v1 (FastAPI + `src/` canonical), adapter boundary. |
-| 2026-04-11 | Scope narrowed to `flowcode` graph generation package. Orchestration docs removed. SPEC and ARCHITECTURE updated. |
-| 2026-04-19 | Framing updated: flowcode is an **execution-space navigator / shared pointing surface for AI clients**, not a standalone editor. New [goal.md](./goal.md) replaces the prior "bridge human intent and AI execution" narrative. |
+Earlier documents described an MCP shared surface for AI-assisted development.
+That idea remains a possible later consumer. Since 2026-09-20 the product focus
+has been newcomer familiarization and portfolio presentation. Core map
+generation has no generative-AI dependency. A possible future summary feature
+is limited to an explicit one-time enrichment artifact.

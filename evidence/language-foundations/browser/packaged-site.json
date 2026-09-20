@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "renderer": "webgl",
+  "project": "golden-java",
+  "language": "java",
+  "functions": 3,
+  "map_url": "graph.json",
+  "errors": [],
+  "external_requests": []
+}

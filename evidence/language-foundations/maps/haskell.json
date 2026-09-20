@@ -1,0 +1,512 @@
+{
+  "analysis": {
+    "completeness": "partial",
+    "edge_confidence": {
+      "resolved": 2,
+      "unknown": 1
+    },
+    "embedding": {
+      "chunk_tokens": 512,
+      "code_revision": "3baf9e3ac750e76e8edd3019170176884695fb94",
+      "dimensions": 768,
+      "model": "jinaai/jina-embeddings-v2-base-code",
+      "pooling": "token-weighted mean of complete 512-token chunks; L2 normalized",
+      "revision": "516f4baf13dec4ddddda8631e019b5737c8bc250"
+    },
+    "excluded_directories": [
+      "__pycache__",
+      "bin",
+      "build",
+      "coverage",
+      "dist",
+      "library",
+      "node_modules",
+      "obj",
+      "out",
+      "site-packages",
+      "target",
+      "third_party",
+      "vendor",
+      "vendors",
+      "venv"
+    ],
+    "excluded_patterns": [
+      "hidden paths",
+      "symlinks",
+      "*.min.*",
+      "*.d.ts",
+      "*.d.mts",
+      "*.d.cts"
+    ],
+    "files": [
+      {
+        "analysis": {
+          "completeness": "partial",
+          "parse_ok": true
+        },
+        "path": "src/Main.hs",
+        "sha256": "7c71cbfb2c3c379cb2b7b87530bad3569e90a954f113051d1c2613920ff27278"
+      }
+    ],
+    "function_count": 3,
+    "known_limits": [
+      "Static analysis is not a runtime trace.",
+      "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
+      "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
+      "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
+      "Higher-order calls, operators, typeclass dispatch, and Template Haskell are not resolved.",
+      "Only named top-level function and bind declarations are indexed.",
+      "Only selected supported source files are indexed; templates, CSS, SQL and unsupported languages are not execution graphs.",
+      "The featured view follows up to three outgoing steps; all selected-source functions remain available in the overview.",
+      "External and unresolved calls appear in function evidence. Semantic height shows estimated importance, not runtime or proven business value. Similarity positions are an approximate projection. Call-path heights also depend on the primary call tree.",
+      "Declared routes may not be mounted at runtime. Constructor and callback links are static hypotheses."
+    ],
+    "languages": [
+      "haskell"
+    ],
+    "source_digest": "6cfaed4c3604c07255e60836c2d4ae6834d98d22dee216855f926d1f39ebdcde",
+    "source_roots": [
+      "."
+    ],
+    "terrain": {
+      "importance": "normalize(novelty_x_substance * (0.75 + 0.25 * graph_centrality))",
+      "method": "code novelty x substance with bounded graph centrality",
+      "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
+      "scoring_scope": "all selected-source functions before featured filtering",
+      "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast"
+    }
+  },
+  "entries": [
+    "haskell:fn:Main.main"
+  ],
+  "project": "golden-haskell",
+  "schema_version": 2,
+  "views": {
+    "feature": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 5,
+            "path": "src/Main.hs"
+          },
+          "confidence": "resolved",
+          "from": "haskell:fn:Main.calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "haskell:fn:Main.emphasize"
+        },
+        {
+          "callsite": {
+            "line": 7,
+            "path": "src/Main.hs"
+          },
+          "confidence": "resolved",
+          "from": "haskell:fn:Main.main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "haskell:fn:Main.calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.5441652934501726,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "haskell function \u00b7 src/Main.hs:5",
+          "displayName": "calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "470697e393de4bab28bba9367449f48aa394f8c35e754eadc04b567424e937d7",
+            "source_sha256": "1b8f05b5859df3ef4b4ee94baaf431d2922196e361cb6590964f31559099e929",
+            "tokens": 10,
+            "vector_sha256": "96c0086287c0ebdfe0698cbc5542836e5cdc2f2a78ea86604aa588d8ab06fc69"
+          },
+          "file": "src/Main.hs",
+          "graph_centrality": 1.0,
+          "height": 10.638995397609287,
+          "id": "haskell:fn:Main.calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "calculate",
+          "language": "haskell",
+          "location": {
+            "end_column": 38,
+            "end_line": 5,
+            "path": "src/Main.hs",
+            "start_column": 1,
+            "start_line": 5
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "Main.calculate",
+          "raw_height": 5.594605340667211,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.7172919068510722,
+              "id": "haskell:fn:Main.emphasize"
+            },
+            {
+              "cosine": 0.41536836042199604,
+              "id": "haskell:fn:Main.main"
+            }
+          ],
+          "source_lines": 1,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.3294586930352727,
+          "y_fan": -7.0,
+          "y_umap": 0.3797150964027158
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.04060414162311632,
+          "depth": 2,
+          "description": "haskell function \u00b7 src/Main.hs:3",
+          "displayName": "emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "93c19f1a407d4a9f858918badf33a62b4733438d6c684897d3b813e781e2ac0d",
+            "source_sha256": "066b8d05d92223a4fbcadb4b030ac513607be49aa41eaa0f301accc21183eb1e",
+            "tokens": 9,
+            "vector_sha256": "77bf8218663529c7925e81ddee987d542d8176cf63364edde865446fee818672"
+          },
+          "file": "src/Main.hs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "haskell:fn:Main.emphasize",
+          "importance": 0.04060414162311632,
+          "is_orphan": false,
+          "label": "emphasize",
+          "language": "haskell",
+          "location": {
+            "end_column": 32,
+            "end_line": 3,
+            "path": "src/Main.hs",
+            "start_column": 1,
+            "start_line": 3
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.04060414162311632,
+          "purpose_similarity": 0.0,
+          "qname": "Main.emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.9593958583768837,
+          "semantic_height": 5.627084488385911,
+          "similar": [
+            {
+              "cosine": 0.7172919068510722,
+              "id": "haskell:fn:Main.calculate"
+            },
+            {
+              "cosine": 0.4025901663829889,
+              "id": "haskell:fn:Main.main"
+            }
+          ],
+          "source_lines": 1,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.350590665416241,
+          "y_fan": -10.5,
+          "y_umap": -0.37192951778749145
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee": "print",
+                "line": 7,
+                "path": "src/Main.hs",
+                "reason": "unresolved"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_or_ambiguous_direct_call",
+              "from": "haskell:fn:Main.main",
+              "id": "e:2",
+              "kind": "calls",
+              "target": "print",
+              "to": "haskell:boundary:unresolved"
+            }
+          ],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "haskell function \u00b7 src/Main.hs:7",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "63b0dea6995382bebd162c38021c5aa73b02a50ca7ef19f6e7b26a11b3ee610d",
+            "source_sha256": "fa6808d3c7f516faee012ecb91269e3feb3a857b2f23f154e81d09d191ab6652",
+            "tokens": 8,
+            "vector_sha256": "70b118742e1519e34ec17e3f327049e50c6a60887254dc94180a770371195f0b"
+          },
+          "file": "src/Main.hs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "haskell:fn:Main.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "haskell",
+          "location": {
+            "end_column": 27,
+            "end_line": 7,
+            "path": "src/Main.hs",
+            "start_column": 1,
+            "start_line": 7
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "Main.main",
+          "raw_height": 11.656783167158281,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.41536836042199604,
+              "id": "haskell:fn:Main.calculate"
+            },
+            {
+              "cosine": 0.4025901663829889,
+              "id": "haskell:fn:Main.emphasize"
+            }
+          ],
+          "source_lines": 1,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.680049358451514,
+          "y_fan": -3.5,
+          "y_umap": -0.007785578615223858
+        }
+      ],
+      "peaks": [
+        "haskell:fn:Main.main"
+      ]
+    },
+    "overview": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 5,
+            "path": "src/Main.hs"
+          },
+          "confidence": "resolved",
+          "from": "haskell:fn:Main.calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "haskell:fn:Main.emphasize"
+        },
+        {
+          "callsite": {
+            "line": 7,
+            "path": "src/Main.hs"
+          },
+          "confidence": "resolved",
+          "from": "haskell:fn:Main.main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "haskell:fn:Main.calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.5441652934501726,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "haskell function \u00b7 src/Main.hs:5",
+          "displayName": "calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "470697e393de4bab28bba9367449f48aa394f8c35e754eadc04b567424e937d7",
+            "source_sha256": "1b8f05b5859df3ef4b4ee94baaf431d2922196e361cb6590964f31559099e929",
+            "tokens": 10,
+            "vector_sha256": "96c0086287c0ebdfe0698cbc5542836e5cdc2f2a78ea86604aa588d8ab06fc69"
+          },
+          "file": "src/Main.hs",
+          "graph_centrality": 1.0,
+          "height": 10.638995397609287,
+          "id": "haskell:fn:Main.calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "calculate",
+          "language": "haskell",
+          "location": {
+            "end_column": 38,
+            "end_line": 5,
+            "path": "src/Main.hs",
+            "start_column": 1,
+            "start_line": 5
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "Main.calculate",
+          "raw_height": 5.594605340667211,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.7172919068510722,
+              "id": "haskell:fn:Main.emphasize"
+            },
+            {
+              "cosine": 0.41536836042199604,
+              "id": "haskell:fn:Main.main"
+            }
+          ],
+          "source_lines": 1,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.3294586930352727,
+          "y_fan": -7.0,
+          "y_umap": 0.3797150964027158
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.04060414162311632,
+          "depth": 2,
+          "description": "haskell function \u00b7 src/Main.hs:3",
+          "displayName": "emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "93c19f1a407d4a9f858918badf33a62b4733438d6c684897d3b813e781e2ac0d",
+            "source_sha256": "066b8d05d92223a4fbcadb4b030ac513607be49aa41eaa0f301accc21183eb1e",
+            "tokens": 9,
+            "vector_sha256": "77bf8218663529c7925e81ddee987d542d8176cf63364edde865446fee818672"
+          },
+          "file": "src/Main.hs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "haskell:fn:Main.emphasize",
+          "importance": 0.04060414162311632,
+          "is_orphan": false,
+          "label": "emphasize",
+          "language": "haskell",
+          "location": {
+            "end_column": 32,
+            "end_line": 3,
+            "path": "src/Main.hs",
+            "start_column": 1,
+            "start_line": 3
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.04060414162311632,
+          "purpose_similarity": 0.0,
+          "qname": "Main.emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.9593958583768837,
+          "semantic_height": 5.627084488385911,
+          "similar": [
+            {
+              "cosine": 0.7172919068510722,
+              "id": "haskell:fn:Main.calculate"
+            },
+            {
+              "cosine": 0.4025901663829889,
+              "id": "haskell:fn:Main.main"
+            }
+          ],
+          "source_lines": 1,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.350590665416241,
+          "y_fan": -10.5,
+          "y_umap": -0.37192951778749145
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee": "print",
+                "line": 7,
+                "path": "src/Main.hs",
+                "reason": "unresolved"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_or_ambiguous_direct_call",
+              "from": "haskell:fn:Main.main",
+              "id": "e:2",
+              "kind": "calls",
+              "target": "print",
+              "to": "haskell:boundary:unresolved"
+            }
+          ],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "haskell function \u00b7 src/Main.hs:7",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "63b0dea6995382bebd162c38021c5aa73b02a50ca7ef19f6e7b26a11b3ee610d",
+            "source_sha256": "fa6808d3c7f516faee012ecb91269e3feb3a857b2f23f154e81d09d191ab6652",
+            "tokens": 8,
+            "vector_sha256": "70b118742e1519e34ec17e3f327049e50c6a60887254dc94180a770371195f0b"
+          },
+          "file": "src/Main.hs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "haskell:fn:Main.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "haskell",
+          "location": {
+            "end_column": 27,
+            "end_line": 7,
+            "path": "src/Main.hs",
+            "start_column": 1,
+            "start_line": 7
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "Main.main",
+          "raw_height": 11.656783167158281,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.41536836042199604,
+              "id": "haskell:fn:Main.calculate"
+            },
+            {
+              "cosine": 0.4025901663829889,
+              "id": "haskell:fn:Main.emphasize"
+            }
+          ],
+          "source_lines": 1,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.680049358451514,
+          "y_fan": -3.5,
+          "y_umap": -0.007785578615223858
+        }
+      ],
+      "peaks": [
+        "haskell:fn:Main.main"
+      ]
+    }
+  }
+}

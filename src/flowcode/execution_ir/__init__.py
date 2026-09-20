@@ -7,7 +7,10 @@ from typing import Any
 from flowcode.execution_ir.graph import dead_candidates, maybe_edges, reachable_node_ids
 from flowcode.execution_ir.layout import dfs_visit_order
 from flowcode.execution_ir.python_from_raw import build_execution_ir_from_raw
-from flowcode.execution_ir.validate import EXECUTION_IR_SCHEMA_VERSION, validate_execution_ir
+from flowcode.execution_ir.validate import (
+    EXECUTION_IR_SCHEMA_VERSION,
+    validate_execution_ir,
+)
 
 
 def _build_execution_ir(raw_doc: dict[str, Any]) -> dict[str, Any]:
@@ -28,11 +31,19 @@ def _build_execution_ir(raw_doc: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("invalid merged graph: " + "; ".join(errors))
         return merged
     indexer = str(raw_doc.get("indexer", ""))
+    if indexer.endswith("_treesitter_v0"):
+        from flowcode.execution_ir.treesitter_from_raw import (
+            build_execution_ir_from_treesitter_raw,
+        )
+
+        return build_execution_ir_from_treesitter_raw(raw_doc)
     if "ts_v0" in indexer or any(
         lang in ("typescript", "javascript")
         for lang in raw_doc.get("languages", [])
     ):
-        from flowcode.execution_ir.typescript_from_raw import build_execution_ir_from_ts_raw
+        from flowcode.execution_ir.typescript_from_raw import (
+            build_execution_ir_from_ts_raw,
+        )
         return build_execution_ir_from_ts_raw(raw_doc)
     return build_execution_ir_from_raw(raw_doc)
 

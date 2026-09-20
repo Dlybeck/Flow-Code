@@ -1,0 +1,41 @@
+{
+  "cases": {
+    "owner-c": {
+      "commit": "e81bb2c7408ece8bc75aa6d33554b4db4bb3fa42",
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "c:fn:main.main"
+      ],
+      "functions": 9,
+      "github": "Dlybeck/cs475-hwk6-ts-hashmap",
+      "ir_sha256": "0a30788119ea5476a9fd796fbc8799b6700d61597219f5a8d4ab46b4974a6e3b",
+      "languages": [
+        "c"
+      ],
+      "raw_sha256": "3eb7bf2b9479b2d256c4a80beeca09a6d0a4146419c307c8fad8ece0bb71436e",
+      "resolved_calls": 7,
+      "source_roots": [
+        "."
+      ]
+    },
+    "owner-csharp": {
+      "commit": "9d25b13d71082b5c423c0ea369b8c4c7444a05b8",
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "csharp:fn:Chubles Quest 5.Assets.Scripts.BossWaypoints.Start"
+      ],
+      "functions": 186,
+      "github": "Dlybeck/Chubles-Quest--5",
+      "ir_sha256": "d2375b01434db7f01897ffac7b1793a35de562af55e71a6c8ab12d47e3ea3d42",
+      "languages": [
+        "csharp"
+      ],
+      "raw_sha256": "3d1e43baa6895145c4de0143a00b8f47f1e94c06f6f7a1e8adf65de5215b00e0",
+      "resolved_calls": 25,
+      "source_roots": [
+        "Chubles Quest 5/Assets/Scripts"
+      ]
+    }
+  },
+  "status": "passed"
+}

@@ -1,4 +1,11 @@
-# Execution map (flow-first) — vision, IR, and testable slices
+# Execution map plan — historical foundation
+
+> **Historical note (2026-09-20):** The execution IR and read-only flow map
+> described here shipped and now support Python, JavaScript, TypeScript, Java,
+> C, C#, and Haskell. The current product focus is standalone codebase
+> familiarization, documented in [goal.md](./goal.md). Generative semantics are
+> no longer a map-generation stage. Keep this file as design history for the IR
+> and its uncertainty model; use [SPEC.md](./SPEC.md) for current requirements.
 
 This document captures the **execution-shaped map** direction (Option B): **function-level** “what and when,” with **AI** adding **why** (and optionally **how**) on top. It is **language-specific at the indexer**, **language-neutral** everywhere downstream.
 

@@ -1,0 +1,152 @@
+{
+  "status": "passed",
+  "browser": "Chromium with SwiftShader WebGL2",
+  "checks": [
+    {
+      "name": "python: selected portable map"
+    },
+    {
+      "name": "python: expected functions render",
+      "functions": 8
+    },
+    {
+      "name": "python: language identity"
+    },
+    {
+      "name": "python: independent deterministic disclosure"
+    },
+    {
+      "name": "python: entrypoint exploration"
+    },
+    {
+      "name": "python: 3D height remains finite"
+    },
+    {
+      "name": "javascript: selected portable map"
+    },
+    {
+      "name": "javascript: expected functions render",
+      "functions": 3
+    },
+    {
+      "name": "javascript: language identity"
+    },
+    {
+      "name": "javascript: independent deterministic disclosure"
+    },
+    {
+      "name": "javascript: entrypoint exploration"
+    },
+    {
+      "name": "javascript: 3D height remains finite"
+    },
+    {
+      "name": "typescript: selected portable map"
+    },
+    {
+      "name": "typescript: expected functions render",
+      "functions": 5
+    },
+    {
+      "name": "typescript: language identity"
+    },
+    {
+      "name": "typescript: independent deterministic disclosure"
+    },
+    {
+      "name": "typescript: entrypoint exploration"
+    },
+    {
+      "name": "typescript: 3D height remains finite"
+    },
+    {
+      "name": "java: selected portable map"
+    },
+    {
+      "name": "java: expected functions render",
+      "functions": 3
+    },
+    {
+      "name": "java: language identity"
+    },
+    {
+      "name": "java: independent deterministic disclosure"
+    },
+    {
+      "name": "java: entrypoint exploration"
+    },
+    {
+      "name": "java: 3D height remains finite"
+    },
+    {
+      "name": "c: selected portable map"
+    },
+    {
+      "name": "c: expected functions render",
+      "functions": 3
+    },
+    {
+      "name": "c: language identity"
+    },
+    {
+      "name": "c: independent deterministic disclosure"
+    },
+    {
+      "name": "c: entrypoint exploration"
+    },
+    {
+      "name": "c: 3D height remains finite"
+    },
+    {
+      "name": "csharp: selected portable map"
+    },
+    {
+      "name": "csharp: expected functions render",
+      "functions": 3
+    },
+    {
+      "name": "csharp: language identity"
+    },
+    {
+      "name": "csharp: independent deterministic disclosure"
+    },
+    {
+      "name": "csharp: entrypoint exploration"
+    },
+    {
+      "name": "csharp: 3D height remains finite"
+    },
+    {
+      "name": "haskell: selected portable map"
+    },
+    {
+      "name": "haskell: expected functions render",
+      "functions": 3
+    },
+    {
+      "name": "haskell: language identity"
+    },
+    {
+      "name": "haskell: independent deterministic disclosure"
+    },
+    {
+      "name": "haskell: entrypoint exploration"
+    },
+    {
+      "name": "haskell: 3D height remains finite"
+    },
+    {
+      "name": "2D fallback remains explorable"
+    },
+    {
+      "name": "No browser errors",
+      "errors": []
+    },
+    {
+      "name": "No third-party runtime requests",
+      "requests": []
+    }
+  ],
+  "errors": [],
+  "external_requests": []
+}

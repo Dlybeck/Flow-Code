@@ -1,0 +1,62 @@
+{
+  "maps": {
+    "c": {
+      "adapter_limits_visible": true,
+      "functions": 3,
+      "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+      "offline_repeat_equal": true,
+      "sha256": "d72711132102b3bc5c382a3f72e86c887fec6049cad029d6fb270c8629a59d73",
+      "terrain_method": "code novelty x substance with bounded graph centrality"
+    },
+    "csharp": {
+      "adapter_limits_visible": true,
+      "functions": 3,
+      "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+      "offline_repeat_equal": true,
+      "sha256": "d665b93b3442c451a652359f4fff19787bd7a89ecae7d177b63a0555cbcefe62",
+      "terrain_method": "code novelty x substance with bounded graph centrality"
+    },
+    "haskell": {
+      "adapter_limits_visible": true,
+      "functions": 3,
+      "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+      "offline_repeat_equal": true,
+      "sha256": "03a889d81352aaea6c369a75068037606aea4ebfeb4815397554e0cd6c3a700f",
+      "terrain_method": "code novelty x substance with bounded graph centrality"
+    },
+    "java": {
+      "adapter_limits_visible": true,
+      "functions": 3,
+      "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+      "offline_repeat_equal": true,
+      "sha256": "2d56ee8ac2f5a260acf6ec9c0062178fcf922a313b9abbf3462954eb047dc2a5",
+      "terrain_method": "code novelty x substance with bounded graph centrality"
+    },
+    "javascript": {
+      "adapter_limits_visible": true,
+      "functions": 3,
+      "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+      "offline_repeat_equal": true,
+      "sha256": "ab9d27ddd33f5e217a9d6324c149dd17ae6c553a0fdaf658e75e269bb4ab2a78",
+      "terrain_method": "code novelty x substance with bounded graph centrality"
+    },
+    "python": {
+      "adapter_limits_visible": true,
+      "functions": 8,
+      "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+      "offline_repeat_equal": true,
+      "sha256": "f09fda11349ea9855ee3f387d42bcb4d9c665b9f52d50b6098f03495cfa6fac7",
+      "terrain_method": "code novelty x substance with bounded graph centrality"
+    },
+    "typescript": {
+      "adapter_limits_visible": true,
+      "functions": 5,
+      "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+      "offline_repeat_equal": true,
+      "sha256": "f4b14170a4b96724eaafe4cc560042a0b74cbb35c7b5e3eb172c1080bc168574",
+      "terrain_method": "code novelty x substance with bounded graph centrality"
+    }
+  },
+  "network_mode": "Hugging Face and Transformers offline",
+  "status": "passed"
+}

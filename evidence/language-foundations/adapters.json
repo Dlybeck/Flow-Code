@@ -1,0 +1,147 @@
+{
+  "cases": {
+    "c": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "c:fn:main.main"
+      ],
+      "functions": 3,
+      "ir_sha256": "769af0fb910d3d735ad9a104f04eda0ba9c7ef4c51043340dc77384e541263f3",
+      "languages": [
+        "c"
+      ],
+      "raw_sha256": "659529f940764505f0fcb507135ad13a09029e8dd423b3643d7e5dcdcc75b590",
+      "resolved_calls": 2,
+      "source": "fixtures/golden-c",
+      "source_roots": null
+    },
+    "csharp": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "csharp:fn:Demo.App.Main"
+      ],
+      "functions": 3,
+      "ir_sha256": "8d25acdbc7b7d19625075a867f304a18e726e51da83abca9ce7a0ce081300ec9",
+      "languages": [
+        "csharp"
+      ],
+      "raw_sha256": "e1fe9e3157f7bd7703972ed182cd40a7c958f8f82b7a532c27387d8bfaae3dc1",
+      "resolved_calls": 2,
+      "source": "fixtures/golden-csharp",
+      "source_roots": null
+    },
+    "haskell": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "haskell:fn:Main.main"
+      ],
+      "functions": 3,
+      "ir_sha256": "f83b5c4ccc4c14f0eaa2732646f1cdc892cd7e104b3ae48390e9ec81f629208f",
+      "languages": [
+        "haskell"
+      ],
+      "raw_sha256": "c95181e25b6a36cbdcd032b3f88570267116e4e90633b1faf0e720120cdb7098",
+      "resolved_calls": 2,
+      "source": "fixtures/golden-haskell",
+      "source_roots": null
+    },
+    "java": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "java:fn:demo.App.main"
+      ],
+      "functions": 3,
+      "ir_sha256": "2c6e6691d4e8d8b99c0f66e07f02a3fd1937bbad5a6ac4a6c47d552fc8ab64a5",
+      "languages": [
+        "java"
+      ],
+      "raw_sha256": "3bfcf48500cfff6d291c0774a739dcc15dcc07be1d55db33e3c757afae290b67",
+      "resolved_calls": 2,
+      "source": "fixtures/golden-java",
+      "source_roots": null
+    },
+    "javascript": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "ts:fn:index.main"
+      ],
+      "functions": 3,
+      "ir_sha256": "0762fa300645ab6c2cdd69064debfda684cd709eb0f528744e071c9d5712b9f8",
+      "languages": [
+        "javascript"
+      ],
+      "raw_sha256": "28ff14629ce786490227ed8a3ca0a8947594932903466d171088a44656082868",
+      "resolved_calls": 2,
+      "source": "fixtures/golden-js",
+      "source_roots": null
+    },
+    "owner-haskell": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "haskell:fn:static.programs.Haskell.EvilHangman.main"
+      ],
+      "functions": 27,
+      "ir_sha256": "cc9bf68111659762e0a200ca0b7ab441afca158859752ecdd39012ff00cc217b",
+      "languages": [
+        "haskell"
+      ],
+      "raw_sha256": "b1e394901a2d11111ab558c42cb286d670597596161ec31d7e7301e36943512f",
+      "resolved_calls": 22,
+      "source": "Portfolio:static/programs/Haskell/EvilHangman.hs",
+      "source_roots": [
+        "static/programs/Haskell/EvilHangman.hs"
+      ]
+    },
+    "owner-java": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "java:fn:static.programs.Java.RedBlackTree.main"
+      ],
+      "functions": 41,
+      "ir_sha256": "536560b3dd0cda1fa6eebef4da585a07ed37d485ce2507759aba0b5daa2ce65f",
+      "languages": [
+        "java"
+      ],
+      "raw_sha256": "81e00430159d3dd2890ca682c9e0953abb2a0e42422031318d66e90d5ede991c",
+      "resolved_calls": 58,
+      "source": "Portfolio:static/programs/Java/RedBlackTree.java",
+      "source_roots": [
+        "static/programs/Java/RedBlackTree.java"
+      ]
+    },
+    "python": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "py:fn:golden_app.app.create_app",
+        "py:fn:golden_app.app.create_app.goodbye",
+        "py:fn:golden_app.app.create_app.greet",
+        "py:fn:golden_app.app.create_app.health"
+      ],
+      "functions": 8,
+      "ir_sha256": "c138c277fd6700cc668dd44f835e469a2f1e94c1cc6ce29d26374523b2f3e54b",
+      "languages": [
+        "python"
+      ],
+      "raw_sha256": "c2f52a1f90e06795756e26dee6864015373b80794c2436f9b9bf2f000ea828fb",
+      "resolved_calls": 6,
+      "source": "fixtures/golden-fastapi",
+      "source_roots": null
+    },
+    "typescript": {
+      "deterministic_repeat": true,
+      "entrypoints": [
+        "ts:fn:index.main"
+      ],
+      "functions": 5,
+      "ir_sha256": "70aaed5a21e6e1eca938175cf2967c34b5b4901f358f7380b1e016030f845c7e",
+      "languages": [
+        "typescript"
+      ],
+      "raw_sha256": "40d85f53d30620ac433a30309496ad8ee32d2c48443664b151737bbfc67abdd7",
+      "resolved_calls": 4,
+      "source": "fixtures/golden-ts",
+      "source_roots": null
+    }
+  },
+  "status": "passed"
+}

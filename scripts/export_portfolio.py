@@ -83,8 +83,8 @@ def main():
     shutil.copy2(viewer / "dist/app.js", target / "dist/app.js")
     html = (viewer / "index.html").read_text()
     html = html.replace(
-        "<body>",
-        '<body>\n<script id="viewer-config" type="application/json">{{ viewer_config | tojson }}</script>',
+        '<script id="viewer-config" type="application/json">{"project":"graph","projects":[{"id":"graph","label":"Codebase"}],"mapUrl":"graph.json"}</script>',
+        '<script id="viewer-config" type="application/json">{{ viewer_config | tojson }}</script>',
     )
     for path in ["assets/fonts.css", "portfolio.css"]:
         html = html.replace(f'href="{path}"', f'href="/static/flowcode/{path}"')
@@ -92,7 +92,7 @@ def main():
         'import("./dist/app.js")', 'import("/static/flowcode/dist/app.js")'
     )
     html = html.replace(
-        'href="original.html">See original Flow-Code ↗',
+        'href="https://github.com/Dlybeck/Flow-Code">About Flow-Code ↗',
         'href="/projects/flowcode">About Flow-Code ↗',
     )
     (args.portfolio / "templates/shared/code_map.html").write_text(html)

@@ -3,16 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>How it works · Flow-Code × David Lybeck</title>
+    <title>Flow-Code · Codebase map</title>
     <link rel="stylesheet" href="assets/fonts.css" />
     <link rel="stylesheet" href="portfolio.css" />
   </head>
   <body>
+    <script id="viewer-config" type="application/json">{"project":"graph","projects":[{"id":"graph","label":"Codebase"}],"mapUrl":"graph.json"}</script>
     <div id="map-background" aria-hidden="true"></div>
     <header id="portfolio-header" data-ui>
-      <a class="paper home-link" href="https://davidlybeck.com/"
-        >David Lybeck <span>↖ portfolio</span></a
-      ><a class="compare" href="original.html">See original Flow-Code ↗</a>
+      <a class="paper home-link" href="./"
+        >Flow-Code <span>↖ visualizer</span></a
+      ><a class="compare" href="https://github.com/Dlybeck/Flow-Code">About Flow-Code ↗</a>
     </header>
     <nav id="map-tools" data-ui aria-label="Code map options">
       <label>Project <select id="project-picker"></select></label>
@@ -22,10 +23,10 @@
       <span id="theme-error" role="status"></span>
     </nav>
     <section id="hud" data-ui>
-      <p class="eyebrow">A look behind the pages</p>
-      <h1>How it<br />works.</h1>
+      <p class="eyebrow">An unfamiliar codebase, made visible</p>
+      <h1>Explore<br />the code.</h1>
       <p class="intro">
-        Each point is a function.<br />Explore the ideas behind the code.
+        Each point is a function.<br />Follow the important work and its connections.
       </p>
       <div class="graph-label">
         <span class="graph-dot"></span> Exploring Flow-Code
@@ -96,8 +97,8 @@
       </div>
       <p>Drag to turn · Scroll or pinch to zoom · Click a point to explore</p>
       <small
-        >Flow-Code reskin study · saved example graph · height is a layout cue,
-        not runtime</small
+        >Higher means more contextually important to the project · static analysis,
+        not recorded runtime</small
       >
       <details id="snapshot-notes"><summary>About this snapshot</summary><p id="snapshot-summary"></p></details>
     </footer>

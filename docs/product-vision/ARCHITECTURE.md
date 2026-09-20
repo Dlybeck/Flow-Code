@@ -1,99 +1,74 @@
-# Architecture (logical components)
+# Architecture
 
-**Status:** Living — must stay consistent with **[SPEC.md](./SPEC.md) §0–§9**. If this file and **SPEC** disagree, **fix one or both** and add a row to the **SPEC changelog**.
+**Status:** Implemented logical architecture for the familiarization product.
 
-**Purpose:** One **picture** and **named boxes** for implementers: how **workspace**, **RAW**, **overlay**, **API**, **UI**, and **agent** connect. Not a deployment diagram (no K8s, no single-process assumption).
-
----
-
-## 1. Diagram
+## Pipeline
 
 ```mermaid
-flowchart TB
-  subgraph steer["Steering"]
-    H[Human]
-    UI[Graph UI]
-  end
-
-  subgraph agentic["Agent"]
-    A[Agent runtime]
-    T[MCP-style tool host]
-  end
-
-  subgraph svc["Backend services"]
-    API[API]
-    V[Validation gate on bundle apply]
-    CUR[Curation overlay AI output validated]
-  end
-
-  subgraph core["Core graph pipeline"]
-    IDX[Indexer]
-    ST[(RAW store)]
-    D[RAW diff]
-    OV[(Overlay store)]
-    P[Deterministic overlay patch orphans remap]
-  end
-
-  WS[(Workspace files)]
-
-  WS --> IDX
-  IDX --> ST
-  WS --> D
-  ST --> D
-  D --> P
-  P --> OV
-  ST --> CUR
-  CUR --> OV
-
-  ST --> API
-  OV --> API
-  API --> UI
-  H --> UI
-
-  A --> T
-  T --> API
-  T --> V
-  V --> WS
-  WS --> IDX
+flowchart LR
+  SRC[Selected repository source] --> ADAPTER[Single-language adapter]
+  ADAPTER --> RAW[RAW symbols and call evidence]
+  RAW --> IR[Validated execution IR]
+  IR --> SCORE[Local vectors and deterministic terrain scoring]
+  SCORE --> SNAP[Portable terrain snapshot]
+  SNAP --> VIEWER[Standalone 3D or 2D viewer]
+  SNAP --> HOST[Optional host adapter]
+  VIEWER --> READER[Unfamiliar reader]
+  HOST --> READER
+  PURPOSE[Optional human-written purpose] --> SCORE
+  GUIDE[Optional human-authored guide] --> SNAP
 ```
 
-**Read path:** human and agent both consume **RAW + overlay** through **API**; **UI** is graph-first. **Write path:** agent proposals go through **MCP-style tools** → **validation** → **workspace**; **indexer** recomputes **RAW**; **RAW diff** drives **deterministic overlay** maintenance; **curation** (optional job) fills or refreshes **friendly fields** under **validation ⊆ RAW ids**.
+The source-to-snapshot path is build time. The standalone viewer serves static
+JSON and local assets at runtime. Portfolio is represented by the optional host
+box; it is not in the core path.
 
----
+## Components
 
-## 2. Components
+| Component | Responsibility |
+|---|---|
+| Source discovery | Select files and roots while excluding dependencies, generated output, hidden paths, declarations, minified files, and symlinks. |
+| Language adapter | Parse one language and emit files, symbols, stable qualified names, direct call sites, hashes, parse status, and known limits. |
+| RAW document | Preserve recomputable technical evidence in a shared schema. |
+| Execution IR | Normalize function nodes, entry points, call confidence, source locations, and unresolved boundary nodes. |
+| Code embedder | Produce normalized vectors and model/source receipts locally; cache by exact recipe and content. |
+| Terrain scorer | Combine novelty, substance, bounded graph centrality, and optional human-purpose similarity. |
+| Layout | Produce deterministic code-similarity and call-path coordinates and monotonic visual heights. |
+| Snapshot exporter | Verify source hashes, remove source argument snippets, retain limits and evidence, and write portable JSON. |
+| Guide validator | Attach optional human prose only when each stop resolves and adjacent stops have a mapped call. |
+| Standalone packager | Copy one snapshot and built local viewer assets into a static directory. |
+| Viewer | Render 3D terrain with selection and layout controls; fall back to an explorable Canvas 2D map. |
+| Host adapter | Add host navigation, themes, project selection, or introductory prose without changing analysis. |
 
-| Component | Role |
-|-----------|------|
-| **Workspace** | Normal repo tree (`src/`, config, tests). **Source of file bytes**; Git and language tooling stay authoritative for **text**. |
-| **Indexer** | Deterministic **RAW** build behind a **LanguageAdapter** boundary — **Python** (`ast`, optional Pyright diagnostics) + **TypeScript/JS** (tree-sitter); **more languages** = more adapters, same core (**SPEC §7**, §9). Entry point: `flowcode.language_adapter.index_repo_auto()`. |
-| **RAW store** | Persisted graph: symbols, refs, use sites, content hashes / versions (**SPEC §4**). |
-| **RAW diff** | Compare **before/after** index on **reparse**; emit structured events for **overlay** and **remap** (**SPEC §4**, §7). |
-| **Deterministic overlay patch** | **Orphans**, **remap** hooks, **quarantine** — **no** model required for correctness (**SPEC §3**). |
-| **Curation** | Auto-generated from execution IR (`flowcode.auto_overlay`): structural naming + optional Claude Haiku enrichment. `displayName`, `userDescription`, grouping — **output validated** against **RAW ids** (**SPEC §4**). |
-| **Overlay store** | Presentation keyed by **RAW ids**; **labels never replace ids** (**SPEC §3**). |
-| **API** | Subgraph reads, overlay reads/writes allowed by policy, **apply** orchestration (**SPEC §6**). |
-| **Graph UI** | Primary shell: **nodes**, exploded **appearances**, **layout-only** tweaks; **no** directory tree as main nav (**SPEC §2**, §5). |
-| **Agent runtime** | Planner / executor that **does not** “discover” the repo by vibes alone — uses **index-backed** tools (**SPEC §6**). |
-| **MCP-style tool host** | **Scoped** reads/writes: `get_raw_subgraph`, `get_overlay`, `apply_bundle`, etc. (**SPEC §13**). **Ship** as a **thin MCP server** + **HTTP** sharing one implementation; **LLM product** is usually **external** (IDE agent, CLI). |
-| **Validation gate** | **§10.11-style** stack: types/linters, **graph invariants**, tests, human approvals where required — **before** treating a bundle as **done** (**SPEC §6**). |
+## Adapter seam
 
----
+`flowcode.language_adapter.index_repo_auto()` discovers the selected language.
+Python and browser adapters keep their established implementations. Java, C,
+C#, and Haskell use `LanguageSpec` in `treesitter_indexer.py`, which concentrates
+grammar module, syntax node types, extensions, and limitations in one place.
 
-## 3. Cross-cutting notes
+`execution_ir.treesitter_from_raw` consumes only the RAW contract. Downstream
+embedding, scoring, layout, export, and browser code do not branch by language.
+This is the seam for adding Kotlin or Go without duplicating the product.
 
-- **Anchors** link **map** concepts to **paths** and **symbols** when **product graph** and **disk layout** diverge (**SPEC §5**).
-- **Incomplete RAW** surfaces as **degraded / partial** regions in the UI — not as a **silent** complete graph (**SPEC §7**).
-- **Scale:** cost is dominated by **index + store + payload shaping**, not only **curation** API calls (**SPEC §8**).
-- **Tool hosts:** Implement **MCP** (and **HTTP**) as **thin adapters** over the **same** Python/API layer — **Cursor**, **VS Code**, **Claude**-class agents, and **scripts** attach with **config**, not separate domain stacks.
+## Honesty boundaries
 
----
+- Static calls use `resolved`, `heuristic`, or `unknown` confidence.
+- Ambiguous or untraced calls terminate at a visible language boundary.
+- Adapter metadata reports partial or failed parsing.
+- The snapshot calls height estimated importance and retains its formula.
+- Unsupported mixed-language input fails before emitting a plausible partial map.
+- Runtime viewer requests stay inside the generated site.
 
-## Changelog
+## Optional future summary
 
-| Date | Note |
-|------|------|
-| 2025-03-21 | Initial **logical** architecture (pass 3); aligned to **SPEC §0–§6**, §13 step 6. |
-| 2026-03-21 | **Indexer** row + status ref **§9** (Python v1 adapter, expansion path). |
-| 2026-03-22 | **Tool hosts:** MCP+HTTP shared layer; MCP row clarifies thin server + external LLM hosts. |
-| 2026-04-11 | **Indexer** row updated: Python + TypeScript/JS adapters delivered. **Curation** row updated: `auto_overlay` structural + LLM. §4 POC removed (brainstorm UI deleted). ROADMAP refs removed. |
+A generated summary would sit after `SNAP` as a separately invoked enrichment
+artifact. It would never feed the adapter, IR, vector, scoring, or layout boxes.
+The static viewer must remain functional when that artifact is absent.
+
+## Historical branch
+
+Earlier architecture placed an agent, MCP tool host, API, write bundles, and
+validation gate around the graph. Those can be future consumers of snapshots or
+IR. They are omitted here because the current product is read-only codebase
+familiarization.

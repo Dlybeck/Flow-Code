@@ -26,19 +26,46 @@ def index_repo_auto(
     *,
     src_roots: list[str] | None = None,
 ) -> dict[str, Any]:
-    """
-    Auto-detect language(s) present in the repo and dispatch to the appropriate indexer.
+    """Dispatch selected source to its language adapter.
 
-    Currently detects Python (always available) and TypeScript/JavaScript (requires
-    `pip install flowcode[ts]`). If both are present, returns a merged RAW document.
+    Python and browser languages retain their existing adapters. Java, C, C#,
+    and Haskell use one conservative tree-sitter adapter interface. The new
+    languages are intentionally proven one at a time before they participate in
+    mixed graphs.
     """
     root_p = Path(root).resolve()
 
     # Detect and index the same selected files, including web code outside src/.
     src_roots = src_roots if src_roots is not None else ['.']
-    files = source_files(root_p, src_roots, BROWSER_EXTENSIONS | {'.py'})
+    from flowcode.treesitter_indexer import COMPILED_EXTENSIONS, language_for_path
+
+    files = source_files(
+        root_p, src_roots, BROWSER_EXTENSIONS | COMPILED_EXTENSIONS | {'.py'}
+    )
     has_ts = any(p.suffix in BROWSER_EXTENSIONS for p in files)
     has_py = any(p.suffix == '.py' for p in files)
+    compiled_languages = {
+        language for path in files if (language := language_for_path(path)) is not None
+    }
+
+    detected_families = int(has_py) + int(has_ts) + len(compiled_languages)
+    if detected_families > 1 and compiled_languages:
+        names = sorted(
+            ({"python"} if has_py else set())
+            | ({"javascript/typescript"} if has_ts else set())
+            | compiled_languages
+        )
+        raise ValueError(
+            "Mixed-language analysis for these adapters is a later phase; "
+            f"select one language with --src-root (detected: {', '.join(names)})"
+        )
+
+    if len(compiled_languages) == 1:
+        from flowcode.treesitter_indexer import index_treesitter_repo
+
+        return index_treesitter_repo(
+            root_p, language=next(iter(compiled_languages)), src_roots=src_roots
+        )
 
     if has_ts and not has_py:
         from flowcode.ts_indexer import index_ts_repo

@@ -42,6 +42,11 @@ def test_main_label_suffix() -> None:
     assert detect_entrypoints(nodes, []) == ["a"]
 
 
+def test_capitalized_main_label_suffix() -> None:
+    nodes = [_node("a", "Demo.App.Main"), _node("b", "Demo.App.Helper")]
+    assert detect_entrypoints(nodes, []) == ["a"]
+
+
 def test_main_and_factory_collected_together() -> None:
     """Tiers 2-5 collect cumulatively: a project with both a CLI main and an
     app factory should surface both as entrypoints."""

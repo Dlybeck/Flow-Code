@@ -1,0 +1,477 @@
+{
+  "analysis": {
+    "completeness": "partial",
+    "edge_confidence": {
+      "resolved": 2
+    },
+    "embedding": {
+      "chunk_tokens": 512,
+      "code_revision": "3baf9e3ac750e76e8edd3019170176884695fb94",
+      "dimensions": 768,
+      "model": "jinaai/jina-embeddings-v2-base-code",
+      "pooling": "token-weighted mean of complete 512-token chunks; L2 normalized",
+      "revision": "516f4baf13dec4ddddda8631e019b5737c8bc250"
+    },
+    "excluded_directories": [
+      "__pycache__",
+      "bin",
+      "build",
+      "coverage",
+      "dist",
+      "library",
+      "node_modules",
+      "obj",
+      "out",
+      "site-packages",
+      "target",
+      "third_party",
+      "vendor",
+      "vendors",
+      "venv"
+    ],
+    "excluded_patterns": [
+      "hidden paths",
+      "symlinks",
+      "*.min.*",
+      "*.d.ts",
+      "*.d.mts",
+      "*.d.cts"
+    ],
+    "files": [
+      {
+        "analysis": {
+          "completeness": "partial",
+          "parse_ok": true
+        },
+        "path": "src/App.cs",
+        "sha256": "2766300d63fb79654fccd42f35d4ee9bae1e4918182e309e20a8e81a0d82c710"
+      }
+    ],
+    "function_count": 3,
+    "known_limits": [
+      "Static analysis is not a runtime trace.",
+      "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
+      "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
+      "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
+      "Overload resolution, delegates, LINQ lowering, and dynamic dispatch are not type-aware.",
+      "Generated code and framework wiring can remain unresolved.",
+      "Only selected supported source files are indexed; templates, CSS, SQL and unsupported languages are not execution graphs.",
+      "The featured view follows up to three outgoing steps; all selected-source functions remain available in the overview.",
+      "External and unresolved calls appear in function evidence. Semantic height shows estimated importance, not runtime or proven business value. Similarity positions are an approximate projection. Call-path heights also depend on the primary call tree.",
+      "Declared routes may not be mounted at runtime. Constructor and callback links are static hypotheses."
+    ],
+    "languages": [
+      "csharp"
+    ],
+    "source_digest": "5b3aac0cd28ed3aad143d7c683aa8518620c35bebbfc85ac7d6fe8f71c67dfc2",
+    "source_roots": [
+      "."
+    ],
+    "terrain": {
+      "importance": "normalize(novelty_x_substance * (0.75 + 0.25 * graph_centrality))",
+      "method": "code novelty x substance with bounded graph centrality",
+      "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
+      "scoring_scope": "all selected-source functions before featured filtering",
+      "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast"
+    }
+  },
+  "entries": [
+    "csharp:fn:Demo.App.Main"
+  ],
+  "project": "golden-csharp",
+  "schema_version": 2,
+  "views": {
+    "feature": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 12,
+            "path": "src/App.cs"
+          },
+          "confidence": "resolved",
+          "from": "csharp:fn:Demo.App.Calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "csharp:fn:Demo.App.Emphasize"
+        },
+        {
+          "callsite": {
+            "line": 17,
+            "path": "src/App.cs"
+          },
+          "confidence": "resolved",
+          "from": "csharp:fn:Demo.App.Main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "csharp:fn:Demo.App.Calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.873050178241559,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "csharp function \u00b7 src/App.cs:10",
+          "displayName": "Calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "21d8ba7b3e291401c434eb45ab906105a70633ce63e77808cadaa263fdd4f4e6",
+            "source_sha256": "e0e2ec35a64047a709a1e4d125c00dca081b160dea14769faf5459e9cc788f79",
+            "tokens": 24,
+            "vector_sha256": "b6cef49b5a23f9a30c516aaadf9edb1a21608ac4373c0152d65d5559f837a86f"
+          },
+          "file": "src/App.cs",
+          "graph_centrality": 1.0,
+          "height": 8.645236741558875,
+          "id": "csharp:fn:Demo.App.Calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "Calculate",
+          "language": "csharp",
+          "location": {
+            "end_column": 6,
+            "end_line": 13,
+            "path": "src/App.cs",
+            "start_column": 5,
+            "start_line": 10
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "Demo.App.Calculate",
+          "raw_height": 3.547815653181006,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.857677712451039,
+              "id": "csharp:fn:Demo.App.Emphasize"
+            },
+            {
+              "cosine": 0.6096159227802946,
+              "id": "csharp:fn:Demo.App.Main"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.224326305726887,
+          "y_fan": -7.0,
+          "y_umap": 0.27735202049912455
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.2922256959497036,
+          "depth": 2,
+          "description": "csharp function \u00b7 src/App.cs:5",
+          "displayName": "Emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "607f0fc989ca750c5c25b28b40a5a939d0dc7dcad06311311d19fa6bb62fd8e8",
+            "source_sha256": "41b38c4252e2b1c8ed79f8e05cc606401d3360f42f458c209f224ff8ece8b303",
+            "tokens": 21,
+            "vector_sha256": "5a67c5a3d449839745b010b4d4ae59f4fafbd46f2b5bc834553ec44b8831a6e6"
+          },
+          "file": "src/App.cs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "csharp:fn:Demo.App.Emphasize",
+          "importance": 0.2922256959497036,
+          "is_orphan": false,
+          "label": "Emphasize",
+          "language": "csharp",
+          "location": {
+            "end_column": 6,
+            "end_line": 8,
+            "path": "src/App.cs",
+            "start_column": 5,
+            "start_line": 5
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.2922256959497036,
+          "purpose_similarity": 0.0,
+          "qname": "Demo.App.Emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.7077743040502964,
+          "semantic_height": 11.730422677751669,
+          "similar": [
+            {
+              "cosine": 0.857677712451039,
+              "id": "csharp:fn:Demo.App.Calculate"
+            },
+            {
+              "cosine": 0.5071962266847567,
+              "id": "csharp:fn:Demo.App.Main"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.374892312487137,
+          "y_fan": -10.5,
+          "y_umap": -0.2344823791910432
+        },
+        {
+          "boundaries": [],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "csharp function \u00b7 src/App.cs:15",
+          "displayName": "Main",
+          "embedding": {
+            "chunks": 1,
+            "key": "7a40e545741f5d509470a849a4fc4e88ec1526c851c9e61c988867801055942b",
+            "source_sha256": "4c7c2a6aa5794945dd7c5150d8d3473afb2ae42def264455a28594e5450a300f",
+            "tokens": 20,
+            "vector_sha256": "c30f420f60b0d0ce668b6440f240929ab6307ce7d8da81913150e47292314c59"
+          },
+          "file": "src/App.cs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "csharp:fn:Demo.App.Main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "Main",
+          "language": "csharp",
+          "location": {
+            "end_column": 6,
+            "end_line": 18,
+            "path": "src/App.cs",
+            "start_column": 5,
+            "start_line": 15
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "Demo.App.Main",
+          "raw_height": 9.609993479672076,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.6096159227802946,
+              "id": "csharp:fn:Demo.App.Calculate"
+            },
+            {
+              "cosine": 0.5071962266847567,
+              "id": "csharp:fn:Demo.App.Emphasize"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.5992186182140244,
+          "y_fan": -3.5,
+          "y_umap": -0.04286964130808142
+        }
+      ],
+      "peaks": [
+        "csharp:fn:Demo.App.Main"
+      ]
+    },
+    "overview": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 12,
+            "path": "src/App.cs"
+          },
+          "confidence": "resolved",
+          "from": "csharp:fn:Demo.App.Calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "csharp:fn:Demo.App.Emphasize"
+        },
+        {
+          "callsite": {
+            "line": 17,
+            "path": "src/App.cs"
+          },
+          "confidence": "resolved",
+          "from": "csharp:fn:Demo.App.Main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "csharp:fn:Demo.App.Calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.873050178241559,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "csharp function \u00b7 src/App.cs:10",
+          "displayName": "Calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "21d8ba7b3e291401c434eb45ab906105a70633ce63e77808cadaa263fdd4f4e6",
+            "source_sha256": "e0e2ec35a64047a709a1e4d125c00dca081b160dea14769faf5459e9cc788f79",
+            "tokens": 24,
+            "vector_sha256": "b6cef49b5a23f9a30c516aaadf9edb1a21608ac4373c0152d65d5559f837a86f"
+          },
+          "file": "src/App.cs",
+          "graph_centrality": 1.0,
+          "height": 8.645236741558875,
+          "id": "csharp:fn:Demo.App.Calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "Calculate",
+          "language": "csharp",
+          "location": {
+            "end_column": 6,
+            "end_line": 13,
+            "path": "src/App.cs",
+            "start_column": 5,
+            "start_line": 10
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "Demo.App.Calculate",
+          "raw_height": 3.547815653181006,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.857677712451039,
+              "id": "csharp:fn:Demo.App.Emphasize"
+            },
+            {
+              "cosine": 0.6096159227802946,
+              "id": "csharp:fn:Demo.App.Main"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.224326305726887,
+          "y_fan": -7.0,
+          "y_umap": 0.27735202049912455
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.2922256959497036,
+          "depth": 2,
+          "description": "csharp function \u00b7 src/App.cs:5",
+          "displayName": "Emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "607f0fc989ca750c5c25b28b40a5a939d0dc7dcad06311311d19fa6bb62fd8e8",
+            "source_sha256": "41b38c4252e2b1c8ed79f8e05cc606401d3360f42f458c209f224ff8ece8b303",
+            "tokens": 21,
+            "vector_sha256": "5a67c5a3d449839745b010b4d4ae59f4fafbd46f2b5bc834553ec44b8831a6e6"
+          },
+          "file": "src/App.cs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "csharp:fn:Demo.App.Emphasize",
+          "importance": 0.2922256959497036,
+          "is_orphan": false,
+          "label": "Emphasize",
+          "language": "csharp",
+          "location": {
+            "end_column": 6,
+            "end_line": 8,
+            "path": "src/App.cs",
+            "start_column": 5,
+            "start_line": 5
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.2922256959497036,
+          "purpose_similarity": 0.0,
+          "qname": "Demo.App.Emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.7077743040502964,
+          "semantic_height": 11.730422677751669,
+          "similar": [
+            {
+              "cosine": 0.857677712451039,
+              "id": "csharp:fn:Demo.App.Calculate"
+            },
+            {
+              "cosine": 0.5071962266847567,
+              "id": "csharp:fn:Demo.App.Main"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.374892312487137,
+          "y_fan": -10.5,
+          "y_umap": -0.2344823791910432
+        },
+        {
+          "boundaries": [],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "csharp function \u00b7 src/App.cs:15",
+          "displayName": "Main",
+          "embedding": {
+            "chunks": 1,
+            "key": "7a40e545741f5d509470a849a4fc4e88ec1526c851c9e61c988867801055942b",
+            "source_sha256": "4c7c2a6aa5794945dd7c5150d8d3473afb2ae42def264455a28594e5450a300f",
+            "tokens": 20,
+            "vector_sha256": "c30f420f60b0d0ce668b6440f240929ab6307ce7d8da81913150e47292314c59"
+          },
+          "file": "src/App.cs",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "csharp:fn:Demo.App.Main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "Main",
+          "language": "csharp",
+          "location": {
+            "end_column": 6,
+            "end_line": 18,
+            "path": "src/App.cs",
+            "start_column": 5,
+            "start_line": 15
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "Demo.App.Main",
+          "raw_height": 9.609993479672076,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.6096159227802946,
+              "id": "csharp:fn:Demo.App.Calculate"
+            },
+            {
+              "cosine": 0.5071962266847567,
+              "id": "csharp:fn:Demo.App.Emphasize"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.5992186182140244,
+          "y_fan": -3.5,
+          "y_umap": -0.04286964130808142
+        }
+      ],
+      "peaks": [
+        "csharp:fn:Demo.App.Main"
+      ]
+    }
+  }
+}

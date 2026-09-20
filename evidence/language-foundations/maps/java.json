@@ -1,0 +1,477 @@
+{
+  "analysis": {
+    "completeness": "partial",
+    "edge_confidence": {
+      "resolved": 2
+    },
+    "embedding": {
+      "chunk_tokens": 512,
+      "code_revision": "3baf9e3ac750e76e8edd3019170176884695fb94",
+      "dimensions": 768,
+      "model": "jinaai/jina-embeddings-v2-base-code",
+      "pooling": "token-weighted mean of complete 512-token chunks; L2 normalized",
+      "revision": "516f4baf13dec4ddddda8631e019b5737c8bc250"
+    },
+    "excluded_directories": [
+      "__pycache__",
+      "bin",
+      "build",
+      "coverage",
+      "dist",
+      "library",
+      "node_modules",
+      "obj",
+      "out",
+      "site-packages",
+      "target",
+      "third_party",
+      "vendor",
+      "vendors",
+      "venv"
+    ],
+    "excluded_patterns": [
+      "hidden paths",
+      "symlinks",
+      "*.min.*",
+      "*.d.ts",
+      "*.d.mts",
+      "*.d.cts"
+    ],
+    "files": [
+      {
+        "analysis": {
+          "completeness": "partial",
+          "parse_ok": true
+        },
+        "path": "src/demo/App.java",
+        "sha256": "bee29dbf547d4aa3cdafde86cdf4ecd7517951052d603cd00cb11e2c766afdab"
+      }
+    ],
+    "function_count": 3,
+    "known_limits": [
+      "Static analysis is not a runtime trace.",
+      "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
+      "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
+      "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
+      "Overload resolution and dynamic dispatch are not type-aware.",
+      "Calls through objects, reflection, and generated sources can remain unresolved.",
+      "Only selected supported source files are indexed; templates, CSS, SQL and unsupported languages are not execution graphs.",
+      "The featured view follows up to three outgoing steps; all selected-source functions remain available in the overview.",
+      "External and unresolved calls appear in function evidence. Semantic height shows estimated importance, not runtime or proven business value. Similarity positions are an approximate projection. Call-path heights also depend on the primary call tree.",
+      "Declared routes may not be mounted at runtime. Constructor and callback links are static hypotheses."
+    ],
+    "languages": [
+      "java"
+    ],
+    "source_digest": "ed3e8501d3b231fd2fa92ecfc34e8c058c059737237c59af794df610e19785c1",
+    "source_roots": [
+      "."
+    ],
+    "terrain": {
+      "importance": "normalize(novelty_x_substance * (0.75 + 0.25 * graph_centrality))",
+      "method": "code novelty x substance with bounded graph centrality",
+      "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
+      "scoring_scope": "all selected-source functions before featured filtering",
+      "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast"
+    }
+  },
+  "entries": [
+    "java:fn:demo.App.main"
+  ],
+  "project": "golden-java",
+  "schema_version": 2,
+  "views": {
+    "feature": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 9,
+            "path": "src/demo/App.java"
+          },
+          "confidence": "resolved",
+          "from": "java:fn:demo.App.calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "java:fn:demo.App.emphasize"
+        },
+        {
+          "callsite": {
+            "line": 13,
+            "path": "src/demo/App.java"
+          },
+          "confidence": "resolved",
+          "from": "java:fn:demo.App.main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "java:fn:demo.App.calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.741295363754263,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "java function \u00b7 src/demo/App.java:8",
+          "displayName": "calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "6e5ce19cbfde6bcb418a8389cd653ae3d615210c218c62223405bf7043b857bc",
+            "source_sha256": "5fab37df7240ced6abdc5d56ea4e38e7cb958a2d36e8eab9b2dd602784510f74",
+            "tokens": 23,
+            "vector_sha256": "b670b9fb1ad6bdd8856d6ce75d2e694b24c1baacef3f23e1fe8ae8deaf2a7084"
+          },
+          "file": "src/demo/App.java",
+          "graph_centrality": 1.0,
+          "height": 9.443957856477207,
+          "id": "java:fn:demo.App.calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "calculate",
+          "language": "java",
+          "location": {
+            "end_column": 6,
+            "end_line": 10,
+            "path": "src/demo/App.java",
+            "start_column": 5,
+            "start_line": 8
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "demo.App.calculate",
+          "raw_height": 4.274954158510997,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.8480319771476441,
+              "id": "java:fn:demo.App.emphasize"
+            },
+            {
+              "cosine": 0.5445283956990417,
+              "id": "java:fn:demo.App.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.26831987911480165,
+          "y_fan": -7.0,
+          "y_umap": 0.2851914998242931
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.18615898538798606,
+          "depth": 2,
+          "description": "java function \u00b7 src/demo/App.java:4",
+          "displayName": "emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "40bf3c091a0940ecce911df03666595d4415db7c9638fc0a0ed9df108a6a77c5",
+            "source_sha256": "2529d7a8d0d3836c97c7d1941c02d42523684cbbe5094b402a0b4d1ed5e787f3",
+            "tokens": 20,
+            "vector_sha256": "d1bbebcd8ccccb7dd8d9230475ba2a77bcea9887872603c295e3d24ec6416eb7"
+          },
+          "file": "src/demo/App.java",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "java:fn:demo.App.emphasize",
+          "importance": 0.18615898538798606,
+          "is_orphan": false,
+          "label": "emphasize",
+          "language": "java",
+          "location": {
+            "end_column": 6,
+            "end_line": 6,
+            "path": "src/demo/App.java",
+            "start_column": 5,
+            "start_line": 4
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.18615898538798603,
+          "purpose_similarity": 0.0,
+          "qname": "demo.App.emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.813841014612014,
+          "semantic_height": 9.7663061532306,
+          "similar": [
+            {
+              "cosine": 0.8480319771476441,
+              "id": "java:fn:demo.App.calculate"
+            },
+            {
+              "cosine": 0.4751046166443237,
+              "id": "java:fn:demo.App.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.3650712225460485,
+          "y_fan": -10.5,
+          "y_umap": -0.2575563451727742
+        },
+        {
+          "boundaries": [],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "java function \u00b7 src/demo/App.java:12",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "7d4024f3c022b564889985f2bbd6a2dc755150ca480deafc1e7baa39429663af",
+            "source_sha256": "921cd153e8e7eb54d08467d18eb5e3ae0ce93abe73216c68952eb95bdc0b4600",
+            "tokens": 20,
+            "vector_sha256": "9c671095e8228291370b0f956e968a22bbeb4e230fd388a7cce8141531dae349"
+          },
+          "file": "src/demo/App.java",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "java:fn:demo.App.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "java",
+          "location": {
+            "end_column": 6,
+            "end_line": 14,
+            "path": "src/demo/App.java",
+            "start_column": 5,
+            "start_line": 12
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "demo.App.main",
+          "raw_height": 10.337131985002067,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.5445283956990417,
+              "id": "java:fn:demo.App.calculate"
+            },
+            {
+              "cosine": 0.4751046166443237,
+              "id": "java:fn:demo.App.emphasize"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.6333911016608498,
+          "y_fan": -3.5,
+          "y_umap": -0.02763515465151866
+        }
+      ],
+      "peaks": [
+        "java:fn:demo.App.main"
+      ]
+    },
+    "overview": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 9,
+            "path": "src/demo/App.java"
+          },
+          "confidence": "resolved",
+          "from": "java:fn:demo.App.calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "java:fn:demo.App.emphasize"
+        },
+        {
+          "callsite": {
+            "line": 13,
+            "path": "src/demo/App.java"
+          },
+          "confidence": "resolved",
+          "from": "java:fn:demo.App.main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "java:fn:demo.App.calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.741295363754263,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "java function \u00b7 src/demo/App.java:8",
+          "displayName": "calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "6e5ce19cbfde6bcb418a8389cd653ae3d615210c218c62223405bf7043b857bc",
+            "source_sha256": "5fab37df7240ced6abdc5d56ea4e38e7cb958a2d36e8eab9b2dd602784510f74",
+            "tokens": 23,
+            "vector_sha256": "b670b9fb1ad6bdd8856d6ce75d2e694b24c1baacef3f23e1fe8ae8deaf2a7084"
+          },
+          "file": "src/demo/App.java",
+          "graph_centrality": 1.0,
+          "height": 9.443957856477207,
+          "id": "java:fn:demo.App.calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "calculate",
+          "language": "java",
+          "location": {
+            "end_column": 6,
+            "end_line": 10,
+            "path": "src/demo/App.java",
+            "start_column": 5,
+            "start_line": 8
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "demo.App.calculate",
+          "raw_height": 4.274954158510997,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.8480319771476441,
+              "id": "java:fn:demo.App.emphasize"
+            },
+            {
+              "cosine": 0.5445283956990417,
+              "id": "java:fn:demo.App.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.26831987911480165,
+          "y_fan": -7.0,
+          "y_umap": 0.2851914998242931
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.18615898538798606,
+          "depth": 2,
+          "description": "java function \u00b7 src/demo/App.java:4",
+          "displayName": "emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "40bf3c091a0940ecce911df03666595d4415db7c9638fc0a0ed9df108a6a77c5",
+            "source_sha256": "2529d7a8d0d3836c97c7d1941c02d42523684cbbe5094b402a0b4d1ed5e787f3",
+            "tokens": 20,
+            "vector_sha256": "d1bbebcd8ccccb7dd8d9230475ba2a77bcea9887872603c295e3d24ec6416eb7"
+          },
+          "file": "src/demo/App.java",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "java:fn:demo.App.emphasize",
+          "importance": 0.18615898538798606,
+          "is_orphan": false,
+          "label": "emphasize",
+          "language": "java",
+          "location": {
+            "end_column": 6,
+            "end_line": 6,
+            "path": "src/demo/App.java",
+            "start_column": 5,
+            "start_line": 4
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.18615898538798603,
+          "purpose_similarity": 0.0,
+          "qname": "demo.App.emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.813841014612014,
+          "semantic_height": 9.7663061532306,
+          "similar": [
+            {
+              "cosine": 0.8480319771476441,
+              "id": "java:fn:demo.App.calculate"
+            },
+            {
+              "cosine": 0.4751046166443237,
+              "id": "java:fn:demo.App.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.3650712225460485,
+          "y_fan": -10.5,
+          "y_umap": -0.2575563451727742
+        },
+        {
+          "boundaries": [],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "java function \u00b7 src/demo/App.java:12",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "7d4024f3c022b564889985f2bbd6a2dc755150ca480deafc1e7baa39429663af",
+            "source_sha256": "921cd153e8e7eb54d08467d18eb5e3ae0ce93abe73216c68952eb95bdc0b4600",
+            "tokens": 20,
+            "vector_sha256": "9c671095e8228291370b0f956e968a22bbeb4e230fd388a7cce8141531dae349"
+          },
+          "file": "src/demo/App.java",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "java:fn:demo.App.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "java",
+          "location": {
+            "end_column": 6,
+            "end_line": 14,
+            "path": "src/demo/App.java",
+            "start_column": 5,
+            "start_line": 12
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "demo.App.main",
+          "raw_height": 10.337131985002067,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.5445283956990417,
+              "id": "java:fn:demo.App.calculate"
+            },
+            {
+              "cosine": 0.4751046166443237,
+              "id": "java:fn:demo.App.emphasize"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.6333911016608498,
+          "y_fan": -3.5,
+          "y_umap": -0.02763515465151866
+        }
+      ],
+      "peaks": [
+        "java:fn:demo.App.main"
+      ]
+    }
+  }
+}

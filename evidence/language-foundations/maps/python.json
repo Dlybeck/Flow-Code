@@ -1,0 +1,1279 @@
+{
+  "analysis": {
+    "completeness": "partial",
+    "edge_confidence": {
+      "resolved": 9,
+      "unknown": 14
+    },
+    "embedding": {
+      "chunk_tokens": 512,
+      "code_revision": "3baf9e3ac750e76e8edd3019170176884695fb94",
+      "dimensions": 768,
+      "model": "jinaai/jina-embeddings-v2-base-code",
+      "pooling": "token-weighted mean of complete 512-token chunks; L2 normalized",
+      "revision": "516f4baf13dec4ddddda8631e019b5737c8bc250"
+    },
+    "excluded_directories": [
+      "__pycache__",
+      "bin",
+      "build",
+      "coverage",
+      "dist",
+      "library",
+      "node_modules",
+      "obj",
+      "out",
+      "site-packages",
+      "target",
+      "third_party",
+      "vendor",
+      "vendors",
+      "venv"
+    ],
+    "excluded_patterns": [
+      "hidden paths",
+      "symlinks",
+      "*.min.*",
+      "*.d.ts",
+      "*.d.mts",
+      "*.d.cts"
+    ],
+    "files": [
+      {
+        "analysis": {
+          "completeness": "complete",
+          "parse_ok": true
+        },
+        "path": "src/golden_app/__init__.py",
+        "sha256": "6e35bc8342faad31f0c50254dda5a801af12001445f7d9d6e65bc50ce97d3ac6"
+      },
+      {
+        "analysis": {
+          "completeness": "complete",
+          "parse_ok": true
+        },
+        "path": "src/golden_app/app.py",
+        "sha256": "2e5c2b05b056ed4727a4d769b1ad7a594284be2c104bf03dbb825cefbfc2200c"
+      },
+      {
+        "analysis": {
+          "completeness": "complete",
+          "parse_ok": true
+        },
+        "path": "src/golden_app/core.py",
+        "sha256": "8f3de1462061a08e095d64b39f1b48e6928a199cbb4993a9ccbccdec2e72523e"
+      },
+      {
+        "analysis": {
+          "completeness": "complete",
+          "parse_ok": true
+        },
+        "path": "tests/test_app.py",
+        "sha256": "a6365192e5a3c8a31a4cca987ab31d4fe7fdf78aa32bc65a3a4e2a04a9bc3dd4"
+      },
+      {
+        "analysis": {
+          "completeness": "complete",
+          "parse_ok": true
+        },
+        "path": "tests/test_core.py",
+        "sha256": "92cac6a7b11123b75cbc2788175b8004ba1f5c3faf2e654af778dea06a8ea75d"
+      }
+    ],
+    "function_count": 8,
+    "known_limits": [
+      "Static analysis is not a runtime trace.",
+      "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
+      "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
+      "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
+      "Structural AST only \u2014 no type-aware call graph.",
+      "Import edges record static import / import-from statements only.",
+      "Dynamic imports, reflection, and string-based imports are invisible.",
+      "Only selected supported source files are indexed; templates, CSS, SQL and unsupported languages are not execution graphs.",
+      "The featured view follows up to three outgoing steps; all selected-source functions remain available in the overview.",
+      "External and unresolved calls appear in function evidence. Semantic height shows estimated importance, not runtime or proven business value. Similarity positions are an approximate projection. Call-path heights also depend on the primary call tree.",
+      "Declared routes may not be mounted at runtime. Constructor and callback links are static hypotheses."
+    ],
+    "languages": [
+      "python"
+    ],
+    "source_digest": "62bdec7f1540b9611d4447871b21e9b8b545fd4388f864ee2fb204d39ed3cd88",
+    "source_roots": [
+      "."
+    ],
+    "terrain": {
+      "importance": "normalize(novelty_x_substance * (0.75 + 0.25 * graph_centrality))",
+      "method": "code novelty x substance with bounded graph centrality",
+      "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
+      "scoring_scope": "all selected-source functions before featured filtering",
+      "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast"
+    }
+  },
+  "entries": [
+    "py:fn:golden_app.app.create_app",
+    "py:fn:golden_app.app.create_app.goodbye",
+    "py:fn:golden_app.app.create_app.greet"
+  ],
+  "project": "golden-fastapi",
+  "schema_version": 2,
+  "views": {
+    "feature": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 21,
+            "path": "src/golden_app/app.py"
+          },
+          "confidence": "resolved",
+          "from": "py:fn:golden_app.app.create_app.greet",
+          "id": "e:3",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "py:fn:golden_app.core.greeting_for"
+        }
+      ],
+      "height_scale": {
+        "factor": 5.058044161321371,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 1,
+      "nodes": [
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "external",
+              "callsite": {
+                "callee": "FastAPI",
+                "import_ref": "fastapi.FastAPI",
+                "line": 10,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app",
+              "id": "e:9",
+              "kind": "calls",
+              "target": "FastAPI",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "python function \u00b7 src/golden_app/app.py:8",
+          "displayName": "create_app",
+          "embedding": {
+            "chunks": 1,
+            "key": "642ee7ef53053076ca00fc222a48b1743c3a4b971805d90c1adc51bbe013ec96",
+            "source_sha256": "3b74ce42b12f7c14f296b7b06bbc08319d5a480734506bb35464385de3ea1033",
+            "tokens": 210,
+            "vector_sha256": "78ed1e63fb62fe931e53a6893170ce33f53f063bd9ed29d7c79cc59eba7ba197"
+          },
+          "file": "src/golden_app/app.py",
+          "graph_centrality": 1.0,
+          "height": 2.505804416132137,
+          "id": "py:fn:golden_app.app.create_app",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "create_app",
+          "language": "python",
+          "location": {
+            "end_line": 29,
+            "path": "src/golden_app/app.py",
+            "start_line": 8
+          },
+          "n_callees": 0,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.app.create_app",
+          "raw_height": 0.1,
+          "routes": [],
+          "semantic_density": 0.4220886921155764,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.5879456503124905,
+              "id": "py:fn:tests.test_app.test_greet"
+            },
+            {
+              "cosine": 0.5646696162753053,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.5521402889045138,
+              "id": "py:fn:golden_app.app.create_app.health"
+            }
+          ],
+          "source_lines": 22,
+          "x_fan": -1.8,
+          "x_umap": -6.436001777648926,
+          "y_fan": 2.3,
+          "y_umap": 4.610766887664795
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 23,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.goodbye",
+              "id": "e:10",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 24,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.goodbye",
+              "id": "e:11",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee": "goodbye_for",
+                "import_ref": "golden_app.core.goodbye_for",
+                "line": 27,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.goodbye",
+              "id": "e:12",
+              "kind": "calls",
+              "target": "goodbye_for",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.029019738312219476,
+          "depth": 0,
+          "description": "python function \u00b7 src/golden_app/app.py:25",
+          "displayName": "goodbye",
+          "embedding": {
+            "chunks": 1,
+            "key": "179f3b5677c063039ae507c102bdcee741388c4afe262077ea33a4784bd8695d",
+            "source_sha256": "9480a8f2689795e2ce37285eba2a2567bb49e637eb7918ef82124d53ac06d14c",
+            "tokens": 48,
+            "vector_sha256": "1d5286d9362c44972592465a4459251f89fd8a132fd19eeb9252e6d1b9f39b04"
+          },
+          "file": "src/golden_app/app.py",
+          "graph_centrality": 0.0,
+          "height": 2.505804416132137,
+          "id": "py:fn:golden_app.app.create_app.goodbye",
+          "importance": 0.029019738312219476,
+          "is_orphan": false,
+          "label": "goodbye",
+          "language": "python",
+          "location": {
+            "end_line": 27,
+            "path": "src/golden_app/app.py",
+            "start_line": 25
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.03869298441629263,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.app.create_app.goodbye",
+          "raw_height": 0.1,
+          "routes": [
+            {
+              "line": 23,
+              "method": "GET",
+              "path": "/goodbye/{name}",
+              "source": "src/golden_app/app.py"
+            },
+            {
+              "line": 24,
+              "method": "GET",
+              "path": "/goodbye/",
+              "source": "src/golden_app/app.py"
+            }
+          ],
+          "semantic_density": 0.8509259118001914,
+          "semantic_height": 5.066332534667287,
+          "similar": [
+            {
+              "cosine": 0.8904350496330122,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.6069722448172201,
+              "id": "py:fn:golden_app.core.greeting_for"
+            },
+            {
+              "cosine": 0.6021276017883487,
+              "id": "py:fn:golden_app.app.create_app.health"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 0.0,
+          "x_umap": -6.767866134643555,
+          "y_fan": 2.3,
+          "y_umap": 3.2966699600219727
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 17,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.greet",
+              "id": "e:13",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 18,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.greet",
+              "id": "e:14",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.0,
+          "depth": 0,
+          "description": "python function \u00b7 src/golden_app/app.py:19",
+          "displayName": "greet",
+          "embedding": {
+            "chunks": 1,
+            "key": "fef8a5c68de847c11b63cc29ee8e2929f1a942c4ab622a1aa6a58c219f456773",
+            "source_sha256": "ae9def5f569d484d6cb1bec151ae81a78286eb9d60c6e0e5b71ac08cd5855e42",
+            "tokens": 47,
+            "vector_sha256": "f3135da43ba6875d0ae23576c10384c96beed40fc37714e12adb2a62e3cb7b20"
+          },
+          "file": "src/golden_app/app.py",
+          "graph_centrality": 0.5658262487936981,
+          "height": 20.0,
+          "id": "py:fn:golden_app.app.create_app.greet",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "greet",
+          "language": "python",
+          "location": {
+            "end_line": 21,
+            "path": "src/golden_app/app.py",
+            "start_line": 19
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.app.create_app.greet",
+          "raw_height": 3.558687790360781,
+          "routes": [
+            {
+              "line": 17,
+              "method": "GET",
+              "path": "/greet/{name}",
+              "source": "src/golden_app/app.py"
+            },
+            {
+              "line": 18,
+              "method": "GET",
+              "path": "/greet/",
+              "source": "src/golden_app/app.py"
+            }
+          ],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.8904350496330122,
+              "id": "py:fn:golden_app.app.create_app.goodbye"
+            },
+            {
+              "cosine": 0.6530931209217343,
+              "id": "py:fn:golden_app.core.greeting_for"
+            },
+            {
+              "cosine": 0.6306901975003543,
+              "id": "py:fn:golden_app.app.create_app.health"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": -6.00812292098999,
+          "y_fan": -3.5,
+          "y_umap": 3.8286828994750977
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "name.strip",
+                "line": 6,
+                "path": "src/golden_app/core.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.core.greeting_for",
+              "id": "e:16",
+              "kind": "calls",
+              "target": "name.strip",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.290472775341726,
+          "depth": 1,
+          "description": "python function \u00b7 src/golden_app/core.py:4",
+          "displayName": "greeting_for",
+          "embedding": {
+            "chunks": 1,
+            "key": "8d0aec7a2335b959b89ea33efa4f4599b007732b17f9ac4eb3c4cb80a6265ae9",
+            "source_sha256": "0ceaca14d8719e95ddd99323f9f283f00991d68029ee25122c7feda79339d198",
+            "tokens": 44,
+            "vector_sha256": "eab4cdf165ef8ca348f16d090dae3fbcadd8e22146ec62e2c0845a2cefbbec93"
+          },
+          "file": "src/golden_app/core.py",
+          "graph_centrality": 1.0,
+          "height": 2.0,
+          "id": "py:fn:golden_app.core.greeting_for",
+          "importance": 0.290472775341726,
+          "is_orphan": false,
+          "label": "greeting_for",
+          "language": "python",
+          "location": {
+            "end_line": 7,
+            "path": "src/golden_app/core.py",
+            "start_line": 4
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.290472775341726,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.core.greeting_for",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.32528114163989313,
+          "semantic_height": 11.701194731099836,
+          "similar": [
+            {
+              "cosine": 0.712221584664044,
+              "id": "py:fn:tests.test_core.test_greeting_trims_and_defaults"
+            },
+            {
+              "cosine": 0.6530931209217343,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.6069722448172201,
+              "id": "py:fn:golden_app.app.create_app.goodbye"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -5.932394981384277,
+          "y_fan": -7.0,
+          "y_umap": 2.7677366733551025
+        }
+      ],
+      "peaks": [
+        "py:fn:golden_app.app.create_app.greet"
+      ]
+    },
+    "overview": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 21,
+            "path": "src/golden_app/app.py"
+          },
+          "confidence": "resolved",
+          "from": "py:fn:golden_app.app.create_app.greet",
+          "id": "e:3",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "py:fn:golden_app.core.greeting_for"
+        },
+        {
+          "callsite": {
+            "line": 14,
+            "path": "tests/test_app.py"
+          },
+          "confidence": "resolved",
+          "from": "py:fn:tests.test_app.test_greet",
+          "id": "e:4",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "py:fn:golden_app.app.create_app"
+        },
+        {
+          "callsite": {
+            "line": 7,
+            "path": "tests/test_app.py"
+          },
+          "confidence": "resolved",
+          "from": "py:fn:tests.test_app.test_health",
+          "id": "e:5",
+          "is_primary": false,
+          "kind": "calls",
+          "to": "py:fn:golden_app.app.create_app"
+        },
+        {
+          "callsite": {
+            "line": 5,
+            "path": "tests/test_core.py"
+          },
+          "confidence": "resolved",
+          "from": "py:fn:tests.test_core.test_greeting_trims_and_defaults",
+          "id": "e:6",
+          "is_primary": false,
+          "kind": "calls",
+          "to": "py:fn:golden_app.core.greeting_for"
+        },
+        {
+          "callsite": {
+            "line": 6,
+            "path": "tests/test_core.py"
+          },
+          "confidence": "resolved",
+          "from": "py:fn:tests.test_core.test_greeting_trims_and_defaults",
+          "id": "e:7",
+          "is_primary": false,
+          "kind": "calls",
+          "to": "py:fn:golden_app.core.greeting_for"
+        },
+        {
+          "callsite": {
+            "line": 7,
+            "path": "tests/test_core.py"
+          },
+          "confidence": "resolved",
+          "from": "py:fn:tests.test_core.test_greeting_trims_and_defaults",
+          "id": "e:8",
+          "is_primary": false,
+          "kind": "calls",
+          "to": "py:fn:golden_app.core.greeting_for"
+        }
+      ],
+      "height_scale": {
+        "factor": 2.7278613256528423,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 1,
+      "nodes": [
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "external",
+              "callsite": {
+                "callee": "FastAPI",
+                "import_ref": "fastapi.FastAPI",
+                "line": 10,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app",
+              "id": "e:9",
+              "kind": "calls",
+              "target": "FastAPI",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 1.0,
+          "depth": 1,
+          "description": "python function \u00b7 src/golden_app/app.py:8",
+          "displayName": "create_app",
+          "embedding": {
+            "chunks": 1,
+            "key": "642ee7ef53053076ca00fc222a48b1743c3a4b971805d90c1adc51bbe013ec96",
+            "source_sha256": "3b74ce42b12f7c14f296b7b06bbc08319d5a480734506bb35464385de3ea1033",
+            "tokens": 210,
+            "vector_sha256": "78ed1e63fb62fe931e53a6893170ce33f53f063bd9ed29d7c79cc59eba7ba197"
+          },
+          "file": "src/golden_app/app.py",
+          "graph_centrality": 1.0,
+          "height": 14.421569163935164,
+          "id": "py:fn:golden_app.app.create_app",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "create_app",
+          "language": "python",
+          "location": {
+            "end_line": 29,
+            "path": "src/golden_app/app.py",
+            "start_line": 8
+          },
+          "n_callees": 0,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.app.create_app",
+          "raw_height": 4.553592606457876,
+          "routes": [],
+          "semantic_density": 0.4220886921155764,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.5879456503124905,
+              "id": "py:fn:tests.test_app.test_greet"
+            },
+            {
+              "cosine": 0.5646696162753053,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.5521402889045138,
+              "id": "py:fn:golden_app.app.create_app.health"
+            }
+          ],
+          "source_lines": 22,
+          "x_fan": -2.6799980892488645e-15,
+          "x_umap": -6.436001777648926,
+          "y_fan": -7.0,
+          "y_umap": 4.610766887664795
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 23,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.goodbye",
+              "id": "e:10",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 24,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.goodbye",
+              "id": "e:11",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee": "goodbye_for",
+                "import_ref": "golden_app.core.goodbye_for",
+                "line": 27,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.goodbye",
+              "id": "e:12",
+              "kind": "calls",
+              "target": "goodbye_for",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.029019738312219476,
+          "depth": 0,
+          "description": "python function \u00b7 src/golden_app/app.py:25",
+          "displayName": "goodbye",
+          "embedding": {
+            "chunks": 1,
+            "key": "179f3b5677c063039ae507c102bdcee741388c4afe262077ea33a4784bd8695d",
+            "source_sha256": "9480a8f2689795e2ce37285eba2a2567bb49e637eb7918ef82124d53ac06d14c",
+            "tokens": 48,
+            "vector_sha256": "1d5286d9362c44972592465a4459251f89fd8a132fd19eeb9252e6d1b9f39b04"
+          },
+          "file": "src/golden_app/app.py",
+          "graph_centrality": 0.0,
+          "height": 2.272786132565284,
+          "id": "py:fn:golden_app.app.create_app.goodbye",
+          "importance": 0.029019738312219476,
+          "is_orphan": false,
+          "label": "goodbye",
+          "language": "python",
+          "location": {
+            "end_line": 27,
+            "path": "src/golden_app/app.py",
+            "start_line": 25
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.03869298441629263,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.app.create_app.goodbye",
+          "raw_height": 0.1,
+          "routes": [
+            {
+              "line": 23,
+              "method": "GET",
+              "path": "/goodbye/{name}",
+              "source": "src/golden_app/app.py"
+            },
+            {
+              "line": 24,
+              "method": "GET",
+              "path": "/goodbye/",
+              "source": "src/golden_app/app.py"
+            }
+          ],
+          "semantic_density": 0.8509259118001914,
+          "semantic_height": 5.066332534667287,
+          "similar": [
+            {
+              "cosine": 0.8904350496330122,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.6069722448172201,
+              "id": "py:fn:golden_app.core.greeting_for"
+            },
+            {
+              "cosine": 0.6021276017883487,
+              "id": "py:fn:golden_app.app.create_app.health"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": -1.8,
+          "x_umap": -6.767866134643555,
+          "y_fan": 8.5725583622741,
+          "y_umap": 3.2966699600219727
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 17,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.greet",
+              "id": "e:13",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 18,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.greet",
+              "id": "e:14",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.0,
+          "depth": 0,
+          "description": "python function \u00b7 src/golden_app/app.py:19",
+          "displayName": "greet",
+          "embedding": {
+            "chunks": 1,
+            "key": "fef8a5c68de847c11b63cc29ee8e2929f1a942c4ab622a1aa6a58c219f456773",
+            "source_sha256": "ae9def5f569d484d6cb1bec151ae81a78286eb9d60c6e0e5b71ac08cd5855e42",
+            "tokens": 47,
+            "vector_sha256": "f3135da43ba6875d0ae23576c10384c96beed40fc37714e12adb2a62e3cb7b20"
+          },
+          "file": "src/golden_app/app.py",
+          "graph_centrality": 0.5658262487936981,
+          "height": 11.707606793398147,
+          "id": "py:fn:golden_app.app.create_app.greet",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "greet",
+          "language": "python",
+          "location": {
+            "end_line": 21,
+            "path": "src/golden_app/app.py",
+            "start_line": 19
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.app.create_app.greet",
+          "raw_height": 3.558687790360782,
+          "routes": [
+            {
+              "line": 17,
+              "method": "GET",
+              "path": "/greet/{name}",
+              "source": "src/golden_app/app.py"
+            },
+            {
+              "line": 18,
+              "method": "GET",
+              "path": "/greet/",
+              "source": "src/golden_app/app.py"
+            }
+          ],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.8904350496330122,
+              "id": "py:fn:golden_app.app.create_app.goodbye"
+            },
+            {
+              "cosine": 0.6530931209217343,
+              "id": "py:fn:golden_app.core.greeting_for"
+            },
+            {
+              "cosine": 0.6306901975003543,
+              "id": "py:fn:golden_app.app.create_app.health"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": -3.213756374080959,
+          "x_umap": -6.00812292098999,
+          "y_fan": 1.3862791811370494,
+          "y_umap": 3.8286828994750977
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "app.get",
+                "line": 12,
+                "path": "src/golden_app/app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.app.create_app.health",
+              "id": "e:15",
+              "kind": "calls",
+              "target": "app.get",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.07215092148116395,
+          "depth": 0,
+          "description": "python function \u00b7 src/golden_app/app.py:13",
+          "displayName": "health",
+          "embedding": {
+            "chunks": 1,
+            "key": "4e0ab415cc9a85fbfcae81a0227c19b088da82ac7c302950df52d3c2bc47488d",
+            "source_sha256": "13bc21ec63c5aa24595f3ca3bb5460da1e67ef365a3edacdbdab3b08d239b076",
+            "tokens": 31,
+            "vector_sha256": "101788363d8bfe014f33c1efc10e89a92d1415e60c59b3fe628d4a9c92fc3872"
+          },
+          "file": "src/golden_app/app.py",
+          "graph_centrality": 0.0,
+          "height": 2.272786132565284,
+          "id": "py:fn:golden_app.app.create_app.health",
+          "importance": 0.07215092148116395,
+          "is_orphan": false,
+          "label": "health",
+          "language": "python",
+          "location": {
+            "end_line": 15,
+            "path": "src/golden_app/app.py",
+            "start_line": 13
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.09620122864155194,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.app.create_app.health",
+          "raw_height": 0.1,
+          "routes": [
+            {
+              "line": 12,
+              "method": "GET",
+              "path": "/health",
+              "source": "src/golden_app/app.py"
+            }
+          ],
+          "semantic_density": 0.6293614809044817,
+          "semantic_height": 6.834966241857033,
+          "similar": [
+            {
+              "cosine": 0.7794375345555479,
+              "id": "py:fn:tests.test_app.test_health"
+            },
+            {
+              "cosine": 0.6306901975003543,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.6021276017883487,
+              "id": "py:fn:golden_app.app.create_app.goodbye"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 0.0,
+          "x_umap": -7.269890785217285,
+          "y_fan": 8.5725583622741,
+          "y_umap": 4.516857147216797
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "name.strip",
+                "line": 6,
+                "path": "src/golden_app/core.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:golden_app.core.greeting_for",
+              "id": "e:16",
+              "kind": "calls",
+              "target": "name.strip",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.290472775341726,
+          "depth": 1,
+          "description": "python function \u00b7 src/golden_app/core.py:4",
+          "displayName": "greeting_for",
+          "embedding": {
+            "chunks": 1,
+            "key": "8d0aec7a2335b959b89ea33efa4f4599b007732b17f9ac4eb3c4cb80a6265ae9",
+            "source_sha256": "0ceaca14d8719e95ddd99323f9f283f00991d68029ee25122c7feda79339d198",
+            "tokens": 44,
+            "vector_sha256": "eab4cdf165ef8ca348f16d090dae3fbcadd8e22146ec62e2c0845a2cefbbec93"
+          },
+          "file": "src/golden_app/core.py",
+          "graph_centrality": 1.0,
+          "height": 2.0,
+          "id": "py:fn:golden_app.core.greeting_for",
+          "importance": 0.290472775341726,
+          "is_orphan": false,
+          "label": "greeting_for",
+          "language": "python",
+          "location": {
+            "end_line": 7,
+            "path": "src/golden_app/core.py",
+            "start_line": 4
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.290472775341726,
+          "purpose_similarity": 0.0,
+          "qname": "golden_app.core.greeting_for",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.32528114163989313,
+          "semantic_height": 11.701194731099836,
+          "similar": [
+            {
+              "cosine": 0.712221584664044,
+              "id": "py:fn:tests.test_core.test_greeting_trims_and_defaults"
+            },
+            {
+              "cosine": 0.6530931209217343,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.6069722448172201,
+              "id": "py:fn:golden_app.app.create_app.goodbye"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": -6.427512748161918,
+          "x_umap": -5.932394981384277,
+          "y_fan": 2.772558362274099,
+          "y_umap": 2.7677366733551025
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "external",
+              "callsite": {
+                "callee": "TestClient",
+                "import_ref": "fastapi.testclient.TestClient",
+                "line": 14,
+                "path": "tests/test_app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:tests.test_app.test_greet",
+              "id": "e:17",
+              "kind": "calls",
+              "target": "TestClient",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "client.get",
+                "line": 15,
+                "path": "tests/test_app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:tests.test_app.test_greet",
+              "id": "e:18",
+              "kind": "calls",
+              "target": "client.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "r.json",
+                "line": 17,
+                "path": "tests/test_app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:tests.test_app.test_greet",
+              "id": "e:19",
+              "kind": "calls",
+              "target": "r.json",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.1636968536439025,
+          "depth": 0,
+          "description": "python function \u00b7 tests/test_app.py:13",
+          "displayName": "test_greet",
+          "embedding": {
+            "chunks": 1,
+            "key": "dad643314ec99499862380ecacf54a918986f22460f496c9955e9bf2ac5f34e0",
+            "source_sha256": "4516f3948f24fd5901a3102bb11f562ed5f8e37aef6b043d018bbd035d7b46dd",
+            "tokens": 57,
+            "vector_sha256": "b2742196f0ee2e025d154faeb95411a1fbdcde995fc08e661c423b7bdbc560e0"
+          },
+          "file": "tests/test_app.py",
+          "graph_centrality": 0.5658262487936981,
+          "height": 16.10505359363831,
+          "id": "py:fn:tests.test_app.test_greet",
+          "importance": 0.1636968536439025,
+          "is_orphan": false,
+          "label": "test_greet",
+          "language": "python",
+          "location": {
+            "end_line": 17,
+            "path": "tests/test_app.py",
+            "start_line": 13
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.1836285250289807,
+          "purpose_similarity": 0.0,
+          "qname": "tests.test_app.test_greet",
+          "raw_height": 5.170737038937503,
+          "routes": [],
+          "semantic_density": 0.6806731730433321,
+          "semantic_height": 9.282704207959046,
+          "similar": [
+            {
+              "cosine": 0.7480574236180337,
+              "id": "py:fn:tests.test_app.test_health"
+            },
+            {
+              "cosine": 0.5879456503124905,
+              "id": "py:fn:golden_app.app.create_app"
+            },
+            {
+              "cosine": 0.5798878465970638,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            }
+          ],
+          "source_lines": 5,
+          "x_fan": -1.3399990446244323e-15,
+          "x_umap": -5.678682804107666,
+          "y_fan": -3.5,
+          "y_umap": 4.996448993682861
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "external",
+              "callsite": {
+                "callee": "TestClient",
+                "import_ref": "fastapi.testclient.TestClient",
+                "line": 7,
+                "path": "tests/test_app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:tests.test_app.test_health",
+              "id": "e:20",
+              "kind": "calls",
+              "target": "TestClient",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "client.get",
+                "line": 8,
+                "path": "tests/test_app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:tests.test_app.test_health",
+              "id": "e:21",
+              "kind": "calls",
+              "target": "client.get",
+              "to": "py:boundary:unresolved"
+            },
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "r.json",
+                "line": 10,
+                "path": "tests/test_app.py"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "py:fn:tests.test_app.test_health",
+              "id": "e:22",
+              "kind": "calls",
+              "target": "r.json",
+              "to": "py:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.27751770360480843,
+          "depth": 0,
+          "description": "python function \u00b7 tests/test_app.py:6",
+          "displayName": "test_health",
+          "embedding": {
+            "chunks": 1,
+            "key": "3e3b92da285194017aec6c1ea7ff8abc56c87f796e426527b337ac0c7ea2e601",
+            "source_sha256": "c354970652073814f29f1f477e2efed24bdfa6b7044e294568aef704b1bc8b88",
+            "tokens": 50,
+            "vector_sha256": "85242f4688d9573983f4e15849d2a0b6cad46a267b5e94589b80399d67b5344e"
+          },
+          "file": "tests/test_app.py",
+          "graph_centrality": 0.5658262487936981,
+          "height": 18.314690312027768,
+          "id": "py:fn:tests.test_app.test_health",
+          "importance": 0.27751770360480843,
+          "is_orphan": false,
+          "label": "test_health",
+          "language": "python",
+          "location": {
+            "end_line": 10,
+            "path": "tests/test_app.py",
+            "start_line": 6
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.3113081616903699,
+          "purpose_similarity": 0.0,
+          "qname": "tests.test_app.test_health",
+          "raw_height": 5.980762349832162,
+          "routes": [],
+          "semantic_density": 0.45864049464749457,
+          "semantic_height": 11.482390836068609,
+          "similar": [
+            {
+              "cosine": 0.7794375345555479,
+              "id": "py:fn:golden_app.app.create_app.health"
+            },
+            {
+              "cosine": 0.7480574236180337,
+              "id": "py:fn:tests.test_app.test_greet"
+            },
+            {
+              "cosine": 0.5314958157438856,
+              "id": "py:fn:golden_app.app.create_app"
+            }
+          ],
+          "source_lines": 5,
+          "x_fan": 3.4866814433211095,
+          "x_umap": -6.771960258483887,
+          "y_fan": -0.3050450996168046,
+          "y_umap": 5.370377063751221
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.3837803827622799,
+          "depth": 0,
+          "description": "python function \u00b7 tests/test_core.py:4",
+          "displayName": "test_greeting_trims_and_defaults",
+          "embedding": {
+            "chunks": 1,
+            "key": "4c5f8605d509c42dcd2f6504524aebece067c2953f1eaeae09d0454c67ba4871",
+            "source_sha256": "ac7f5c3b29fc031c551029fd3ef00ae3c393a323dbf5e4ef6edb190ac620aae1",
+            "tokens": 63,
+            "vector_sha256": "b2ad01805703af763dc7bc6d0df7e3c34f515a666a667f9df516d4447eec46d3"
+          },
+          "file": "tests/test_core.py",
+          "graph_centrality": 0.5658262487936981,
+          "height": 20.0,
+          "id": "py:fn:tests.test_core.test_greeting_trims_and_defaults",
+          "importance": 0.3837803827622799,
+          "is_orphan": false,
+          "label": "test_greeting_trims_and_defaults",
+          "language": "python",
+          "location": {
+            "end_line": 7,
+            "path": "tests/test_core.py",
+            "start_line": 4
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.43050934732684853,
+          "purpose_similarity": 0.0,
+          "qname": "tests.test_core.test_greeting_trims_and_defaults",
+          "raw_height": 6.598575899268695,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 13.151001928749663,
+          "similar": [
+            {
+              "cosine": 0.712221584664044,
+              "id": "py:fn:golden_app.core.greeting_for"
+            },
+            {
+              "cosine": 0.4427906885089131,
+              "id": "py:fn:golden_app.app.create_app.greet"
+            },
+            {
+              "cosine": 0.40678886789220225,
+              "id": "py:fn:golden_app.app.create_app.goodbye"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": 2.170824219438911,
+          "x_umap": -5.251553058624268,
+          "y_fan": 2.7454548272185146,
+          "y_umap": 3.202275276184082
+        }
+      ],
+      "peaks": [
+        "py:fn:golden_app.app.create_app.greet",
+        "py:fn:tests.test_app.test_greet",
+        "py:fn:tests.test_app.test_health",
+        "py:fn:tests.test_core.test_greeting_trims_and_defaults"
+      ]
+    }
+  }
+}

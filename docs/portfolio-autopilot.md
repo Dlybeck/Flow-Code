@@ -1,5 +1,85 @@
 # Confirmed Flow-Code Autopilot contract
 
+## Active phase — independent single-language foundations, 2026-09-20
+
+The owner approved a new Flow-Code direction on 2026-09-20. Flow-Code is first
+and foremost a familiarization tool for people who have never seen a codebase.
+Its central interaction remains an explorable three-dimensional semantic
+landscape. Height estimates how strongly code contributes to the project's
+reason for existing: distinctive, substantive project work should rise above
+routine hosting, error handling, and generic utilities. Literal mountain
+styling is optional; the third dimension and its meaning are not.
+
+Core map generation is independent and non-generative. Source parsing, code
+embeddings/vectorization, graph analysis, deterministic labels, and ordinary
+algorithms must be sufficient to generate and update a useful map. A host such
+as Portfolio may add manually written introductory copy and visual styling
+without changing the underlying map. A future optional one-time generative
+summary pass may be explored separately; it is not part of core generation,
+cannot be required for updates, and is outside this phase.
+
+Python is the established regression baseline. This phase proves JavaScript,
+TypeScript, Java, C, C#, and Haskell separately on representative
+single-language projects before mixed-language analysis is designed. Each proof
+must include source-backed functions and relationships, actual local code
+vectors, reproducible portable output, explicit uncertainty and parsing limits,
+and an inspected independent 3D rendering. Mixed-language projects and
+Portfolio delivery follow later.
+
+Worktree: `/home/dlybeck/Projects/Flow-Code-worktrees/portfolio-capability`.
+Branch: `codex/language-foundations`. Base:
+`a17de6e11ca2073ad4b578d31be10edc8a131fdc`.
+
+Validation grows with the implementation. The initial surface is:
+
+- `PYTHONPATH=src /tmp/flowcode-semantic/venv/bin/python -m pytest tests -q`
+- focused golden tests for every language adapter and deterministic repeated
+  terrain exports using a fake vectorizer
+- real local-vector export receipts for each language fixture
+- the standalone viewer's browser checks, including WebGL and 2D fallback
+- a final whole-change Standards and Spec review
+
+Authorized delivery is tested local commits on the named review branch. Other
+repositories are read-only language examples. No push, pull request, merge,
+publication, deployment, paid service, new credential, material deletion, or
+safeguard change is authorized.
+
+### Completion receipt — 2026-09-20
+
+This phase is complete on the local review branch. Python remains the regression
+baseline, and JavaScript, TypeScript, Java, C, C#, and Haskell each produce a
+deterministic single-language graph and locally vectorized terrain map. The
+tree-sitter adapters preserve unresolved calls as explicit boundaries and
+publish their language limits. Regression coverage includes Java and C#
+overloads, Java package declarations, C# block namespaces, Haskell
+pattern-matching equations, generated-directory defaults, and explicit source
+root overrides.
+
+The independent static viewer renders all seven maps with WebGL and a working
+2D phone fallback. The packaged-site command produces a self-contained viewer
+with no third-party runtime requests. A read-only ScribbleScan sample confirms
+that the human-authored purpose hint raises the OCR pipeline above hosting and
+logging infrastructure while the no-purpose maps use deterministic code and
+graph signals alone. Core generation rejects the legacy generative switch; the
+possible one-time summary artifact remains deferred.
+
+Final validation: 126 tests pass; focused Ruff and `git diff --check` pass; the
+viewer bundle builds; seven offline terrain exports reproduce exactly; 45
+browser checks pass; the packaged viewer passes; and the final independent
+Standards and Spec reviews report no remaining findings. Receipts, maps, and
+screenshots are in `evidence/language-foundations/`. Portfolio integration and
+mixed-language analysis remain later phases. Delivery remains local: nothing
+was pushed, merged, published, or deployed.
+
+## Historical record — superseded by the active phase above
+
+Everything below this heading records the earlier two-repository Portfolio
+integration project and its receipts. It is retained as provenance, not as an
+active objective or instruction for this run. In particular, do not resume its
+Portfolio integration, mixed-language delivery, preview, or publication work
+from this document. The only current contract is the independent
+single-language phase above.
+
 Status: confirmed by the owner on 2026-09-12: "Go ahead! I give you free reign this is my ai dev pc after all. I have safeguards. DO whatever is needed". This approves autonomous technical choices and the proposed two-phase local delivery contract. No renewed routine approval is needed. Publication and production boundaries in the approved contract remain in force.
 
 ## Objective and endpoint

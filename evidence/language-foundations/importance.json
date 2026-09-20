@@ -1,0 +1,174 @@
+{
+  "acceptance": {
+    "max_infrastructure_importance": 0.3292433495548217,
+    "max_ocr_importance": 1.0,
+    "max_ocr_importance_exceeds_max_infrastructure": true,
+    "top_function_is_core_image_processing": true,
+    "top_three_are_ocr_pipeline": true
+  },
+  "commit": "d08d4c33d02a62df3a6d9d42ff0a0ce1059f84d9",
+  "export_sha256": "29ba23547bbec30f64e06204bd03ce1d7f1c99c4e235469a180057ea9cd3818a",
+  "function_count": 16,
+  "model_revision": "516f4baf13dec4ddddda8631e019b5737c8bc250",
+  "network_mode": "Hugging Face and Transformers offline",
+  "purpose": "ScribbleScan turns handwritten pages into editable text using OCR.",
+  "ranking": [
+    {
+      "code_importance": 0.20964247422580815,
+      "file": "app/api/services/image_processor.py",
+      "id": "py:fn:app.api.services.image_processor.process_single_image",
+      "importance": 1.0,
+      "purpose_similarity": 0.45022616972607155,
+      "qname": "app.api.services.image_processor.process_single_image",
+      "rank": 1
+    },
+    {
+      "code_importance": 0.0,
+      "file": "app/api/services/digitize_helper.py",
+      "id": "py:fn:app.api.services.digitize_helper.process_and_digitize_files",
+      "importance": 0.3990349065292559,
+      "purpose_similarity": 0.2941737258913406,
+      "qname": "app.api.services.digitize_helper.process_and_digitize_files",
+      "rank": 2
+    },
+    {
+      "code_importance": 0.24814712239640718,
+      "file": "app/api/services/digitize_helper.py",
+      "id": "py:fn:app.api.services.digitize_helper.process_and_digitize_files.process_file",
+      "importance": 0.349937726885009,
+      "purpose_similarity": 0.2647503857313974,
+      "qname": "app.api.services.digitize_helper.process_and_digitize_files.process_file",
+      "rank": 3
+    },
+    {
+      "code_importance": 0.10578627511905118,
+      "file": "app/main.py",
+      "id": "py:fn:app.main.start_application.startup_event",
+      "importance": 0.3292433495548217,
+      "purpose_similarity": 0.2626224126691848,
+      "qname": "app.main.start_application.startup_event",
+      "rank": 4
+    },
+    {
+      "code_importance": 1.0,
+      "file": "app/api/services/image_processor.py",
+      "id": "py:fn:app.api.services.image_processor.clean_formatted_text",
+      "importance": 0.31585695451693113,
+      "purpose_similarity": 0.22665969001888026,
+      "qname": "app.api.services.image_processor.clean_formatted_text",
+      "rank": 5
+    },
+    {
+      "code_importance": 0.06768536420325962,
+      "file": "app/api/services/digitize_helper.py",
+      "id": "py:fn:app.api.services.digitize_helper.save_digitized_documents_and_update_stats",
+      "importance": 0.3131244764021309,
+      "purpose_similarity": 0.2576986632037245,
+      "qname": "app.api.services.digitize_helper.save_digitized_documents_and_update_stats",
+      "rank": 6
+    },
+    {
+      "code_importance": 0.8337281566828156,
+      "file": "app/api/services/image_processor.py",
+      "id": "py:fn:app.api.services.image_processor.best_bbox_match",
+      "importance": 0.1713498286968889,
+      "purpose_similarity": 0.17052585840114068,
+      "qname": "app.api.services.image_processor.best_bbox_match",
+      "rank": 7
+    },
+    {
+      "code_importance": 0.1256533061768954,
+      "file": "app/api/services/digitize_helper.py",
+      "id": "py:fn:app.api.services.digitize_helper.save_anonymous_documents_and_stats",
+      "importance": 0.16111699899254595,
+      "purpose_similarity": 0.18312993611154738,
+      "qname": "app.api.services.digitize_helper.save_anonymous_documents_and_stats",
+      "rank": 8
+    },
+    {
+      "code_importance": 0.38151210203986924,
+      "file": "app/main.py",
+      "id": "py:fn:app.main.start_application",
+      "importance": 0.0655700257382143,
+      "purpose_similarity": 0.11231978627366522,
+      "qname": "app.main.start_application",
+      "rank": 9
+    },
+    {
+      "code_importance": 0.8472286054857637,
+      "file": "app/main.py",
+      "id": "py:fn:app.main.include_router",
+      "importance": 0.012445021099930037,
+      "purpose_similarity": 0.04587571926063591,
+      "qname": "app.main.include_router",
+      "rank": 10
+    },
+    {
+      "code_importance": 0.21417430885965397,
+      "file": "app/core/config.py",
+      "id": "py:fn:app.core.config.PageLimitConfig.get_batch_limit_by_status",
+      "importance": 0.010811848817387233,
+      "purpose_similarity": 0.046781520563302745,
+      "qname": "app.core.config.PageLimitConfig.get_batch_limit_by_status",
+      "rank": 11
+    },
+    {
+      "code_importance": 0.32993926788791994,
+      "file": "app/core/config.py",
+      "id": "py:fn:app.core.config.PageLimitConfig.to_dict",
+      "importance": 0.008962633287424809,
+      "purpose_similarity": 0.04184645969561248,
+      "qname": "app.core.config.PageLimitConfig.to_dict",
+      "rank": 12
+    },
+    {
+      "code_importance": 0.2373772197780653,
+      "file": "app/main.py",
+      "id": "py:fn:app.main.configure_static",
+      "importance": 0.005586101781693357,
+      "purpose_similarity": 0.033505556329147146,
+      "qname": "app.main.configure_static",
+      "rank": 13
+    },
+    {
+      "code_importance": 0.36866104023288104,
+      "file": "app/core/config.py",
+      "id": "py:fn:app.core.config.PageLimitConfig.get_limit_by_status",
+      "importance": 0.0036270239586004382,
+      "purpose_similarity": 0.026467054985268877,
+      "qname": "app.core.config.PageLimitConfig.get_limit_by_status",
+      "rank": 14
+    },
+    {
+      "code_importance": 0.1470598740537236,
+      "file": "app/main.py",
+      "id": "py:fn:app.main.setup_google_cloud_logging.flush_logs",
+      "importance": 0.0033698975550917488,
+      "purpose_similarity": 0.02639458942384663,
+      "qname": "app.main.setup_google_cloud_logging.flush_logs",
+      "rank": 15
+    },
+    {
+      "code_importance": 0.981163913715048,
+      "file": "app/main.py",
+      "id": "py:fn:app.main.setup_google_cloud_logging",
+      "importance": 0.0,
+      "purpose_similarity": 0.0,
+      "qname": "app.main.setup_google_cloud_logging",
+      "rank": 16
+    }
+  ],
+  "repeat_export_equal": true,
+  "repository": "Dlybeck/ScribbleScan (read-only local checkout)",
+  "selected_source_clean": true,
+  "selected_source_status": [],
+  "source_digest": "fd243f80158e8500b4061cf712cdeaa41cbdd059c435dae0becb6f63fbff18cc",
+  "source_roots": [
+    "app/api/services/image_processor.py",
+    "app/api/services/digitize_helper.py",
+    "app/main.py",
+    "app/core/config.py"
+  ],
+  "status": "passed",
+  "terrain_method": "manual purpose relevance with bounded code importance"
+}

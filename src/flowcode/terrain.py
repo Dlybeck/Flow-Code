@@ -15,7 +15,7 @@ from flowcode import generate_graph
 from flowcode.sources import SKIP_DIR_NAMES
 
 
-def _semantic_signals(functions, vectors, purpose_vector=None):
+def _semantic_signals(functions, vectors, purpose_vector=None, call_edges=None):
     """Score all selected sources together, before taking a featured subset."""
     from types import SimpleNamespace
 
@@ -34,13 +34,48 @@ def _semantic_signals(functions, vectors, purpose_vector=None):
     values /= np.linalg.norm(values, axis=1, keepdims=True)
     similarities = values @ values.T
     density = compute_semantic_density(ids, vectors)
-    importance = compute_importance(
+    novelty_importance = compute_importance(
         ids,
         {},
         {node: SimpleNamespace(source=functions[node]["_source"]) for node in ids},
         density,
     )
-    novelty_importance = dict(importance)
+    adjacency = {node: set() for node in ids}
+    reverse = {node: set() for node in ids}
+    for edge in call_edges or []:
+        if edge.get("from") in adjacency and edge.get("to") in adjacency:
+            adjacency[edge["from"]].add(edge["to"])
+            reverse[edge["to"]].add(edge["from"])
+
+    def reachable(start, graph):
+        found, pending = set(), list(graph[start])
+        while pending:
+            node = pending.pop()
+            if node in found:
+                continue
+            found.add(node)
+            pending.extend(graph[node] - found)
+        return found
+
+    raw_centrality = {
+        node: math.sqrt(
+            (1 + len(reachable(node, reverse)))
+            * (1 + len(reachable(node, adjacency)))
+        )
+        - 1
+        for node in ids
+    }
+    centrality_peak = max(raw_centrality.values(), default=0) or 1
+    centrality = {
+        node: raw_centrality[node] / centrality_peak for node in ids
+    }
+    code_raw = {
+        node: novelty_importance[node] * (0.75 + 0.25 * centrality[node])
+        for node in ids
+    }
+    code_peak = max(code_raw.values(), default=0) or 1
+    code_importance = {node: code_raw[node] / code_peak for node in ids}
+    importance = dict(code_importance)
     relevance = {node: 0.0 for node in ids}
     if purpose_vector is not None:
         purpose = np.asarray(purpose_vector, dtype=float)
@@ -54,7 +89,8 @@ def _semantic_signals(functions, vectors, purpose_vector=None):
         # Purpose relevance dominates; the original novelty/substance estimate
         # is a bounded secondary signal, so unusual utilities cannot dominate.
         raw = {
-            node: (relevance[node] / maximum) ** 2 * (0.75 + 0.25 * importance[node])
+            node: (relevance[node] / maximum) ** 2
+            * (0.75 + 0.25 * code_importance[node])
             for node in ids
         }
         peak = max(raw.values()) or 1
@@ -87,6 +123,8 @@ def _semantic_signals(functions, vectors, purpose_vector=None):
         functions[node].update(
             importance=importance[node],
             novelty_importance=novelty_importance[node],
+            code_importance=code_importance[node],
+            graph_centrality=centrality[node],
             purpose_similarity=relevance[node],
             semantic_density=density[node],
             x_umap=float(coords[i, 0]),
@@ -158,22 +196,9 @@ def export_terrain(
     repo_path, *, project, src_roots=None, entries=None, embedder=None, purpose=None
 ):
     """Bake source embeddings and both views locally; export only static data."""
-    if not purpose:
-        readme = next(
-            (
-                Path(repo_path) / name
-                for name in ("README.md", "readme.md", "README.rst")
-                if (Path(repo_path) / name).is_file()
-            ),
-            None,
-        )
-        purpose = readme.read_text()[:4000].strip() if readme else ""
-    if not purpose or not purpose.strip():
-        raise ValueError(
-            "Provide --purpose describing what this project does, or a README"
-        )
+    purpose = purpose.strip() if purpose and purpose.strip() else None
     graph = generate_graph(
-        repo_path, src_roots=src_roots, include_overlay=False, use_llm=False
+        repo_path, src_roots=src_roots, include_overlay=False
     )
     by_id = {n["id"]: n for n in graph["nodes"]}
     source_files = {}
@@ -209,23 +234,18 @@ def export_terrain(
         raise ValueError("No supported functions found in the selected source roots")
     from flowcode.embeddings import RECIPE, CodeEmbedder
 
-    vectors, receipts = (embedder or CodeEmbedder()).encode(
-        {
-            **{n: f["_source"] for n, f in functions.items()},
-            "__project_purpose__": purpose,
-        }
-    )
+    embedding_inputs = {n: f["_source"] for n, f in functions.items()}
+    if purpose:
+        embedding_inputs["__project_purpose__"] = purpose
+    vectors, receipts = (embedder or CodeEmbedder()).encode(embedding_inputs)
     purpose_vector = vectors.pop("__project_purpose__", None)
     purpose_receipt = receipts.pop("__project_purpose__", None)
-    if purpose_vector is None or purpose_receipt is None:
+    if purpose and (purpose_vector is None or purpose_receipt is None):
         raise ValueError("Missing project purpose embedding")
     if set(vectors) != set(functions) or set(receipts) != set(functions):
         raise ValueError(
             "Missing code embeddings; no geometry-only fallback is allowed"
         )
-    _semantic_signals(functions, vectors, purpose_vector)
-    for node, function in functions.items():
-        function["embedding"] = receipts[node]
     internal = []
     for e in graph["edges"]:
         if e["from"] not in functions:
@@ -250,6 +270,9 @@ def export_terrain(
                     or by_id[e["to"]]["label"],
                 )
             )
+    _semantic_signals(functions, vectors, purpose_vector, internal)
+    for node, function in functions.items():
+        function["embedding"] = receipts[node]
     seeds = []
     for entry in entries or []:
         matches = [
@@ -285,18 +308,29 @@ def export_terrain(
         languages=graph["languages"],
         function_count=len(functions),
         embedding=dict(RECIPE),
-        purpose={"text": purpose, "embedding": purpose_receipt},
         terrain={
-            "method": "purpose relevance with original novelty x substance / relative descent",
-            "importance": "normalize((positive purpose cosine / max cosine)^2 * (0.75 + 0.25 * novelty_importance))",
+            "method": (
+                "manual purpose relevance with bounded code importance"
+                if purpose
+                else "code novelty x substance with bounded graph centrality"
+            ),
+            "importance": (
+                "normalize((positive manual-purpose cosine / max cosine)^2 * "
+                "(0.75 + 0.25 * code_importance))"
+                if purpose
+                else "normalize(novelty_x_substance * "
+                "(0.75 + 0.25 * graph_centrality))"
+            ),
             "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
             "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast",
             "scoring_scope": "all selected-source functions before featured filtering",
         },
         edge_confidence=dict(Counter(e["confidence"] for e in graph["edges"])),
     )
+    if purpose:
+        analysis["purpose"] = {"text": purpose, "embedding": purpose_receipt}
     analysis["known_limits"] += [
-        "Only selected Python and browser source files are indexed; templates, CSS, SQL and other languages are not execution graphs.",
+        "Only selected supported source files are indexed; templates, CSS, SQL and unsupported languages are not execution graphs.",
         "The featured view follows up to three outgoing steps; all selected-source functions remain available in the overview.",
         "External and unresolved calls appear in function evidence. Semantic height shows estimated importance, not runtime or proven business value. Similarity positions are an approximate projection. Call-path heights also depend on the primary call tree.",
         "Declared routes may not be mounted at runtime. Constructor and callback links are static hypotheses.",

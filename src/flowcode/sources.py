@@ -13,8 +13,12 @@ SKIP_DIR_NAMES = frozenset(
         "node_modules",
         "dist",
         "build",
+        "bin",
         "out",
+        "obj",
+        "target",
         "coverage",
+        "library",
         "vendor",
         "vendors",
         "third_party",
@@ -51,7 +55,7 @@ def source_files(
                 d
                 for d in dirs
                 if not d.startswith(".")
-                and d not in SKIP_DIR_NAMES
+                and d.casefold() not in SKIP_DIR_NAMES
                 and not d.endswith(".egg-info")
             )
             for name in files:
@@ -63,11 +67,6 @@ def source_files(
                 ):
                     continue
                 if ".min." in name or name.endswith((".d.ts", ".d.mts", ".d.cts")):
-                    continue
-                if any(
-                    p.startswith(".") or p in SKIP_DIR_NAMES
-                    for p in path.relative_to(root).parts[:-1]
-                ):
                     continue
                 selected.add(path)
     return sorted(selected, key=lambda p: p.relative_to(root).as_posix())

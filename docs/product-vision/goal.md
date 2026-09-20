@@ -1,94 +1,99 @@
-# Product goal — execution-space navigator for AI-assisted development
+# Product goal — make an unfamiliar codebase explorable
 
-**Status:** Narrative "why" for the project. Formal invariants and engineering detail live in **[SPEC.md](./SPEC.md)** and **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+**Status:** Current product direction as of 2026-09-20. Engineering boundaries
+live in [SPEC.md](./SPEC.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
 
----
+## The reader
 
-## The situation this is designed for
+Flow-Code is for a person who has never seen the codebase. They may be a
+portfolio visitor, collaborator, interviewer, new maintainer, or curious user.
+They should be able to form a useful mental model without starting from a file
+tree or reading every function.
 
-AI coding assistants are now a normal part of writing software. Lots of a codebase gets produced this way — the developer describes intent, the AI implements, the developer reviews the result. As a consequence, developers know their own code **less deeply than a developer who wrote every line** would.
+The product gives them tools to explore. It does not force a narrated tour or
+pretend it can explain the whole system literally.
 
-That gap isn't a bug. Offloading comprehension to the AI is part of what makes AI-assisted development work. The problem is that the gap still has to be **crossable on demand** — when something breaks, when you want to extend a feature, when you need to brief a collaborator, you have to be able to get into the structure quickly without reading every file.
+## The map
 
-Traditional tools don't help this mode of work:
+The central interface is a terrain-like 3D map:
 
-- **File trees** are organized by artifact (files and folders), not by what the code does. If you have a functional question ("how does this handle retries?"), you have to guess which files to open before you can ask it.
-- **Reading source** is exactly the thing AI-assisted workflows are trying to avoid for most questions. If you could skim the code fast enough to answer it, you probably wouldn't have delegated implementation in the first place.
-- **Chat-only AI** has no shared coordinate system. Pointing at "this part" requires copy-pasting code or remembering function names, and when the AI references something back ("the issue is in the plugin loader"), you're stuck translating words back to files.
+- Each point represents a function.
+- Call edges show how mapped work connects.
+- Nearby points contain semantically similar code.
+- Higher points are more important to why this selected project exists.
+- A 2D fallback preserves exploration when WebGL is unavailable.
 
-## What this is
+The terrain metaphor is structural rather than decorative. A project does not
+need mountain-themed labels or scenery. The third dimension earns its place by
+making importance visible while the ground plane carries similarity or call
+structure.
 
-A **visualization layer that sits alongside existing AI coding assistants** (Claude Code, OpenCode, any MCP-capable client). It shows the codebase as a 3D execution terrain where:
+For ScribbleScan, the OCR path should rise above hosting glue and routine error
+handling because OCR is the distinctive work at the center of the product. The
+same rule generalizes: code rises when it is both specific to this project and
+substantive to its purpose. Generic infrastructure can still be visible and
+connected without defining the skyline.
 
-- **Height = importance.** A peak at the entry point; ridges for the substantive architectural spine; leaves for helpers. Branches that matter stick out.
-- **Structure = call flow.** Descent from peak to leaves follows primary-tree call edges. You read "what triggers what" by walking the mountain outward.
-- **Spatial layout = execution flow, not filesystem.** Sibling branches correspond to call-graph siblings, not file-system siblings.
+## Interaction
 
-Crucially, the viz does **two** jobs that are both essential and neither is optional:
+The initial view should invite free exploration:
 
-### 1. User-to-AI: shared pointing surface
+1. Start from a likely entry point or inspect the whole landscape.
+2. Click a function to see its upstream and downstream connections.
+3. Switch between call paths and code similarity.
+4. Follow source locations when more detail is useful.
+5. Read analysis limits where the static map is incomplete.
 
-You can select a node, a branch, or a region and ask a question. The AI receives:
+A host may add a short human-written introduction or an authored source tour.
+These are optional context around the map. Flow-Code itself remains useful with
+only the repository and a project name.
 
-- The **functional context** your selection implies ("this branch," "this entry's flow," "this subsystem")
-- The **concrete source code** for those nodes — call sites, neighbors, types, whatever's needed
+## Meaning of importance
 
-You never have to say "open `x.py` line 47." You stay in functionality-space; the AI is handed both your intent and the underlying source for free.
+The default code-only signal combines:
 
-### 2. AI-to-user: where-is-this reification
+- embedding distinctiveness within the selected codebase;
+- code substance, so tiny unusual wrappers do not dominate;
+- bounded graph centrality, so connections inform the score without turning
+  generic dispatch into the most important work.
 
-When the AI references part of the code ("the issue is in how the plugin loader resolves entry points"), it can programmatically highlight the corresponding branch on the mountain. You don't translate words back to files — your eyes go straight to the region.
+An optional human-written project purpose can guide the score through local
+vector similarity. It is a hint with a visible receipt, not an AI-authored
+claim. Importance is relative to the selected project and is always presented
+as an estimate.
 
-## Why this matters more than a file tree or a chat
+## Independence
 
-The two paradigms compose badly without a middle layer:
+Flow-Code owns source discovery, language parsing, execution IR, local vector
+generation, terrain scoring, snapshot export, and the standalone viewer. It can
+generate and display a map without the Portfolio repository.
 
-- Chat alone = no shared spatial reference between user and AI.
-- File tree alone = wrong organization for functional questions.
-- Code-reading alone = high cost, which is the whole thing AI-assisted workflows are trying to reduce.
+Portfolio is one host. It may provide navigation, themes, or prose, and it may
+publish reviewed snapshots. Host integration cannot become a dependency of the
+core pipeline.
 
-The mountain is the **shared coordinate system** that lets chat-based AI interaction stay in functionality-space while still being anchored to real source. It's not replacing the chat, the IDE, or the AI — it's making them usable together without the constant translation tax.
+## Generative AI boundary
 
-## What has to be true for this to work
+Generative AI is not part of normal map generation. A map must be reproducible
+without API keys, provider accounts, or source uploads.
 
-Three invariants that drive design:
+There is one possible later extension: an explicit one-time summary pass over a
+completed map. If built, it must be optional, separately invoked, persisted as
+a reviewable artifact, reusable across ordinary updates, and unable to change
+technical graph edges or terrain scores. Continuous summary generation after
+each code change is outside the product direction.
 
-1. **The map's structure must be deterministic and stable.** Same codebase produces the same mountain every time. Users build muscle memory for "the plugin-loading subsystem is over here."
+Agentic coding and MCP integration remain possible future uses of the same map.
+They are not the current wedge and cannot shape the core around an AI client.
 
-2. **The selection → AI-context pipeline must be rich.** Selecting a branch has to hand the AI enough to reason with — source, neighbors, summaries, call context — or the paradigm falls back to copy-pasting.
+## Delivery sequence
 
-3. **The height metric must survive scrutiny.** If you click what looks like an important peak and discover it's a trivial wrapper, or dig into what looks like a valley and find critical logic, you stop trusting the map and slide back into file-tree thinking. The metric (currently `novelty × log(LOC)` — embedding-distinctiveness × code substance) has to consistently surface what a reader would recognize as architectural.
+1. Prove Python as the baseline.
+2. Prove JavaScript, TypeScript, Java, C, C#, and Haskell independently.
+3. Compare adapter limitations and harden the shared execution IR.
+4. Design honest mixed-language linking from evidence gathered in those proofs.
+5. Integrate reviewed static maps into Portfolio without coupling the products.
+6. Consider Kotlin, Go, and other languages as real projects require them.
 
-Everything in SPEC and ARCHITECTURE about deterministic indexing, overlay labels keyed to RAW ids, validation gates, and drift handling is **in service of these three invariants**. The indexer has to produce stable structure; the overlay has to stay anchored; the AI tools have to deliver rich context; the validation has to keep importance honest.
-
----
-
-## UX principles (still in force)
-
-**1. Code stays in AI-space; user stays in functionality-space.**
-The map is the user's surface. Source code is what the AI handles when you ask a question. When the AI explains, it explains in plain language and highlights the map. The user doesn't open files to understand — they point and ask.
-
-**2. Node annotations are starting points, not bug locations.**
-Clicking a node tells the AI "roughly here." The AI is expected to explore, follow threads, and potentially make changes far from the click. The user may be wrong about the exact location; resolving that gap is the AI's job.
-
-**3. PM-to-developer, not pair programming.**
-The user has high-level intent and general direction. The AI does the investigation and coding. Not fire-and-forget (the user clarifies when asked) and not true pair programming (the user isn't watching code being written). Progress and change signals show up as map badges — conversational check-ins, not code-review gates.
-
----
-
-## AI integration — MCP server
-
-**MCP is the chosen path.** flowcode runs as a local MCP server that any MCP-capable client (Claude Code, OpenCode, Cursor, Zed, etc.) can connect to. The same server hosts the map's HTTP surface for the browser viz.
-
-Exposed tools (target set):
-- `get_selected_node()` — what the user clicked most recently + its context
-- `get_node(id)`, `search_nodes(query)`
-- `get_upstream(id)` / `get_downstream(id)` — call-graph cones
-- `get_important_nodes(n)` — architectural spine
-- `highlight(node_ids)` — AI lights up a region on the map for the user
-
-In-house LLM calls (`_chat_completion_json`) are used **only for overlay curation / labeling**, never for coding tasks. Coding is the external client's job.
-
----
-
-*Captured from the current thesis, 2026-04-19. Supersedes the prior "bridge human intent and AI execution" framing by making the two-way pointing loop and the execution-space navigation paradigm explicit.*
+The current implementation has completed the independent-language foundation.
+Mixed-language semantics are the next major design problem.

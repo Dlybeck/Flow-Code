@@ -1,0 +1,47 @@
+{
+  "base_commit": "a17de6e11ca2073ad4b578d31be10edc8a131fdc",
+  "branch": "codex/language-foundations",
+  "checks": {
+    "browser": {
+      "checks": 45,
+      "renderer": "Chromium with SwiftShader WebGL2",
+      "status": "passed"
+    },
+    "diff_check": "passed",
+    "focused_ruff": "passed",
+    "offline_map_exports": {
+      "count": 7,
+      "exact_repeat": true,
+      "status": "passed"
+    },
+    "packaged_site": {
+      "renderer": "webgl",
+      "status": "passed",
+      "third_party_runtime_requests": 0
+    },
+    "pytest": {
+      "passed": 126,
+      "status": "passed"
+    },
+    "scribblescan_importance": {
+      "max_infrastructure_importance": 0.3292433495548217,
+      "max_ocr_importance": 1.0,
+      "repeat_export_equal": true,
+      "status": "passed",
+      "top_three_are_ocr_pipeline": true
+    },
+    "viewer_build": "passed"
+  },
+  "delivery": {
+    "deployed": false,
+    "merged": false,
+    "published": false,
+    "pushed": false
+  },
+  "final_review": {
+    "spec_findings": 0,
+    "standards_findings": 0,
+    "status": "passed"
+  },
+  "status": "passed"
+}

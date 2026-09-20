@@ -1,0 +1,712 @@
+{
+  "analysis": {
+    "completeness": "partial",
+    "edge_confidence": {
+      "resolved": 4,
+      "unknown": 2
+    },
+    "embedding": {
+      "chunk_tokens": 512,
+      "code_revision": "3baf9e3ac750e76e8edd3019170176884695fb94",
+      "dimensions": 768,
+      "model": "jinaai/jina-embeddings-v2-base-code",
+      "pooling": "token-weighted mean of complete 512-token chunks; L2 normalized",
+      "revision": "516f4baf13dec4ddddda8631e019b5737c8bc250"
+    },
+    "excluded_directories": [
+      "__pycache__",
+      "bin",
+      "build",
+      "coverage",
+      "dist",
+      "library",
+      "node_modules",
+      "obj",
+      "out",
+      "site-packages",
+      "target",
+      "third_party",
+      "vendor",
+      "vendors",
+      "venv"
+    ],
+    "excluded_patterns": [
+      "hidden paths",
+      "symlinks",
+      "*.min.*",
+      "*.d.ts",
+      "*.d.mts",
+      "*.d.cts"
+    ],
+    "files": [
+      {
+        "analysis": {
+          "completeness": "complete",
+          "parse_ok": true
+        },
+        "path": "src/index.ts",
+        "sha256": "c58e88a659f1fd8c02bd7c5c58d889f9b12f42ea4b1cdedfffce358c984b397f"
+      },
+      {
+        "analysis": {
+          "completeness": "complete",
+          "parse_ok": true
+        },
+        "path": "src/utils.ts",
+        "sha256": "33240df404fa4da5030548ca928bd450a59df1db3bf79586d0d59e8517e579a2"
+      }
+    ],
+    "function_count": 5,
+    "known_limits": [
+      "Static analysis is not a runtime trace.",
+      "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
+      "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
+      "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
+      "Dynamic imports and require() calls are not traced.",
+      "Type-only imports are not distinguished from value imports.",
+      "Inferred arrow functions in object literals are not indexed.",
+      "Only selected supported source files are indexed; templates, CSS, SQL and unsupported languages are not execution graphs.",
+      "The featured view follows up to three outgoing steps; all selected-source functions remain available in the overview.",
+      "External and unresolved calls appear in function evidence. Semantic height shows estimated importance, not runtime or proven business value. Similarity positions are an approximate projection. Call-path heights also depend on the primary call tree.",
+      "Declared routes may not be mounted at runtime. Constructor and callback links are static hypotheses."
+    ],
+    "languages": [
+      "typescript"
+    ],
+    "source_digest": "cc582f156be9359164517c440f6e7412b579103d47bae6fd49a81195bbfbb2fc",
+    "source_roots": [
+      "."
+    ],
+    "terrain": {
+      "importance": "normalize(novelty_x_substance * (0.75 + 0.25 * graph_centrality))",
+      "method": "code novelty x substance with bounded graph centrality",
+      "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
+      "scoring_scope": "all selected-source functions before featured filtering",
+      "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast"
+    }
+  },
+  "entries": [
+    "ts:fn:index.main"
+  ],
+  "project": "golden-ts",
+  "schema_version": 2,
+  "views": {
+    "feature": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 10,
+            "path": "src/index.ts"
+          },
+          "confidence": "resolved",
+          "from": "ts:fn:index.main",
+          "id": "e:2",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "ts:fn:utils.formatGreeting"
+        },
+        {
+          "callsite": {
+            "line": 9,
+            "path": "src/index.ts"
+          },
+          "confidence": "resolved",
+          "from": "ts:fn:index.main",
+          "id": "e:3",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "ts:fn:utils.validateName"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.4183463991318617,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 1,
+      "nodes": [
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "console.log",
+                "line": 11,
+                "path": "src/index.ts"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "ts:fn:index.main",
+              "id": "e:4",
+              "kind": "calls",
+              "target": "console.log",
+              "to": "ts:boundary:unresolved"
+            }
+          ],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "typescript function \u00b7 src/index.ts:7",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "6a41741e36242b1e14e9417f2702f9ce6eb00a73a1eca7ef1389b2171df9e365",
+            "source_sha256": "03c2ff7f0ca75d4fa3bc09f129b36c7cbaa91dc5f8807da9517b38b6539e1263",
+            "tokens": 44,
+            "vector_sha256": "9db729b6a5f1458f09440bf50defd44cee3e3eebbe9e36d6e2b27c1e8ca6602c"
+          },
+          "file": "src/index.ts",
+          "graph_centrality": 1.0,
+          "height": 20.0,
+          "id": "ts:fn:index.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 13,
+            "path": "src/index.ts",
+            "start_column": 8,
+            "start_line": 7
+          },
+          "n_callees": 2,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "index.main",
+          "raw_height": 12.690834912414484,
+          "routes": [],
+          "semantic_density": 0.8347983960914516,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.7502851843688301,
+              "id": "ts:fn:index.greet"
+            },
+            {
+              "cosine": 0.7482943201609659,
+              "id": "ts:fn:utils.formatGreeting"
+            },
+            {
+              "cosine": 0.6334576006295197,
+              "id": "ts:fn:utils.validateName"
+            }
+          ],
+          "source_lines": 7,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 20.474397659301758,
+          "y_fan": -3.5,
+          "y_umap": 30.83903694152832
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.014880924796793897,
+          "depth": 1,
+          "description": "typescript function \u00b7 src/utils.ts:5",
+          "displayName": "formatGreeting",
+          "embedding": {
+            "chunks": 1,
+            "key": "1f220e90d4c057c1edc2dac2122ece4c017ecdd6e33d8025f3dc7d318b888f42",
+            "source_sha256": "b74437742be546b9c6d45bbe3e6b1925a44468ca4328b75f117975718da1d294",
+            "tokens": 24,
+            "vector_sha256": "86d9258a03fe6886386da7038b1b9cb3eb314da1d2696b1022d6bd6a5e1a32fa"
+          },
+          "file": "src/utils.ts",
+          "graph_centrality": 1.0,
+          "height": 2.0,
+          "id": "ts:fn:utils.formatGreeting",
+          "importance": 0.014880924796793897,
+          "is_orphan": false,
+          "label": "formatGreeting",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 7,
+            "path": "src/utils.ts",
+            "start_column": 8,
+            "start_line": 5
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.014880924796793897,
+          "purpose_similarity": 0.0,
+          "qname": "utils.formatGreeting",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.9836109823728477,
+          "semantic_height": 4.195773129027956,
+          "similar": [
+            {
+              "cosine": 0.8549063184175445,
+              "id": "ts:fn:index.greet"
+            },
+            {
+              "cosine": 0.7482943201609659,
+              "id": "ts:fn:index.main"
+            },
+            {
+              "cosine": 0.5726553601557296,
+              "id": "ts:fn:index.buildMessage"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": -6.973362886642219,
+          "x_umap": 19.268796920776367,
+          "y_fan": -0.6100901992336074,
+          "y_umap": 30.125513076782227
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "name.trim",
+                "line": 10,
+                "path": "src/utils.ts"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "ts:fn:utils.validateName",
+              "id": "e:5",
+              "kind": "calls",
+              "target": "name.trim",
+              "to": "ts:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.8094260658860609,
+          "depth": 1,
+          "description": "typescript function \u00b7 src/utils.ts:9",
+          "displayName": "validateName",
+          "embedding": {
+            "chunks": 1,
+            "key": "65077e24b28a6757d46696d97fef6c84ff0ac575cc5f8f94b0a80284309d85fc",
+            "source_sha256": "b40cebacf1e6976ad8eea6ac069d16faea54d888f287109ec884eb8c21a45092",
+            "tokens": 24,
+            "vector_sha256": "e564c6500647511c0aea5a113265e72d6bd3af1456cd65a252c524fcd2080726"
+          },
+          "file": "src/utils.ts",
+          "graph_centrality": 0.5658262487936981,
+          "height": 16.202649532581813,
+          "id": "ts:fn:utils.validateName",
+          "importance": 0.8094260658860609,
+          "is_orphan": false,
+          "label": "validateName",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 11,
+            "path": "src/utils.ts",
+            "start_column": 8,
+            "start_line": 9
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.9079814992779145,
+          "purpose_similarity": 0.0,
+          "qname": "utils.validateName",
+          "raw_height": 10.013526696493141,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 18.194259641832467,
+          "similar": [
+            {
+              "cosine": 0.6334576006295197,
+              "id": "ts:fn:index.main"
+            },
+            {
+              "cosine": 0.5270195331052513,
+              "id": "ts:fn:utils.formatGreeting"
+            },
+            {
+              "cosine": 0.4716729447157356,
+              "id": "ts:fn:index.greet"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 6.973362886642219,
+          "x_umap": 20.291900634765625,
+          "y_fan": -0.6100901992336065,
+          "y_umap": 29.972322463989258
+        }
+      ],
+      "peaks": [
+        "ts:fn:index.main"
+      ]
+    },
+    "overview": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 21,
+            "path": "src/index.ts"
+          },
+          "confidence": "resolved",
+          "from": "ts:fn:index.greet",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "ts:fn:index.buildMessage"
+        },
+        {
+          "callsite": {
+            "line": 20,
+            "path": "src/index.ts"
+          },
+          "confidence": "resolved",
+          "from": "ts:fn:index.greet",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "ts:fn:utils.formatGreeting"
+        },
+        {
+          "callsite": {
+            "line": 10,
+            "path": "src/index.ts"
+          },
+          "confidence": "resolved",
+          "from": "ts:fn:index.main",
+          "id": "e:2",
+          "is_primary": false,
+          "kind": "calls",
+          "to": "ts:fn:utils.formatGreeting"
+        },
+        {
+          "callsite": {
+            "line": 9,
+            "path": "src/index.ts"
+          },
+          "confidence": "resolved",
+          "from": "ts:fn:index.main",
+          "id": "e:3",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "ts:fn:utils.validateName"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.2230907938239626,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 1,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.7767050884851591,
+          "depth": 1,
+          "description": "typescript function \u00b7 src/index.ts:15",
+          "displayName": "buildMessage",
+          "embedding": {
+            "chunks": 1,
+            "key": "a93ba94f78fdb8d3ff17f12c2ed6172ef62d96e299f2e1a13d29189a1d681024",
+            "source_sha256": "10423ce3435df1f939adadbfda03216e37bdfaa56968988a96f1a875e3543e81",
+            "tokens": 21,
+            "vector_sha256": "d7f5d9d0571be141e27cac9131d86f987675420c79ae8a6991dc8479b7326cba"
+          },
+          "file": "src/index.ts",
+          "graph_centrality": 0.5658262487936981,
+          "height": 10.72873894486738,
+          "id": "ts:fn:index.buildMessage",
+          "importance": 0.7767050884851591,
+          "is_orphan": false,
+          "label": "buildMessage",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 17,
+            "path": "src/index.ts",
+            "start_column": 1,
+            "start_line": 15
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.871276427165137,
+          "purpose_similarity": 0.0,
+          "qname": "index.buildMessage",
+          "raw_height": 7.136623862221379,
+          "routes": [],
+          "semantic_density": 0.04042491189739856,
+          "semantic_height": 17.863557251423515,
+          "similar": [
+            {
+              "cosine": 0.639034688085144,
+              "id": "ts:fn:index.greet"
+            },
+            {
+              "cosine": 0.5726553601557296,
+              "id": "ts:fn:utils.formatGreeting"
+            },
+            {
+              "cosine": 0.45258386130599537,
+              "id": "ts:fn:index.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": -2.046601933059155,
+          "x_umap": 18.77292823791504,
+          "y_fan": -6.694133291741249,
+          "y_umap": 30.990732192993164
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 0,
+          "description": "typescript function \u00b7 src/index.ts:19",
+          "displayName": "greet",
+          "embedding": {
+            "chunks": 1,
+            "key": "109fff3430f79da77ab3dddb0399fec5f668071053784f958abf6a31ed67c0a3",
+            "source_sha256": "dacbc8396ad18f71f6573cbfef36e9814d4c3cbf1f29c1cc1257f86471f33d0c",
+            "tokens": 33,
+            "vector_sha256": "4a931def99fc41fa6465f3b263446b3d4285031320b03de75194f99f722fb2e7"
+          },
+          "file": "src/index.ts",
+          "graph_centrality": 1.0,
+          "height": 13.34022978372056,
+          "id": "ts:fn:index.greet",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "greet",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 22,
+            "path": "src/index.ts",
+            "start_column": 22,
+            "start_line": 19
+          },
+          "n_callees": 2,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "index.greet",
+          "raw_height": 9.27178083669947,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.8549063184175445,
+              "id": "ts:fn:utils.formatGreeting"
+            },
+            {
+              "cosine": 0.7502851843688301,
+              "id": "ts:fn:index.main"
+            },
+            {
+              "cosine": 0.639034688085144,
+              "id": "ts:fn:index.buildMessage"
+            }
+          ],
+          "source_lines": 4,
+          "x_fan": -3.2451434909837555,
+          "x_umap": 19.647920608520508,
+          "y_fan": -1.3111230769556927,
+          "y_umap": 31.47333526611328
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "console.log",
+                "line": 11,
+                "path": "src/index.ts"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "ts:fn:index.main",
+              "id": "e:4",
+              "kind": "calls",
+              "target": "console.log",
+              "to": "ts:boundary:unresolved"
+            }
+          ],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "typescript function \u00b7 src/index.ts:7",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "6a41741e36242b1e14e9417f2702f9ce6eb00a73a1eca7ef1389b2171df9e365",
+            "source_sha256": "03c2ff7f0ca75d4fa3bc09f129b36c7cbaa91dc5f8807da9517b38b6539e1263",
+            "tokens": 44,
+            "vector_sha256": "9db729b6a5f1458f09440bf50defd44cee3e3eebbe9e36d6e2b27c1e8ca6602c"
+          },
+          "file": "src/index.ts",
+          "graph_centrality": 1.0,
+          "height": 20.0,
+          "id": "ts:fn:index.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 13,
+            "path": "src/index.ts",
+            "start_column": 8,
+            "start_line": 7
+          },
+          "n_callees": 2,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "index.main",
+          "raw_height": 14.716814230710913,
+          "routes": [],
+          "semantic_density": 0.8347983960914516,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.7502851843688301,
+              "id": "ts:fn:index.greet"
+            },
+            {
+              "cosine": 0.7482943201609659,
+              "id": "ts:fn:utils.formatGreeting"
+            },
+            {
+              "cosine": 0.6334576006295197,
+              "id": "ts:fn:utils.validateName"
+            }
+          ],
+          "source_lines": 7,
+          "x_fan": 3.4235166025683195,
+          "x_umap": 20.474397659301758,
+          "y_fan": 0.7276909178621579,
+          "y_umap": 30.83903694152832
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.014880924796793897,
+          "depth": 1,
+          "description": "typescript function \u00b7 src/utils.ts:5",
+          "displayName": "formatGreeting",
+          "embedding": {
+            "chunks": 1,
+            "key": "1f220e90d4c057c1edc2dac2122ece4c017ecdd6e33d8025f3dc7d318b888f42",
+            "source_sha256": "b74437742be546b9c6d45bbe3e6b1925a44468ca4328b75f117975718da1d294",
+            "tokens": 24,
+            "vector_sha256": "86d9258a03fe6886386da7038b1b9cb3eb314da1d2696b1022d6bd6a5e1a32fa"
+          },
+          "file": "src/utils.ts",
+          "graph_centrality": 1.0,
+          "height": 2.0,
+          "id": "ts:fn:utils.formatGreeting",
+          "importance": 0.014880924796793897,
+          "is_orphan": false,
+          "label": "formatGreeting",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 7,
+            "path": "src/utils.ts",
+            "start_column": 8,
+            "start_line": 5
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.014880924796793897,
+          "purpose_similarity": 0.0,
+          "qname": "utils.formatGreeting",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.9836109823728477,
+          "semantic_height": 4.195773129027956,
+          "similar": [
+            {
+              "cosine": 0.8549063184175445,
+              "id": "ts:fn:index.greet"
+            },
+            {
+              "cosine": 0.7482943201609659,
+              "id": "ts:fn:index.main"
+            },
+            {
+              "cosine": 0.5726553601557296,
+              "id": "ts:fn:index.buildMessage"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": -6.122337949975771,
+          "x_umap": 19.268796920776367,
+          "y_fan": 3.393667341724359,
+          "y_umap": 30.125513076782227
+        },
+        {
+          "boundaries": [
+            {
+              "boundary_kind": "unresolved",
+              "callsite": {
+                "callee_expression": "name.trim",
+                "line": 10,
+                "path": "src/utils.ts"
+              },
+              "confidence": "unknown",
+              "evidence": "unresolved_name_or_attribute_call",
+              "from": "ts:fn:utils.validateName",
+              "id": "e:5",
+              "kind": "calls",
+              "target": "name.trim",
+              "to": "ts:boundary:unresolved"
+            }
+          ],
+          "code_importance": 0.8094260658860609,
+          "depth": 1,
+          "description": "typescript function \u00b7 src/utils.ts:9",
+          "displayName": "validateName",
+          "embedding": {
+            "chunks": 1,
+            "key": "65077e24b28a6757d46696d97fef6c84ff0ac575cc5f8f94b0a80284309d85fc",
+            "source_sha256": "b40cebacf1e6976ad8eea6ac069d16faea54d888f287109ec884eb8c21a45092",
+            "tokens": 24,
+            "vector_sha256": "e564c6500647511c0aea5a113265e72d6bd3af1456cd65a252c524fcd2080726"
+          },
+          "file": "src/utils.ts",
+          "graph_centrality": 0.5658262487936981,
+          "height": 18.48166957011607,
+          "id": "ts:fn:utils.validateName",
+          "importance": 0.8094260658860609,
+          "is_orphan": false,
+          "label": "validateName",
+          "language": "typescript",
+          "location": {
+            "end_column": 2,
+            "end_line": 11,
+            "path": "src/utils.ts",
+            "start_column": 8,
+            "start_line": 9
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.9079814992779145,
+          "purpose_similarity": 0.0,
+          "qname": "utils.validateName",
+          "raw_height": 13.475426070853288,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 18.194259641832467,
+          "similar": [
+            {
+              "cosine": 0.6334576006295197,
+              "id": "ts:fn:index.main"
+            },
+            {
+              "cosine": 0.5270195331052513,
+              "id": "ts:fn:utils.formatGreeting"
+            },
+            {
+              "cosine": 0.4716729447157356,
+              "id": "ts:fn:index.greet"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 6.847033205136639,
+          "x_umap": 20.291900634765625,
+          "y_fan": 1.4553818357243158,
+          "y_umap": 29.972322463989258
+        }
+      ],
+      "peaks": [
+        "ts:fn:index.greet",
+        "ts:fn:index.main"
+      ]
+    }
+  }
+}

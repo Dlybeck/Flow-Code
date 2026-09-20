@@ -84,6 +84,32 @@ def test_export_refuses_missing_embeddings(tmp_path, monkeypatch):
         export_terrain(tmp_path, project="missing", purpose="Example")
 
 
+def test_export_needs_no_readme_or_project_description(
+    tmp_path, deterministic_embeddings
+):
+    from flowcode.terrain import export_terrain
+
+    (tmp_path / "code.py").write_text(
+        "def main(): return project_work()\ndef project_work(): return 1\n"
+    )
+    document = export_terrain(tmp_path, project="independent")
+    assert "purpose" not in document["analysis"]
+    assert document["analysis"]["terrain"]["method"] == (
+        "code novelty x substance with bounded graph centrality"
+    )
+    assert len(document["views"]["overview"]["nodes"]) == 2
+
+
+def test_core_overlay_rejects_generative_enrichment(tmp_path):
+    from flowcode import generate_graph
+
+    (tmp_path / "code.py").write_text("def main(): return 1\n")
+    with pytest.raises(ValueError, match="not part of core map generation"):
+        generate_graph(tmp_path, use_llm=True)
+    with pytest.raises(ValueError, match="not part of core map generation"):
+        generate_graph(tmp_path, include_overlay=False, use_llm=True)
+
+
 def test_cli_attaches_source_tour_and_preserves_output_on_stale_stop(
     tmp_path, deterministic_embeddings
 ):
@@ -159,6 +185,28 @@ def test_equal_vectors_do_not_manufacture_importance_differences():
     _semantic_signals(functions, {n: [1, 0] for n in functions})
     assert len({f["importance"] for f in functions.values()}) == 1
     assert len({f["semantic_height"] for f in functions.values()}) == 1
+
+
+def test_graph_centrality_is_bounded_secondary_context():
+    from flowcode.terrain import _semantic_signals
+
+    functions = {
+        "entry": {"_source": "short"},
+        "project_work": {"_source": "substantive project work " * 20},
+        "helper": {"_source": "short"},
+    }
+    vectors = {
+        "entry": [1, 0, 0],
+        "project_work": [0, 1, 0],
+        "helper": [0.99, 0.01, 0],
+    }
+    edges = [
+        {"from": "entry", "to": "project_work"},
+        {"from": "project_work", "to": "helper"},
+    ]
+    _semantic_signals(functions, vectors, call_edges=edges)
+    assert functions["project_work"]["graph_centrality"] == 1
+    assert functions["project_work"]["importance"] > functions["helper"]["importance"]
 
 
 def test_purpose_relevance_prevents_novel_utility_from_dominating():

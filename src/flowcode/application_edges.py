@@ -106,23 +106,27 @@ def _python_routes(functions, trees):
         module = module_qualname_from_path(Path(path))
         imports = _import_name_to_qual(tree, module)
 
-        def qualified(expression):
+        def qualified(expression, _imports=imports, _module=module):
             name = ast.unparse(expression)
             first, _, rest = name.partition(".")
-            return imports.get(first, module + "." + first) + (
+            return _imports.get(first, _module + "." + first) + (
                 "." + rest if rest else ""
             )
 
         for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
-                if ast.unparse(node.value.func).split(".")[-1] in {
+            if (
+                isinstance(node, ast.Assign)
+                and isinstance(node.value, ast.Call)
+                and ast.unparse(node.value.func).split(".")[-1]
+                in {
                     "APIRouter",
                     "FastAPI",
-                }:
-                    prefix = literal_prefix(node.value)
-                    for target in node.targets:
-                        if isinstance(target, ast.Name):
-                            routers[qualified(target)] = prefix
+                }
+            ):
+                prefix = literal_prefix(node.value)
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        routers[qualified(target)] = prefix
             if (
                 isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Attribute)
@@ -481,6 +485,22 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
         edge["boundary_kind"] = (
             "external" if outside or browser_runtime else "unresolved"
         )
+    adapter_limits = [
+        str(limit)
+        for document in raw.get("documents", [raw])
+        for limit in document.get("index_meta", {}).get("known_limits", [])
+    ]
+    known_limits = list(
+        dict.fromkeys(
+            [
+                "Static analysis is not a runtime trace.",
+                "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
+                "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
+                "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
+                *adapter_limits,
+            ]
+        )
+    )
     graph["analysis"] = {
         "completeness": "partial",
         "files": [
@@ -499,10 +519,5 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
                 ]
             ).encode()
         ).hexdigest(),
-        "known_limits": [
-            "Static analysis is not a runtime trace.",
-            "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
-            "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
-            "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
-        ],
+        "known_limits": known_limits,
     }

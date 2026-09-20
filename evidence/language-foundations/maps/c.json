@@ -1,0 +1,477 @@
+{
+  "analysis": {
+    "completeness": "partial",
+    "edge_confidence": {
+      "resolved": 2
+    },
+    "embedding": {
+      "chunk_tokens": 512,
+      "code_revision": "3baf9e3ac750e76e8edd3019170176884695fb94",
+      "dimensions": 768,
+      "model": "jinaai/jina-embeddings-v2-base-code",
+      "pooling": "token-weighted mean of complete 512-token chunks; L2 normalized",
+      "revision": "516f4baf13dec4ddddda8631e019b5737c8bc250"
+    },
+    "excluded_directories": [
+      "__pycache__",
+      "bin",
+      "build",
+      "coverage",
+      "dist",
+      "library",
+      "node_modules",
+      "obj",
+      "out",
+      "site-packages",
+      "target",
+      "third_party",
+      "vendor",
+      "vendors",
+      "venv"
+    ],
+    "excluded_patterns": [
+      "hidden paths",
+      "symlinks",
+      "*.min.*",
+      "*.d.ts",
+      "*.d.mts",
+      "*.d.cts"
+    ],
+    "files": [
+      {
+        "analysis": {
+          "completeness": "partial",
+          "parse_ok": true
+        },
+        "path": "src/main.c",
+        "sha256": "9f93cfc0127f858b66a577e6089d972b4eddd73396d1b914d3626a585edf4a06"
+      }
+    ],
+    "function_count": 3,
+    "known_limits": [
+      "Static analysis is not a runtime trace.",
+      "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
+      "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
+      "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
+      "Function pointers, macros, conditional compilation, and generated sources are not resolved.",
+      "Headers are indexed as selected source and can duplicate declarations implemented elsewhere.",
+      "Only selected supported source files are indexed; templates, CSS, SQL and unsupported languages are not execution graphs.",
+      "The featured view follows up to three outgoing steps; all selected-source functions remain available in the overview.",
+      "External and unresolved calls appear in function evidence. Semantic height shows estimated importance, not runtime or proven business value. Similarity positions are an approximate projection. Call-path heights also depend on the primary call tree.",
+      "Declared routes may not be mounted at runtime. Constructor and callback links are static hypotheses."
+    ],
+    "languages": [
+      "c"
+    ],
+    "source_digest": "1ecdf70ad652c966144218dc22c6ff11cb17c445ddbb1dd648f08f81b7e4817a",
+    "source_roots": [
+      "."
+    ],
+    "terrain": {
+      "importance": "normalize(novelty_x_substance * (0.75 + 0.25 * graph_centrality))",
+      "method": "code novelty x substance with bounded graph centrality",
+      "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
+      "scoring_scope": "all selected-source functions before featured filtering",
+      "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast"
+    }
+  },
+  "entries": [
+    "c:fn:main.main"
+  ],
+  "project": "golden-c",
+  "schema_version": 2,
+  "views": {
+    "feature": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 6,
+            "path": "src/main.c"
+          },
+          "confidence": "resolved",
+          "from": "c:fn:main.calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "c:fn:main.emphasize"
+        },
+        {
+          "callsite": {
+            "line": 10,
+            "path": "src/main.c"
+          },
+          "confidence": "resolved",
+          "from": "c:fn:main.main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "c:fn:main.calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.808327007635074,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "c function \u00b7 src/main.c:5",
+          "displayName": "calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "0b5c96a77a6cc900644f07501d8c16e660205486271150dae58374fb131e4462",
+            "source_sha256": "5a313b8ba73cc689fb886f7026f55964d50edf109695d186b4ea172159b2b129",
+            "tokens": 22,
+            "vector_sha256": "66514bf85002a421f24a00ead1a628cbb04a10b16e70ae21ca46f787e61f0351"
+          },
+          "file": "src/main.c",
+          "graph_centrality": 1.0,
+          "height": 9.037600111269708,
+          "id": "c:fn:main.calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "calculate",
+          "language": "c",
+          "location": {
+            "end_column": 2,
+            "end_line": 7,
+            "path": "src/main.c",
+            "start_column": 1,
+            "start_line": 5
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "main.calculate",
+          "raw_height": 3.8917740439399093,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.8491823326169031,
+              "id": "c:fn:main.emphasize"
+            },
+            {
+              "cosine": 0.5423406538425914,
+              "id": "c:fn:main.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.2572897060632912,
+          "y_fan": -7.0,
+          "y_umap": 0.2847479816773316
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.23932169594278552,
+          "depth": 2,
+          "description": "c function \u00b7 src/main.c:1",
+          "displayName": "emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "8b75c72cce91c1cf06a13eb4b71f1749c264b2aa3329f982fe89e09a7d65254a",
+            "source_sha256": "7c4cb3c77f81138f307338ac7839831e4e98ee34ebff4357bb3e958dfe1d3f41",
+            "tokens": 19,
+            "vector_sha256": "8200dfa3adc113f491469d60c4bf540455990a205874cbfa0d0e43d51df2eeb8"
+          },
+          "file": "src/main.c",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "c:fn:main.emphasize",
+          "importance": 0.23932169594278552,
+          "is_orphan": false,
+          "label": "emphasize",
+          "language": "c",
+          "location": {
+            "end_column": 2,
+            "end_line": 3,
+            "path": "src/main.c",
+            "start_column": 1,
+            "start_line": 1
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.23932169594278552,
+          "purpose_similarity": 0.0,
+          "qname": "main.emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.7606783040572145,
+          "semantic_height": 10.805693015627021,
+          "similar": [
+            {
+              "cosine": 0.8491823326169031,
+              "id": "c:fn:main.calculate"
+            },
+            {
+              "cosine": 0.4458032995385095,
+              "id": "c:fn:main.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.38685181756455933,
+          "y_fan": -10.5,
+          "y_umap": -0.24896448213584021
+        },
+        {
+          "boundaries": [],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "c function \u00b7 src/main.c:9",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "6f86808a8d104290a5c0d5e39da5d1f53895c6da6e1acfc877dbada21aa97259",
+            "source_sha256": "3a3ec550a0dc2eca06536257f7b3a516168ffc2761706fda4f7f4d6ae1d8545c",
+            "tokens": 15,
+            "vector_sha256": "807ded010e96e27de7341cb87eb815a369a34931fb86f6d6d90c28d0ddf24e81"
+          },
+          "file": "src/main.c",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "c:fn:main.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "c",
+          "location": {
+            "end_column": 2,
+            "end_line": 11,
+            "path": "src/main.c",
+            "start_column": 1,
+            "start_line": 9
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "main.main",
+          "raw_height": 9.953951870430979,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.5423406538425914,
+              "id": "c:fn:main.calculate"
+            },
+            {
+              "cosine": 0.4458032995385095,
+              "id": "c:fn:main.emphasize"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.6441415236278505,
+          "y_fan": -3.5,
+          "y_umap": -0.03578349954149174
+        }
+      ],
+      "peaks": [
+        "c:fn:main.main"
+      ]
+    },
+    "overview": {
+      "constrained_spines": false,
+      "edges": [
+        {
+          "callsite": {
+            "line": 6,
+            "path": "src/main.c"
+          },
+          "confidence": "resolved",
+          "from": "c:fn:main.calculate",
+          "id": "e:0",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "c:fn:main.emphasize"
+        },
+        {
+          "callsite": {
+            "line": 10,
+            "path": "src/main.c"
+          },
+          "confidence": "resolved",
+          "from": "c:fn:main.main",
+          "id": "e:1",
+          "is_primary": true,
+          "kind": "calls",
+          "to": "c:fn:main.calculate"
+        }
+      ],
+      "height_scale": {
+        "factor": 1.808327007635074,
+        "offset": 2,
+        "raw_min": 0.0
+      },
+      "max_depth": 2,
+      "nodes": [
+        {
+          "boundaries": [],
+          "code_importance": 0.0,
+          "depth": 1,
+          "description": "c function \u00b7 src/main.c:5",
+          "displayName": "calculate",
+          "embedding": {
+            "chunks": 1,
+            "key": "0b5c96a77a6cc900644f07501d8c16e660205486271150dae58374fb131e4462",
+            "source_sha256": "5a313b8ba73cc689fb886f7026f55964d50edf109695d186b4ea172159b2b129",
+            "tokens": 22,
+            "vector_sha256": "66514bf85002a421f24a00ead1a628cbb04a10b16e70ae21ca46f787e61f0351"
+          },
+          "file": "src/main.c",
+          "graph_centrality": 1.0,
+          "height": 9.037600111269708,
+          "id": "c:fn:main.calculate",
+          "importance": 0.0,
+          "is_orphan": false,
+          "label": "calculate",
+          "language": "c",
+          "location": {
+            "end_column": 2,
+            "end_line": 7,
+            "path": "src/main.c",
+            "start_column": 1,
+            "start_line": 5
+          },
+          "n_callees": 1,
+          "novelty_importance": 0.0,
+          "purpose_similarity": 0.0,
+          "qname": "main.calculate",
+          "raw_height": 3.8917740439399093,
+          "routes": [],
+          "semantic_density": 1.0,
+          "semantic_height": 2.0,
+          "similar": [
+            {
+              "cosine": 0.8491823326169031,
+              "id": "c:fn:main.emphasize"
+            },
+            {
+              "cosine": 0.5423406538425914,
+              "id": "c:fn:main.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 4.286263797015736e-16,
+          "x_umap": -0.2572897060632912,
+          "y_fan": -7.0,
+          "y_umap": 0.2847479816773316
+        },
+        {
+          "boundaries": [],
+          "code_importance": 0.23932169594278552,
+          "depth": 2,
+          "description": "c function \u00b7 src/main.c:1",
+          "displayName": "emphasize",
+          "embedding": {
+            "chunks": 1,
+            "key": "8b75c72cce91c1cf06a13eb4b71f1749c264b2aa3329f982fe89e09a7d65254a",
+            "source_sha256": "7c4cb3c77f81138f307338ac7839831e4e98ee34ebff4357bb3e958dfe1d3f41",
+            "tokens": 19,
+            "vector_sha256": "8200dfa3adc113f491469d60c4bf540455990a205874cbfa0d0e43d51df2eeb8"
+          },
+          "file": "src/main.c",
+          "graph_centrality": 0.7320508075688772,
+          "height": 2.0,
+          "id": "c:fn:main.emphasize",
+          "importance": 0.23932169594278552,
+          "is_orphan": false,
+          "label": "emphasize",
+          "language": "c",
+          "location": {
+            "end_column": 2,
+            "end_line": 3,
+            "path": "src/main.c",
+            "start_column": 1,
+            "start_line": 1
+          },
+          "n_callees": 0,
+          "novelty_importance": 0.23932169594278552,
+          "purpose_similarity": 0.0,
+          "qname": "main.emphasize",
+          "raw_height": 0.0,
+          "routes": [],
+          "semantic_density": 0.7606783040572145,
+          "semantic_height": 10.805693015627021,
+          "similar": [
+            {
+              "cosine": 0.8491823326169031,
+              "id": "c:fn:main.calculate"
+            },
+            {
+              "cosine": 0.4458032995385095,
+              "id": "c:fn:main.main"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 6.429395695523604e-16,
+          "x_umap": -0.38685181756455933,
+          "y_fan": -10.5,
+          "y_umap": -0.24896448213584021
+        },
+        {
+          "boundaries": [],
+          "code_importance": 1.0,
+          "depth": 0,
+          "description": "c function \u00b7 src/main.c:9",
+          "displayName": "main",
+          "embedding": {
+            "chunks": 1,
+            "key": "6f86808a8d104290a5c0d5e39da5d1f53895c6da6e1acfc877dbada21aa97259",
+            "source_sha256": "3a3ec550a0dc2eca06536257f7b3a516168ffc2761706fda4f7f4d6ae1d8545c",
+            "tokens": 15,
+            "vector_sha256": "807ded010e96e27de7341cb87eb815a369a34931fb86f6d6d90c28d0ddf24e81"
+          },
+          "file": "src/main.c",
+          "graph_centrality": 0.7320508075688772,
+          "height": 20.0,
+          "id": "c:fn:main.main",
+          "importance": 1.0,
+          "is_orphan": false,
+          "label": "main",
+          "language": "c",
+          "location": {
+            "end_column": 2,
+            "end_line": 11,
+            "path": "src/main.c",
+            "start_column": 1,
+            "start_line": 9
+          },
+          "n_callees": 1,
+          "novelty_importance": 1.0,
+          "purpose_similarity": 0.0,
+          "qname": "main.main",
+          "raw_height": 9.953951870430979,
+          "routes": [],
+          "semantic_density": 0.0,
+          "semantic_height": 20.0,
+          "similar": [
+            {
+              "cosine": 0.5423406538425914,
+              "id": "c:fn:main.calculate"
+            },
+            {
+              "cosine": 0.4458032995385095,
+              "id": "c:fn:main.emphasize"
+            }
+          ],
+          "source_lines": 3,
+          "x_fan": 2.143131898507868e-16,
+          "x_umap": 0.6441415236278505,
+          "y_fan": -3.5,
+          "y_umap": -0.03578349954149174
+        }
+      ],
+      "peaks": [
+        "c:fn:main.main"
+      ]
+    }
+  }
+}

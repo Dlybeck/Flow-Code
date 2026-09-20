@@ -4,7 +4,7 @@ Replaces the hardcoded FastAPI `create_app` heuristic with a multi-signal approa
 
 Detection tiers (from strongest to weakest signal):
   1. .flowcode.toml config override (exclusive: only matches in config are returned)
-  2. Label ends in '.main' or equals 'main'
+  2. Final label segment equals `main`, case-insensitively
   3. App factory pattern (label ends in '.create_app', '.create_application', etc.)
   4. Route handler heuristic (no contains parent + outgoing unknown edges to app.* / router.*)
   5. Public package API: top-level functions defined in `__init__.py` files
@@ -32,7 +32,7 @@ def load_flowcode_config(repo_root: Path) -> dict[str, Any]:
     try:
         with open(p, "rb") as f:
             return tomllib.load(f)
-    except Exception:
+    except (OSError, tomllib.TOMLDecodeError):
         return {}
 
 
@@ -106,10 +106,11 @@ def detect_entrypoints(
                 seen.add(nid)
                 collected.append(nid)
 
-    # Tier 2: label ends in '.main' or equals 'main'
+    # Tier 2: conventional main entrypoint. JVM and .NET languages commonly
+    # capitalize Main, so compare the leaf without case.
     _add([
         n["id"] for n in real_nodes
-        if str(n["label"]).endswith(".main") or str(n["label"]) == "main"
+        if str(n["label"]).rsplit(".", 1)[-1].lower() == "main"
     ])
 
     # Tier 3: app factory pattern
