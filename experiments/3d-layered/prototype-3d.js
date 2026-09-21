@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Delaunay } from 'd3-delaunay';
 
+export {classifyEntryBasins} from './prototype-entrypoints.js';
+
 const LOW = new THREE.Color(0x64877b);
 const MID = new THREE.Color(0xa7c7b1);
 const ROCK = new THREE.Color(0xdfca91);
@@ -132,7 +134,7 @@ export function createTerrainView(canvas, onSelect) {
     const scale = 34 / span;
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
     const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-    const values = [...model.heights.values()];
+    const values = active.map(([id]) => model.heights.get(id));
     const low = Math.min(...values);
     const high = Math.max(...values);
     const heightSpan = Math.max(1, high - low);
@@ -141,9 +143,10 @@ export function createTerrainView(canvas, onSelect) {
       const point = model.positions.get(node.id);
       if (!point) continue;
       const height = model.heights.get(node.id) ?? low;
+      const normalizedHeight = Math.max(0, (height - low) / heightSpan);
       result.set(node.id, new THREE.Vector3(
         (point.x - cx) * scale,
-        1.4 + 15.5 * (height - low) / heightSpan,
+        1.4 + 15.5 * normalizedHeight,
         (point.y - cz) * scale,
       ));
     }
