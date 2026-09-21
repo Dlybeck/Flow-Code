@@ -102,7 +102,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
   relevanceKey.append(keyTitle, keyGradient, keyCopy);
   const lineKey = document.createElement('div');
   lineKey.style.marginTop = '7px';
-  for (const [label, pattern] of [['Direct call', ''], ['Supporting steps', '12 3'], ['Additional call →', '1 5'], ['Project membership', '4 6']]) {
+  for (const [label, pattern] of [['Branch path', ''], ['Extra call →', '1 5']]) {
     const row = document.createElement('div');
     Object.assign(row.style, {display: 'flex', alignItems: 'center', gap: '7px', marginTop: '2px'});
     const sample = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -236,7 +236,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
     }
     const summarized=currentModel.primaryEdges.find(e=>e.from===from&&e.to===to)?.summarized;
     const kind = secondary ? 'secondary' : from === '__project__' ? 'grouping' : summarized ? 'collapsed' : 'primary';
-    const pattern = {secondary: [.08, .3], grouping: [.24, .34], collapsed: [.85, .22]}[kind];
+    const pattern = secondary ? [.08, .3] : null;
     const material = pattern
       ? new THREE.LineDashedMaterial({color: 0xb9c8bd, dashSize: pattern[0], gapSize: pattern[1], transparent: true, opacity: .58, depthWrite: false})
       : new THREE.LineBasicMaterial({color: 0x244b45, transparent: true, opacity: .9});
@@ -384,8 +384,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
       line.userData.incident = incident;
       line.visible = !line.userData.secondary || allSecondary || incident;
       if (line.userData.arrow) line.userData.arrow.visible = line.visible;
-      const inferred = line.userData.confidence === 'heuristic';
-      const baseColor = inferred ? new THREE.Color(0xe8a766) : line.userData.kind === 'grouping' ? new THREE.Color(0x789789) : line.userData.secondary ? new THREE.Color(0xb9c8bd) : INK;
+      const baseColor = line.userData.secondary ? new THREE.Color(0xb9c8bd) : INK;
       line.material.color.copy(active ? GOLD : baseColor);
       line.material.opacity = selectedId && selectedId !== '__project__' ? (active || incident ? 1 : .22) : (line.userData.secondary ? .48 : .8);
     }

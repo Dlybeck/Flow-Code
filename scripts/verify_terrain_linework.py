@@ -85,10 +85,8 @@ with sync_playwright() as p:
             assert all(e.get("kind") for e in styles)
             for edge in styles:
                 kind = edge["kind"]
-                assert edge["dashed"] == (kind != "primary"), edge
+                assert edge["dashed"] == (kind == "secondary"), edge
                 assert edge["arrow"] == (kind == "secondary"), edge
-                if kind == "collapsed":
-                    assert edge["dash"] > edge["gap"] * 2, edge
                 if kind == "secondary":
                     assert edge["dash"] < edge["gap"], edge
             data["styleKinds"] = sorted({e["kind"] for e in styles})
@@ -97,7 +95,12 @@ with sync_playwright() as p:
                 e["kind"]: tuple(e.get(k) for k in ["dashed", "dash", "gap", "arrow"])
                 for e in styles
             }
-            assert len(set(patterns.values())) == len(patterns), patterns
+            assert len(set(patterns.values())) == 2, patterns
+            assert all(
+                value == patterns["primary"]
+                for kind, value in patterns.items()
+                if kind != "secondary"
+            ), patterns
             if project == "scribblescan":
                 assert set(patterns) == {
                     "primary",
@@ -119,7 +122,7 @@ with sync_playwright() as p:
                 selected_styles = page.evaluate(STYLES)
                 assert without_visibility(selected_styles) == without_visibility(styles)
             data["styles_survive_selection"] = True
-            data["distinct_style_patterns"] = True
+            data["two_style_patterns"] = True
             page.evaluate("window.__terrain3d.select('__project__')")
         records.append(data)
         page.locator(".stage").first.screenshot(path=str(args.out / f"{project}.png"))

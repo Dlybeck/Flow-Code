@@ -111,3 +111,19 @@ while navigating to an unplaced function.
 Delivery target: the persistent local `flowcode-terrain-preview` service on port
 8766 and the unmerged `codex/inclusive-terrain-audit` feature branch. Public Pages
 is outside this handoff and remains unchanged.
+
+
+## User correction: simplify the line vocabulary
+
+The user found the four patterns too similar and the presentation too complicated.
+This supersedes the four-pattern display decision above. The current viewer has
+only solid branch paths and dotted extra calls; gold indicates selection. Call
+confidence, collapsed steps and synthetic project membership remain inspectable
+in node details instead of requiring extra dash patterns or line colors.
+The existing diamond group markers and project node still identify those nodes.
+
+The bundled build and five-project browser comparison passed after this change,
+including two-pattern assertions before/after group and function selection and
+unchanged graph hashes. [Follow-up receipt](linework-browser/simple-lines.json).
+Terrain geometry was untouched; the earlier surface checks apply to that geometry.
+This small follow-up was reviewed locally against the user's correction.

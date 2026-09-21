@@ -26,10 +26,10 @@ selecting one displays it outside the terrain without inventing an entry link.
 
 Primary routes use curvature-based sampling rather than a fixed number of mesh
 vertices per call. Facet shading supplies depth without drawing polygon outlines
-that could be mistaken for connections. Solid strokes represent direct primary
-calls; long dashes represent collapsed supporting steps; dotted arrows represent
-additional calls. Short dashed spokes represent project membership. The in-view
-legend identifies these patterns, which remain distinct after selection.
+that could be mistaken for connections. There are two line styles: solid branch
+paths and dotted extra calls. Gold highlights the selected path. Selecting a node
+explains whether a branch segment is a call, collapsed supporting steps or
+project membership, including the available call evidence.
 
 Primary routes are explicit terrain-mesh constraints, so the surface descends
 along the same path as the call line. Collapsed-path strokes represent multiple
