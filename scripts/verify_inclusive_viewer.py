@@ -46,6 +46,7 @@ with sync_playwright() as p:
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(args.url, wait_until="networkidle")
     page.wait_for_function("window.__terrain3d?.model?.nodes.length > 0", timeout=60000)
+    page.select_option("#content", "complete")
     page.wait_for_timeout(800)
     assert_label_separation(page)
     page.screenshot(path=str(out / "scribble-all.png"), full_page=True)

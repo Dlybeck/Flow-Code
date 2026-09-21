@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Delaunay } from 'd3-delaunay';
+import {constrainedSurface} from './prototype-surface.js';
+export {layoutSpines} from './prototype-surface.js';
+export {essentialView} from './prototype-essential.js';
 import {chooseVisibleMarkers} from './prototype-detail.js';
 import {circularRoute} from './prototype-routing.js';
 
@@ -66,6 +68,8 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
   let currentModel = null;
   let currentPositions = new Map();
   let currentOrigin = {x: 0, z: 0};
+  let currentTransform = null;
+  let currentRoutes = new Map();
   let selectedId = null;
   let detail = 'overview';
   let detailSignature = '';
@@ -148,8 +152,8 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
     const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
     const values = active.map(([id]) => model.heights.get(id));
-    const low = Math.min(...values);
-    const high = Math.max(...values);
+    const low = model.heightRange?.low ?? Math.min(...values);
+    const high = model.heightRange?.high ?? Math.max(...values);
     const heightSpan = Math.max(1, high - low);
     const result = new Map();
     for (const node of model.nodes) {
@@ -163,6 +167,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
         (point.y - cz) * scale,
       ));
     }
+    currentTransform = p => new THREE.Vector3((p.x-cx)*scale,1.4+15.5*Math.max(0,(p.height-low)/heightSpan),(p.z-cz)*scale);
     return {positions: result, low, high, origin: {x: -cx * scale, z: -cz * scale}};
   }
 
@@ -171,55 +176,34 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
   }
 
   function buildTerrain(model, heightLow, heightHigh) {
-    const heightSpan = Math.max(1, heightHigh - heightLow);
-    for (const cluster of clusterRoots(model)) {
-      const ids = [...cluster.ids].filter(id => currentPositions.has(id) && !model.orphans.includes(id));
-      if (!ids.length) continue;
-      const center = ids.reduce((sum, id) => sum.add(currentPositions.get(id)), new THREE.Vector3()).multiplyScalar(1 / ids.length);
-      const radius = Math.max(4.5, ...ids.map(id => {
-        const p = currentPositions.get(id);
-        return Math.hypot(p.x - center.x, p.z - center.z);
-      })) + 3.8;
-      const points = ids.map(id => {
-        const p = currentPositions.get(id);
-        return {x: p.x, y: p.y, z: p.z, height: model.heights.get(id) ?? heightLow, apron: false};
-      });
-      const ringCount = Math.max(28, Math.min(56, ids.length * 2));
-      for (let i = 0; i < ringCount; i++) {
-        const angle = Math.PI * 2 * i / ringCount;
-        const wobble = 1 + .045 * Math.sin(i * 2.37);
-        points.push({
-          x: center.x + radius * wobble * Math.cos(angle),
-          y: .15,
-          z: center.z + radius * wobble * Math.sin(angle),
-          height: heightLow - 1,
-          apron: true,
-        });
-      }
-      const delaunay = Delaunay.from(points.map(point => [point.x, point.z]));
-      const positions = [];
-      const colors = [];
-      for (const index of delaunay.triangles) {
-        const point = points[index];
-        positions.push(point.x, point.y, point.z);
-        const t = point.apron ? 0 : Math.max(0, Math.min(1, (point.height - heightLow) / heightSpan));
-        const color = terrainColor(t);
-        colors.push(color.r, color.g, color.b);
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-      geometry.computeVertexNormals();
-      const material = new THREE.MeshToonMaterial({vertexColors: true, flatShading: true, side: THREE.DoubleSide});
-      const mesh = new THREE.Mesh(geometry, material);
-      terrainMeshes.push(mesh);
-      world.add(mesh);
-      const creases = new THREE.LineSegments(
-        new THREE.EdgesGeometry(geometry, 24),
-        new THREE.LineBasicMaterial({color: 0x153d38, transparent: true, opacity: .2}),
-      );
-      world.add(creases);
+    const ids=model.nodes.map(n=>n.id).filter(id=>currentPositions.has(id)&&!model.orphans.includes(id));
+    if(!ids.length)return;
+    const points=ids.map(id=>({id,...currentPositions.get(id)}));
+    const center=points.reduce((sum,p)=>sum.add(new THREE.Vector3(p.x,0,p.z)),new THREE.Vector3()).multiplyScalar(1/points.length);
+    const radius=Math.max(4.5,...points.map(p=>Math.hypot(p.x-center.x,p.z-center.z)))+3.8;
+    for(let i=0;i<40;i++){
+      const angle=2*Math.PI*i/40;
+      points.push({id:`__apron_${i}`,x:center.x+radius*Math.cos(angle),y:.15,z:center.z+radius*Math.sin(angle),apron:true});
     }
+    const paths=[];currentRoutes=new Map();
+    for(const [key,route] of model.routes){
+      const vertices=route.map(currentTransform);currentRoutes.set(key,vertices);
+      const [child,owner]=[...model.parent].find(([c,p])=>`${p}|${c}`===key)||[];
+      if(owner&&child)paths.push({from:owner,to:child,points:vertices});
+    }
+    const meshData=constrainedSurface(points,paths);
+    const positions=[],colors=[];
+    for(const triangle of meshData.triangles)for(const index of triangle){
+      const p=meshData.vertices[index];positions.push(p.x,p.y,p.z);
+      const color=terrainColor(Math.max(0,Math.min(1,(p.y-1.4)/15.5)));colors.push(color.r,color.g,color.b);
+    }
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+    geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.computeVertexNormals();
+    const mesh=new THREE.Mesh(geometry,new THREE.MeshToonMaterial({vertexColors:true,flatShading:true,side:THREE.DoubleSide}));
+    mesh.userData.terrain=true;mesh.userData.constraints=meshData.constraints.length;
+    terrainMeshes.push(mesh);world.add(mesh);
+    world.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry,24),new THREE.LineBasicMaterial({color:0x153d38,transparent:true,opacity:.2})));
   }
 
   function addEdge(from, to, secondary = false, confidence = "resolved") {
@@ -235,16 +219,15 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
       arrowTip = points.at(-1);
       arrowDirection = arrowTip.clone().sub(points.at(-2)).normalize();
     } else {
-      geometry = new THREE.BufferGeometry().setFromPoints([
-        a.clone().add(new THREE.Vector3(0, .42, 0)),
-        b.clone().add(new THREE.Vector3(0, .42, 0)),
-      ]);
+      const route=currentRoutes.get(`${from}|${to}`)||[a,b];
+      geometry = new THREE.BufferGeometry().setFromPoints(route.map(p=>p.clone().add(new THREE.Vector3(0,.42,0))));
     }
-    const material = secondary
+    const summarized=currentModel.primaryEdges.find(e=>e.from===from&&e.to===to)?.summarized;
+    const material = secondary || summarized
       ? new THREE.LineDashedMaterial({color: 0xb9c8bd, dashSize: .35, gapSize: .3, transparent: true, opacity: .58, depthWrite: false})
       : new THREE.LineBasicMaterial({color: 0x244b45, transparent: true, opacity: .9});
     const line = new THREE.Line(geometry, material);
-    if (secondary) line.computeLineDistances();
+    if (secondary || summarized) line.computeLineDistances();
     line.userData = {from, to, secondary, confidence};
     world.add(line);
     edgeLines.push(line);
@@ -282,7 +265,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
         transparent: false,
         opacity: 1,
       });
-      const mesh = new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(node.kind === 'supporting-group' ? new THREE.OctahedronGeometry(.44) : geometry, material);
       mesh.position.copy(position).add(new THREE.Vector3(0, .48, 0));
       mesh.scale.setScalar(project ? 2.1 : .72 + score * .72);
       mesh.userData = {id: node.id, base, branch, score, relevance: node.score};
@@ -294,11 +277,11 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
         ring.rotation.x = Math.PI / 2;
         mesh.add(ring);
       }
-      if (project || landmarks.has(node.id)) {
+      if (project || node.kind === 'supporting-group' || landmarks.has(node.id)) {
         const element = document.createElement(project ? 'div' : 'button');
-        element.textContent = project ? node.label : `Entry · ${node.label}`;
+        element.textContent = project || node.kind === 'supporting-group' ? node.label : `Entry · ${node.label}`;
         element.title = node.qname;
-        element.dataset.kind = project ? 'project' : 'entry';
+        element.dataset.kind = project ? 'project' : node.kind === 'supporting-group' ? 'group' : 'entry';
         if (!project) element.addEventListener('click', () => onSelect?.(node.id));
         Object.assign(element.style, {
           position: 'absolute', zIndex: '3', pointerEvents: project ? 'none' : 'auto',
@@ -323,12 +306,14 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
   function update(model, {resetView = false} = {}) {
     currentModel = model;
     clearWorld();
+    currentRoutes=new Map();
+    if(!model.nodes.length){detailSignature='';onDetailChange?.('No entry paths established. Search the complete inventory below.');return;}
     const scaled = scaledPositions(model);
     currentPositions = scaled.positions;
     currentOrigin = scaled.origin;
     buildTerrain(model, scaled.low, scaled.high);
     const evidence = new Map(model.primaryEdges.map(e => [`${e.from}|${e.to}`, e.confidence]));
-    for (const [child, parent] of model.parent) addEdge(parent, child, false, evidence.get(`${parent}|${child}`) || 'grouping');
+    for (const [child, parent] of model.parent) addEdge(parent, child, model.orphans.includes(child), evidence.get(`${parent}|${child}`) || 'grouping');
     for (const edge of model.secondaryEdges) addEdge(edge.from, edge.to, true, edge.confidence);
     addNodes(model);
     select(selectedId);
@@ -501,7 +486,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
         priority: mesh.userData.relevance, onScreen: Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && Math.abs(p.z) <= 1};
     });
     const pinned = new Set(['__project__', ...revealedNodes]);
-    const visible = detail === 'all' ? new Set(nodeMeshes.map(mesh => mesh.userData.id))
+    const visible = detail === 'all' || currentModel.essential ? new Set(nodeMeshes.map(mesh => mesh.userData.id))
       : chooseVisibleMarkers(points.filter(p => p.onScreen), {pinned, spacing: 28});
     // A selected path is never simplified, including its lower-scoring bridges.
     for (const id of revealedNodes) visible.add(id);
@@ -510,12 +495,12 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
     for (const line of edgeLines) {
       const {from, to, secondary, active, incident} = line.userData;
       line.visible = secondary ? (allSecondary || incident)
-        : detail === 'all' || active || (incident && selectedId !== '__project__') || (visible.has(from) && visible.has(to));
+        : currentModel.essential || detail === 'all' || active || (incident && selectedId !== '__project__') || (visible.has(from) && visible.has(to));
       if (line.userData.arrow) line.userData.arrow.visible = line.visible;
     }
     const shown = points.filter(p => p.id !== '__project__' && p.onScreen && visible.has(p.id)).length;
     const total = currentModel.nodes.filter(n => n.id !== '__project__').length;
-    const status = detail === 'all' ? `All ${total} function markers enabled.`
+    const status = currentModel.essential ? `Essential · ${total} items, including ${currentModel.groups.size} supporting groups. Expand groups or search to explore more.` : detail === 'all' ? `All ${total} function markers enabled.`
       : `Overview · ${shown} of ${total} function markers in view. Zoom to reveal more; select to trace every step.`;
     if (status !== detailStatus) { detailStatus = status; onDetailChange?.(status); }
   }

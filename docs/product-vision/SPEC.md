@@ -7,8 +7,9 @@ Read [goal.md](./goal.md) first.
 
 1. **A newcomer can explore without prior code knowledge.** The main surface is
    the map, with source locations available for deeper inspection.
-2. **Terrain stays central.** Height carries contextual importance; horizontal
-   position carries code similarity or call-path structure.
+2. **Terrain stays central.** Altitude accumulates descent along primary call paths;
+   contextual relevance controls each parent-relative drop. Horizontal position
+   organizes the circular branches.
 3. **Technical structure is reproducible.** Source parsing, IR construction,
    vectorization, scoring, layout, and export do not require generative AI.
 4. **Static uncertainty remains visible.** Unresolved, inferred, external, and
@@ -73,8 +74,24 @@ The purpose text and vector receipt are stored in the snapshot.
 
 The similarity layout uses cosine-distance code vectors projected by seeded
 UMAP, with exact SVD for three or fewer functions. The call-path layout derives
-from mapped calls and the primary call tree. Visual height transforms are
-monotonic and preserve score order.
+from mapped calls and the primary call tree. Height is cumulative and relative
+to the caller: relevant children lose less altitude; less-relevant children lose
+more. It is not an absolute project-wide importance ranking or a fixed depth
+band. A positive affine display transform preserves these relative descents.
+
+The circular viewer defaults to an Essential view: up to 40 displayed items
+across six entry branches, with supporting chains collapsed into expandable
+multi-step groups. All source functions remain searchable, and Complete mode
+restores the full terrain. Selection uses existing scores without renormalizing
+the selected subset; surviving function heights and cumulative drops remain
+unchanged. Explicit expansion and searched paths can exceed the overview budget.
+
+Primary call paths constrain the actual terrain mesh and must stay downhill
+along their entire surfaces. Neighbouring branches can stand at different
+altitudes; the guarantee is not a ban on rising when crossing between unrelated
+branches. Secondary calls are visually distinct and do not define terrain.
+Unknown entry paths cannot be invented to attach an important-looking function.
+The project summit groups entry branches; its spokes are not runtime calls.
 
 ## 6. Language adapter contract
 

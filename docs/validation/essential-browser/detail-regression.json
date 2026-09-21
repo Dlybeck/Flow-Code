@@ -1,0 +1,60 @@
+{
+  "cases": [
+    {
+      "dataset": "scribblescan",
+      "functions": 599,
+      "overview_markers_in_view": 36,
+      "overview_summit_markers": 5,
+      "overview_crowded": 0,
+      "all_summit_markers": 75,
+      "all_crowded": 68,
+      "unchanged_geometry_and_calls": true
+    },
+    {
+      "dataset": "chef",
+      "functions": 32,
+      "overview_markers_in_view": 27,
+      "overview_summit_markers": 3,
+      "overview_crowded": 0,
+      "all_summit_markers": 5,
+      "all_crowded": 0,
+      "unchanged_geometry_and_calls": true
+    },
+    {
+      "dataset": "fieldhouse",
+      "functions": 41,
+      "overview_markers_in_view": 29,
+      "overview_summit_markers": 8,
+      "overview_crowded": 0,
+      "all_summit_markers": 9,
+      "all_crowded": 0,
+      "unchanged_geometry_and_calls": true
+    },
+    {
+      "dataset": "redblack",
+      "functions": 46,
+      "overview_markers_in_view": 28,
+      "overview_summit_markers": 3,
+      "overview_crowded": 0,
+      "all_summit_markers": 4,
+      "all_crowded": 0,
+      "unchanged_geometry_and_calls": true
+    },
+    {
+      "dataset": "flowcode",
+      "functions": 256,
+      "overview_markers_in_view": 52,
+      "overview_summit_markers": 3,
+      "overview_crowded": 0,
+      "all_summit_markers": 4,
+      "all_crowded": 0,
+      "unchanged_geometry_and_calls": true
+    }
+  ],
+  "zoom_reveals_hidden": true,
+  "selected_path_and_neighbors": true,
+  "secondary_endpoints": true,
+  "errors": [],
+  "prototype-fixtures.json_sha256": "0db44357b5d356fdd7405624405b68575dc77e1f6d5498ffe4eeb14227548101",
+  "dist/prototype-3d.js_sha256": "606900324923a6b81bb774bc64a892afa2bd9be182e901ff6eaa0314e5c0f328"
+}

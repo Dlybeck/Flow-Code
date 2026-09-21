@@ -11,19 +11,32 @@ From this directory, run `npm install` and `npm run build`, then
 `python3 -m http.server 8766`. Open
 `http://localhost:8766/terrain-rules-prototype.html`.
 
-The default **Overview** spaces markers in screen pixels, revealing more as you
-zoom. It favors embedding relevance when markers compete for space; it does not
-remove functions, change heights or invent replacement calls. Selecting a
-function restores every primary-path caller and its direct call neighbors.
-**All nodes** restores the full marker display for comparison. Explicitly showing
-all secondary calls can also restore dense detail.
+The default **Essential** mountain retains up to 40 items across six entry
+branches, selected from existing relevance scores with their primary paths.
+Supporting chains become diamond markers labelled **N supporting steps**.
+Expand them from the marker or the **Expandable supporting steps** list. Search
+reveals an omitted function and its caller path; **Reset overview** clears these
+expansions. Original scores and cumulative heights do not change when pruning.
+
+**Complete** restores the full terrain. Its **Visible detail** control can space
+markers in screen pixels or show all markers. The function inventory always
+contains the full selected source, in either content mode. Important-looking
+unplaced functions remain in **Relevant functions with unknown entry paths**;
+selecting one displays it outside the terrain without inventing an entry link.
+
+Primary routes are explicit terrain-mesh constraints, so the surface descends
+along the same path as the call line. Collapsed-path strokes represent multiple
+original steps and can be expanded. Neighbouring branches can have different
+altitudes; the guarantee does not apply when walking sideways between branches.
+Unplaced-to-unplaced relationships use dotted lines, like other calls outside
+the anchored terrain. Invalid geometry reports an error, not a free-mesh fallback.
 
 Search by function, file, or language. Select a search result to center and label
 it. Caller/callee buttons navigate known relationships, including secondary
 calls. A few entry labels provide landmarks; collision and terrain occlusion
 checks prevent them covering each other or appearing through the mountain.
 
-All indexed functions are included. Unplaced functions sit outside the terrain;
+All indexed functions remain in the inventory. Displayed unplaced functions sit outside the terrain;
 white rings mark unknown entry paths while size/color retain relevance. The
 project summit's spokes group entries and are not runtime calls. Inferred calls
 remain labelled as possible; source locations and unresolved boundaries are
@@ -72,3 +85,5 @@ round analyzed the current available Python source (175 functions).
 
 See `../../docs/validation/inclusive-terrain-run.md` for comparisons, source
 checks, browser evidence, remaining limitations and the review outcome.
+
+See `../../docs/validation/essential-terrain.md` for the Essential-view contract and actual-surface validation.
