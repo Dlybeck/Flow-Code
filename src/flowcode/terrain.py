@@ -229,6 +229,7 @@ def export_terrain(
             "description": f"{n['language']} function · {loc['path']}:{loc['start_line']}",
             "routes": n.get("routes", []),
             "boundaries": [],
+            "entry_evidence": n.get("entry_evidence", []),
         }
     if not functions:
         raise ValueError("No supported functions found in the selected source roots")
@@ -282,9 +283,7 @@ def export_terrain(
             raise ValueError(f"Entry must name exactly one function: {entry}")
         seeds.extend(matches)
     if not seeds:
-        seeds = [n for n in graph["entrypoints"] if n in functions][:3] or [
-            min(functions)
-        ]
+        seeds = [n for n in graph["entrypoints"] if n in functions]
     neighbors = defaultdict(set)
     for e in internal:
         neighbors[e["from"]].add(e["to"])
@@ -296,6 +295,7 @@ def export_terrain(
     analysis = dict(
         graph["analysis"],
         source_roots=src_roots or ["."],
+        entry_selection="manual" if entries else "detected",
         excluded_directories=sorted(SKIP_DIR_NAMES),
         excluded_patterns=[
             "hidden paths",

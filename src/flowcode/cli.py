@@ -34,6 +34,12 @@ def main(argv: list[str] | None = None) -> int:
     p_export.add_argument('--entry', action='append', dest='entries', help='Exact function ID or qualified name; repeatable')
     p_export.add_argument('-o', '--out', type=Path, required=True)
 
+    p_prototype = sub.add_parser('prototype', help='Convert a complete terrain export to a circular viewer fixture')
+    p_prototype.add_argument('snapshot', type=Path)
+    p_prototype.add_argument('--repo', type=Path, help='Refresh calls from identical source; refuses changed snapshots')
+    p_prototype.add_argument('--title')
+    p_prototype.add_argument('-o', '--out', type=Path, required=True)
+
     p_site = sub.add_parser(
         "site", help="Package one terrain snapshot as an independent static viewer"
     )
@@ -122,6 +128,15 @@ def main(argv: list[str] | None = None) -> int:
             doc = attach_guide(doc, json.loads(args.guide.read_text()))
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(doc, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        return 0
+
+    if args.cmd == 'prototype':
+        from flowcode import generate_graph
+        from flowcode.prototype import terrain_fixture
+        document = json.loads(args.snapshot.read_text())
+        graph = generate_graph(args.repo, src_roots=document['analysis']['source_roots'], include_overlay=False) if args.repo else None
+        fixture = terrain_fixture(document, graph=graph, title=args.title)
+        args.out.write_text(json.dumps(fixture, indent=2, sort_keys=True) + '\n')
         return 0
 
     if args.cmd == "site":

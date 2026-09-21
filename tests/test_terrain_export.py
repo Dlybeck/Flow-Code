@@ -297,3 +297,12 @@ def test_feature_keeps_project_wide_semantic_scores(tmp_path, deterministic_embe
             "y_umap",
         ]:
             assert node[key] == overview[node["id"]][key]
+
+
+def test_export_keeps_all_detected_entries(tmp_path, deterministic_embeddings):
+    from flowcode.terrain import export_terrain
+    for i in range(5):
+        (tmp_path / f'entry{i}.py').write_text('def main(): pass\n')
+    document = export_terrain(tmp_path, project='multiple-entrypoints')
+    assert len(document['entries']) == 5
+    assert document['analysis']['entry_selection'] == 'detected'

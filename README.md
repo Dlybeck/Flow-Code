@@ -178,3 +178,10 @@ and unsupported languages are not execution graphs.
 See [the product goal](docs/product-vision/goal.md) for the current product
 direction and [the specification](docs/product-vision/SPEC.md) for the durable
 boundaries.
+
+### Inclusive circular terrain experiment
+
+The [circular viewer](experiments/3d-layered/INCLUSIVE-VIEWER.md) retains the complete
+function inventory, provides search and caller/callee navigation, and distinguishes
+missing entry paths from low relevance. Convert any normal export with
+`flowcode prototype MAP.json -o FIXTURE.json`, then open it locally in that viewer.
