@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild app.js original-app.js --bundle --format=esm --outdir=dist --log-level=warning"
+    "build": "esbuild app.js original-app.js prototype-3d.js --bundle --format=esm --outdir=dist --log-level=warning"
   },
   "dependencies": {
     "three": "0.160.0",
