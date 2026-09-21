@@ -1,0 +1,232 @@
+{
+  "baseline_commit": "b5b8d1b90f15515a7688ed49d9f5b30904857283",
+  "projects": {
+    "chef": {
+      "after": {
+        "analyzer": {
+          "parser_packages": {
+            "tree-sitter": "0.26.0",
+            "tree-sitter-c": "0.24.2",
+            "tree-sitter-c-sharp": "0.23.5",
+            "tree-sitter-haskell": "0.23.1",
+            "tree-sitter-java": "0.23.5",
+            "tree-sitter-typescript": "0.23.2"
+          },
+          "source_sha256": "119a542772f3e3ff1eee6c70afd8a80b6c21004f2fd7516f64c1a2dba8bf31da"
+        },
+        "candidate_analysis": {
+          "python": {
+            "converged": true,
+            "round_limit": 24,
+            "rounds": 3
+          }
+        },
+        "confidence": {
+          "heuristic": 20,
+          "resolved": 1
+        },
+        "entries": 7,
+        "functions": 32,
+        "internal_pairs": 20,
+        "note": "Static may-reachability from adapter entries, including legacy fallbacks. Not runtime coverage or dead-code detection.",
+        "reachable": 20,
+        "source_digest": "fe8828b4342b3c9cd366d6e1ede8164bc37eebd969938f5c6dc87c3ce12dc304"
+      },
+      "before": {
+        "candidate_analysis": null,
+        "confidence": {
+          "heuristic": 1,
+          "resolved": 1
+        },
+        "entries": 6,
+        "functions": 32,
+        "internal_pairs": 2,
+        "reachable": 7,
+        "source_digest": "fe8828b4342b3c9cd366d6e1ede8164bc37eebd969938f5c6dc87c3ce12dc304"
+      },
+      "source_roots": [
+        "app",
+        "agents",
+        "config"
+      ]
+    },
+    "fieldhouse": {
+      "after": {
+        "analyzer": {
+          "parser_packages": {
+            "tree-sitter": "0.26.0",
+            "tree-sitter-c": "0.24.2",
+            "tree-sitter-c-sharp": "0.23.5",
+            "tree-sitter-haskell": "0.23.1",
+            "tree-sitter-java": "0.23.5",
+            "tree-sitter-typescript": "0.23.2"
+          },
+          "source_sha256": "119a542772f3e3ff1eee6c70afd8a80b6c21004f2fd7516f64c1a2dba8bf31da"
+        },
+        "candidate_analysis": {},
+        "confidence": {
+          "heuristic": 11,
+          "resolved": 12
+        },
+        "entries": 22,
+        "functions": 41,
+        "internal_pairs": 23,
+        "note": "Static may-reachability from adapter entries, including legacy fallbacks. Not runtime coverage or dead-code detection.",
+        "reachable": 28,
+        "source_digest": "38b1580a1bf08c93524bd332c15b210919eb0c1e5fbfe4a8e5a415425dbe0284"
+      },
+      "before": {
+        "candidate_analysis": null,
+        "confidence": {
+          "heuristic": 4,
+          "resolved": 12
+        },
+        "entries": 1,
+        "functions": 41,
+        "internal_pairs": 16,
+        "reachable": 1,
+        "source_digest": "38b1580a1bf08c93524bd332c15b210919eb0c1e5fbfe4a8e5a415425dbe0284"
+      },
+      "source_roots": [
+        "index.js",
+        "models",
+        "public/js"
+      ]
+    },
+    "flowcode": {
+      "after": {
+        "analyzer": {
+          "parser_packages": {
+            "tree-sitter": "0.26.0",
+            "tree-sitter-c": "0.24.2",
+            "tree-sitter-c-sharp": "0.23.5",
+            "tree-sitter-haskell": "0.23.1",
+            "tree-sitter-java": "0.23.5",
+            "tree-sitter-typescript": "0.23.2"
+          },
+          "source_sha256": "119a542772f3e3ff1eee6c70afd8a80b6c21004f2fd7516f64c1a2dba8bf31da"
+        },
+        "candidate_analysis": {
+          "python": {
+            "converged": true,
+            "round_limit": 24,
+            "rounds": 6
+          }
+        },
+        "confidence": {
+          "heuristic": 47,
+          "resolved": 259
+        },
+        "entries": 4,
+        "functions": 175,
+        "internal_pairs": 230,
+        "note": "Static may-reachability from adapter entries, including legacy fallbacks. Not runtime coverage or dead-code detection.",
+        "reachable": 142,
+        "source_digest": "e1a00133d7445b12d274027e3a7ad1daa9ff7deaafd578e63573783329ffac37"
+      },
+      "before": {
+        "candidate_analysis": null,
+        "confidence": {
+          "resolved": 259
+        },
+        "entries": 4,
+        "functions": 175,
+        "internal_pairs": 199,
+        "reachable": 126,
+        "source_digest": "e1a00133d7445b12d274027e3a7ad1daa9ff7deaafd578e63573783329ffac37"
+      },
+      "source_roots": [
+        "src/flowcode"
+      ]
+    },
+    "redblack": {
+      "after": {
+        "analyzer": {
+          "parser_packages": {
+            "tree-sitter": "0.26.0",
+            "tree-sitter-c": "0.24.2",
+            "tree-sitter-c-sharp": "0.23.5",
+            "tree-sitter-haskell": "0.23.1",
+            "tree-sitter-java": "0.23.5",
+            "tree-sitter-typescript": "0.23.2"
+          },
+          "source_sha256": "119a542772f3e3ff1eee6c70afd8a80b6c21004f2fd7516f64c1a2dba8bf31da"
+        },
+        "candidate_analysis": {},
+        "confidence": {
+          "heuristic": 32,
+          "resolved": 96
+        },
+        "entries": 2,
+        "functions": 46,
+        "internal_pairs": 71,
+        "note": "Static may-reachability from adapter entries, including legacy fallbacks. Not runtime coverage or dead-code detection.",
+        "reachable": 39,
+        "source_digest": "8aa68444806e91e09cd2dc6b0af269d02737ba792b18ff358bb3030d0212f551"
+      },
+      "before": {
+        "candidate_analysis": null,
+        "confidence": {
+          "resolved": 62
+        },
+        "entries": 2,
+        "functions": 46,
+        "internal_pairs": 28,
+        "reachable": 6,
+        "source_digest": "8aa68444806e91e09cd2dc6b0af269d02737ba792b18ff358bb3030d0212f551"
+      },
+      "source_roots": [
+        "Assignment4/src/WordFreqs2.java",
+        "Assignment4/src/RedBlackTree.java"
+      ]
+    },
+    "scribblescan": {
+      "after": {
+        "analyzer": {
+          "parser_packages": {
+            "tree-sitter": "0.26.0",
+            "tree-sitter-c": "0.24.2",
+            "tree-sitter-c-sharp": "0.23.5",
+            "tree-sitter-haskell": "0.23.1",
+            "tree-sitter-java": "0.23.5",
+            "tree-sitter-typescript": "0.23.2"
+          },
+          "source_sha256": "119a542772f3e3ff1eee6c70afd8a80b6c21004f2fd7516f64c1a2dba8bf31da"
+        },
+        "candidate_analysis": {
+          "python": {
+            "converged": true,
+            "round_limit": 24,
+            "rounds": 4
+          }
+        },
+        "confidence": {
+          "heuristic": 417,
+          "resolved": 234
+        },
+        "entries": 151,
+        "functions": 599,
+        "internal_pairs": 462,
+        "note": "Static may-reachability from adapter entries, including legacy fallbacks. Not runtime coverage or dead-code detection.",
+        "reachable": 280,
+        "source_digest": "a5e9c10f2d0b25d3e41169ac420f952e9eedee0c80ffc89997b6ccd27961ad39"
+      },
+      "before": {
+        "candidate_analysis": null,
+        "confidence": {
+          "heuristic": 151,
+          "resolved": 234
+        },
+        "entries": 70,
+        "functions": 599,
+        "internal_pairs": 317,
+        "reachable": 138,
+        "source_digest": "a5e9c10f2d0b25d3e41169ac420f952e9eedee0c80ffc89997b6ccd27961ad39"
+      },
+      "source_roots": [
+        "app",
+        "static/js"
+      ]
+    }
+  }
+}
