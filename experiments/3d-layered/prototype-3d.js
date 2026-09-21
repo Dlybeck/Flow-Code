@@ -100,6 +100,18 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
   const keyCopy = document.createElement('span');
   keyCopy.textContent = 'small green: low · larger gold: high · white ring: entry path unknown';
   relevanceKey.append(keyTitle, keyGradient, keyCopy);
+  const lineKey = document.createElement('div');
+  lineKey.style.marginTop = '7px';
+  for (const [label, pattern] of [['Direct call', ''], ['Supporting steps', '12 3'], ['Additional call →', '1 5'], ['Project membership', '4 6']]) {
+    const row = document.createElement('div');
+    Object.assign(row.style, {display: 'flex', alignItems: 'center', gap: '7px', marginTop: '2px'});
+    const sample = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    sample.setAttribute('width', '28'); sample.setAttribute('height', '8');
+    const stroke = document.createElementNS(sample.namespaceURI, 'line');
+    for (const [key, value] of Object.entries({x1: '0', x2: '28', y1: '4', y2: '4', stroke: '#d5e5dd', 'stroke-width': '2', 'stroke-dasharray': pattern})) stroke.setAttribute(key, value);
+    sample.append(stroke); row.append(sample, document.createTextNode(label)); lineKey.append(row);
+  }
+  relevanceKey.append(lineKey);
   labelHost.append(relevanceKey);
 
   const focusLabel = document.createElement('div');
@@ -203,7 +215,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
     const mesh=new THREE.Mesh(geometry,new THREE.MeshToonMaterial({vertexColors:true,flatShading:true,side:THREE.DoubleSide}));
     mesh.userData.terrain=true;mesh.userData.constraints=meshData.constraints.length;
     terrainMeshes.push(mesh);world.add(mesh);
-    world.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry,24),new THREE.LineBasicMaterial({color:0x153d38,transparent:true,opacity:.2})));
+    // Lighting and flat-shaded facets provide depth; polygon edges are not calls.
   }
 
   function addEdge(from, to, secondary = false, confidence = "resolved") {
@@ -223,12 +235,14 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
       geometry = new THREE.BufferGeometry().setFromPoints(route.map(p=>p.clone().add(new THREE.Vector3(0,.42,0))));
     }
     const summarized=currentModel.primaryEdges.find(e=>e.from===from&&e.to===to)?.summarized;
-    const material = secondary || summarized
-      ? new THREE.LineDashedMaterial({color: 0xb9c8bd, dashSize: .35, gapSize: .3, transparent: true, opacity: .58, depthWrite: false})
+    const kind = secondary ? 'secondary' : from === '__project__' ? 'grouping' : summarized ? 'collapsed' : 'primary';
+    const pattern = {secondary: [.08, .3], grouping: [.24, .34], collapsed: [.85, .22]}[kind];
+    const material = pattern
+      ? new THREE.LineDashedMaterial({color: 0xb9c8bd, dashSize: pattern[0], gapSize: pattern[1], transparent: true, opacity: .58, depthWrite: false})
       : new THREE.LineBasicMaterial({color: 0x244b45, transparent: true, opacity: .9});
     const line = new THREE.Line(geometry, material);
-    if (secondary || summarized) line.computeLineDistances();
-    line.userData = {from, to, secondary, confidence};
+    if (pattern) line.computeLineDistances();
+    line.userData = {from, to, secondary, confidence, kind};
     world.add(line);
     edgeLines.push(line);
     if (secondary && arrowDirection && arrowTip) {
@@ -371,7 +385,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
       line.visible = !line.userData.secondary || allSecondary || incident;
       if (line.userData.arrow) line.userData.arrow.visible = line.visible;
       const inferred = line.userData.confidence === 'heuristic';
-      const baseColor = inferred ? new THREE.Color(0xe8a766) : line.userData.secondary ? new THREE.Color(0xb9c8bd) : INK;
+      const baseColor = inferred ? new THREE.Color(0xe8a766) : line.userData.kind === 'grouping' ? new THREE.Color(0x789789) : line.userData.secondary ? new THREE.Color(0xb9c8bd) : INK;
       line.material.color.copy(active ? GOLD : baseColor);
       line.material.opacity = selectedId && selectedId !== '__project__' ? (active || incident ? 1 : .22) : (line.userData.secondary ? .48 : .8);
     }

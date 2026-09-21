@@ -24,6 +24,13 @@ contains the full selected source, in either content mode. Important-looking
 unplaced functions remain in **Relevant functions with unknown entry paths**;
 selecting one displays it outside the terrain without inventing an entry link.
 
+Primary routes use curvature-based sampling rather than a fixed number of mesh
+vertices per call. Facet shading supplies depth without drawing polygon outlines
+that could be mistaken for connections. Solid strokes represent direct primary
+calls; long dashes represent collapsed supporting steps; dotted arrows represent
+additional calls. Short dashed spokes represent project membership. The in-view
+legend identifies these patterns, which remain distinct after selection.
+
 Primary routes are explicit terrain-mesh constraints, so the surface descends
 along the same path as the call line. Collapsed-path strokes represent multiple
 original steps and can be expanded. Neighbouring branches can have different
@@ -87,3 +94,5 @@ See `../../docs/validation/inclusive-terrain-run.md` for comparisons, source
 checks, browser evidence, remaining limitations and the review outcome.
 
 See `../../docs/validation/essential-terrain.md` for the Essential-view contract and actual-surface validation.
+
+See `../../docs/validation/terrain-linework.md` for before/after mesh quality, graph-preservation checks and line-style validation.

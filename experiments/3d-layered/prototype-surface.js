@@ -24,11 +24,20 @@ export function layoutSpines(model) {
     for(const child of kids){
       const width=(end-start)*Math.sqrt(size(child))/total, angle=cursor+width/2;
       put(child,a.radius+step,angle);ranges.set(child,[cursor,cursor+width]);cursor+=width;
+    }
+    // Use only the samples needed for curvature. All siblings retain common
+    // radial fractions, and the radial bound keeps every chord moving outward.
+    const outerRadius=a.radius+step;
+    const samples=Math.max(1,...kids.map(child=>{
+      const turn=a.radius===0?0:Math.abs(positions.get(child).angle-a.angle);
+      const curvature=2*step*turn+outerRadius*turn*turn;
+      return Math.ceil(Math.max(Math.sqrt(curvature/(8*1.2)),outerRadius*turn*turn/step));
+    }));
+    for(const child of kids){
       const b=positions.get(child);
       // Subdivide the radial band at the same fractions for all siblings.
       // A source at radius zero has no direction; leave along the child's ray.
       const fromAngle=a.radius===0?b.angle:a.angle;
-      const samples=48;
       const route=Array.from({length:samples+1},(_,i)=>{
         const t=i/samples,r=a.radius+(b.radius-a.radius)*t,theta=fromAngle+(b.angle-fromAngle)*t;
         return {x:r*Math.cos(theta),z:r*Math.sin(theta),height:model.heights.get(owner)+(model.heights.get(child)-model.heights.get(owner))*t};

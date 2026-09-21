@@ -1,0 +1,336 @@
+{
+  "fixture_sha256": "0db44357b5d356fdd7405624405b68575dc77e1f6d5498ffe4eeb14227548101",
+  "renderer_sha256": "793a911b2a1e13a8d29bf7afbed2f0ec5ac275f46b6aa420ad21044a59d7ebba",
+  "matrix": [
+    {
+      "ridge": [
+        "Project summit",
+        "app.api.routes.route_combined.process_and_digitize",
+        "app.api.services.digitize_helper.process_and_digitize_files",
+        "app.api.services.digitize_helper.process_and_digitize_files.process_file",
+        "app.api.services.image_processor.process_single_image",
+        "app.api.services.image_utils.replace_placeholders_with_images",
+        "app.api.services.image_utils.crop_and_encode_image"
+      ],
+      "nodes": 600,
+      "orphans": 319,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "scribblescan",
+      "mode": "siblings",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "app.api.routes.route_combined.process_and_digitize",
+        "app.api.services.digitize_helper.process_and_digitize_files",
+        "app.api.services.digitize_helper.process_and_digitize_files.process_file",
+        "app.api.services.image_processor.process_single_image",
+        "app.api.services.image_utils.replace_placeholders_with_images",
+        "app.api.services.image_utils.crop_and_encode_image"
+      ],
+      "nodes": 599,
+      "orphans": 319,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "scribblescan",
+      "mode": "siblings",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "app.api.routes.route_combined.process_and_digitize",
+        "app.api.services.digitize_helper.process_and_digitize_files",
+        "app.api.services.digitize_helper.process_and_digitize_files.process_file",
+        "app.api.services.image_processor.process_single_image",
+        "app.api.services.image_utils.replace_placeholders_with_images",
+        "app.api.services.image_utils.crop_and_encode_image"
+      ],
+      "nodes": 600,
+      "orphans": 319,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "scribblescan",
+      "mode": "global",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "app.api.routes.route_combined.process_and_digitize",
+        "app.api.services.digitize_helper.process_and_digitize_files",
+        "app.api.services.digitize_helper.process_and_digitize_files.process_file",
+        "app.api.services.image_processor.process_single_image",
+        "app.api.services.image_utils.replace_placeholders_with_images",
+        "app.api.services.image_utils.crop_and_encode_image"
+      ],
+      "nodes": 599,
+      "orphans": 319,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "scribblescan",
+      "mode": "global",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "flowcode.terrain.export_terrain",
+        "flowcode.terrain._semantic_signals",
+        "flowcode.semantic_layout.compute_importance"
+      ],
+      "nodes": 257,
+      "orphans": 193,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "flowcode",
+      "mode": "siblings",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "flowcode.terrain.export_terrain",
+        "flowcode.terrain._semantic_signals",
+        "flowcode.semantic_layout.compute_importance"
+      ],
+      "nodes": 256,
+      "orphans": 193,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "flowcode",
+      "mode": "siblings",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "flowcode.terrain.export_terrain",
+        "flowcode.terrain._semantic_signals",
+        "flowcode.semantic_layout.compute_importance"
+      ],
+      "nodes": 257,
+      "orphans": 193,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "flowcode",
+      "mode": "global",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "flowcode.terrain.export_terrain",
+        "flowcode.terrain._semantic_signals",
+        "flowcode.semantic_layout.compute_importance"
+      ],
+      "nodes": 256,
+      "orphans": 193,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "flowcode",
+      "mode": "global",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "Assignment4.src.RedBlackTree.main",
+        "Assignment4.src.RedBlackTree.put",
+        "Assignment4.src.RedBlackTree.findAndAdd"
+      ],
+      "nodes": 47,
+      "orphans": 7,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "redblack",
+      "mode": "siblings",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "Assignment4.src.RedBlackTree.main",
+        "Assignment4.src.RedBlackTree.put",
+        "Assignment4.src.RedBlackTree.findAndAdd"
+      ],
+      "nodes": 46,
+      "orphans": 7,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "redblack",
+      "mode": "siblings",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "Assignment4.src.RedBlackTree.main",
+        "Assignment4.src.RedBlackTree.put",
+        "Assignment4.src.RedBlackTree.findAndAdd"
+      ],
+      "nodes": 47,
+      "orphans": 7,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "redblack",
+      "mode": "global",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "Assignment4.src.RedBlackTree.main",
+        "Assignment4.src.RedBlackTree.put",
+        "Assignment4.src.RedBlackTree.findAndAdd"
+      ],
+      "nodes": 46,
+      "orphans": 7,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "redblack",
+      "mode": "global",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "index.$callback_103_33"
+      ],
+      "nodes": 42,
+      "orphans": 13,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "fieldhouse",
+      "mode": "siblings",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "index.$callback_103_33"
+      ],
+      "nodes": 41,
+      "orphans": 13,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "fieldhouse",
+      "mode": "siblings",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "index.$callback_103_33"
+      ],
+      "nodes": 42,
+      "orphans": 13,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "fieldhouse",
+      "mode": "global",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "index.$callback_103_33"
+      ],
+      "nodes": 41,
+      "orphans": 13,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "fieldhouse",
+      "mode": "global",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "app.main.correct_items",
+        "agents.recipe_agent.RecipeAgent.continue_conversation"
+      ],
+      "nodes": 33,
+      "orphans": 12,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "chef",
+      "mode": "siblings",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "app.main.correct_items",
+        "agents.recipe_agent.RecipeAgent.continue_conversation"
+      ],
+      "nodes": 32,
+      "orphans": 12,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "chef",
+      "mode": "siblings",
+      "summits": "forest"
+    },
+    {
+      "ridge": [
+        "Project summit",
+        "app.main.correct_items",
+        "agents.recipe_agent.RecipeAgent.continue_conversation"
+      ],
+      "nodes": 33,
+      "orphans": 12,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "chef",
+      "mode": "global",
+      "summits": "anchor"
+    },
+    {
+      "ridge": [
+        "app.main.correct_items",
+        "agents.recipe_agent.RecipeAgent.continue_conversation"
+      ],
+      "nodes": 32,
+      "orphans": 12,
+      "violations": 0,
+      "finite": true,
+      "positions": true,
+      "dataset": "chef",
+      "mode": "global",
+      "summits": "forest"
+    }
+  ],
+  "errors": [],
+  "inventory": true,
+  "selection": true,
+  "mobile": true,
+  "label_separation": true,
+  "landmark_click": true,
+  "equal_relevance_markers": {
+    "linked": {
+      "scale": 1.44,
+      "color": 16044143,
+      "opacity": 1,
+      "ring": 0
+    },
+    "unplaced": {
+      "scale": 1.44,
+      "color": 16044143,
+      "opacity": 1,
+      "ring": 1
+    }
+  }
+}

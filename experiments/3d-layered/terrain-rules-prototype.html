@@ -199,12 +199,12 @@
       <p><strong>Unplaced does not mean unimportant.</strong> Points outside the mountain have no established path from an entry in this analysis. Their display height is not a relevance score. They remain searchable, with all known callers and callees.</p>
       <p><strong>Essential shows selected entry paths.</strong> Supporting sequences can be expanded. Collapsed connections represent multiple original calls; scores and cumulative drops come from the complete graph. Complete restores the full mountain.</p>
       <p><strong>Complete-view overview shows spaced markers.</strong> Zoom in to reveal nearby functions, or choose All nodes. The complete terrain, relevance scores and call graph stay the same. Selecting a function reveals every caller along its primary path; search always includes the full inventory.</p>
-      <p>Gold paths show the selected branch. Amber connections are inferred possibilities; dotted arrows are additional calls. By default, only extra calls touching the selected function are shown. Static analysis includes alternatives, not a chronological runtime trace.</p>
+      <p>Gold paths show the selected branch. Solid lines are direct primary calls; long dashes connect collapsed supporting steps. Short dashed spokes mark project membership. Amber connections are inferred possibilities; dotted arrows are additional calls. By default, only extra calls touching the selected function are shown. Static analysis includes alternatives, not a chronological runtime trace.</p>
     </section>
   </main>
 
   <script type="module">
-    import { chooseEntrypointForest, classifyEntryBasins, validateFixture, createTerrainView, essentialView, layoutSpines } from './dist/prototype-3d.js?v=essential-v1';
+    import { chooseEntrypointForest, classifyEntryBasins, validateFixture, createTerrainView, essentialView, layoutSpines } from './dist/prototype-3d.js?v=linework-v1';
     const FIXTURES = await fetch(new URL("./prototype-fixtures.json", import.meta.url)).then(response => { if (!response.ok) throw new Error("Could not load project fixtures"); return response.json(); });
 
     const state = {

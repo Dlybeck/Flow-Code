@@ -1,0 +1,58 @@
+{
+  "cases": [
+    {
+      "triangles": 3880,
+      "vertices": 1961,
+      "slivers": 2401,
+      "medianQuality": 0.0641525640155857,
+      "decorativeLines": 1,
+      "routeSegments": 1920,
+      "graph_sha256": "1a0aead73b06cc02541797c78bde6f69752b208fa2a9dab9cd02cb2ccce51a5a",
+      "project": "scribblescan"
+    },
+    {
+      "triangles": 1864,
+      "vertices": 953,
+      "slivers": 1325,
+      "medianQuality": 0.056039482464933045,
+      "decorativeLines": 1,
+      "routeSegments": 912,
+      "graph_sha256": "4a1760b824ffd6cb4ac115605a61043e89fe8a02d707ac50ce82b1405853b11a",
+      "project": "chef"
+    },
+    {
+      "triangles": 1000,
+      "vertices": 521,
+      "slivers": 621,
+      "medianQuality": 0.0732465977557168,
+      "decorativeLines": 1,
+      "routeSegments": 480,
+      "graph_sha256": "12807e6bdb9332b5a119daf0814a38869056c5a4e9df631008a17d56f4b7f861",
+      "project": "fieldhouse"
+    },
+    {
+      "triangles": 3688,
+      "vertices": 1865,
+      "slivers": 1984,
+      "medianQuality": 0.08675531093330903,
+      "decorativeLines": 1,
+      "routeSegments": 1824,
+      "graph_sha256": "46559a8caa2589261acc9f9a7238872a14d5299a3edd4623d4ae1bc100da2ca8",
+      "project": "redblack"
+    },
+    {
+      "triangles": 3880,
+      "vertices": 1961,
+      "slivers": 2573,
+      "medianQuality": 0.05830691261912502,
+      "decorativeLines": 1,
+      "routeSegments": 1920,
+      "graph_sha256": "0dbf977344e09ddac5efb35b875cb565dfed4bb28f760c5d35285ede04933ae4",
+      "project": "flowcode"
+    }
+  ],
+  "errors": [],
+  "terrain-rules-prototype.html_sha256": "88825230a1f2d733adf7ad92b39ffb087b4ae90217b70203ad7d2ce1e119f946",
+  "prototype-fixtures.json_sha256": "0db44357b5d356fdd7405624405b68575dc77e1f6d5498ffe4eeb14227548101",
+  "dist/prototype-3d.js_sha256": "606900324923a6b81bb774bc64a892afa2bd9be182e901ff6eaa0314e5c0f328"
+}

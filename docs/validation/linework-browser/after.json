@@ -1,0 +1,124 @@
+{
+  "cases": [
+    {
+      "triangles": 310,
+      "vertices": 176,
+      "slivers": 9,
+      "medianQuality": 0.5764094876172605,
+      "decorativeLines": 0,
+      "routeSegments": 135,
+      "graph_sha256": "1a0aead73b06cc02541797c78bde6f69752b208fa2a9dab9cd02cb2ccce51a5a",
+      "project": "scribblescan",
+      "before": {
+        "triangles": 3880,
+        "slivers": 2401,
+        "routeSegments": 1920,
+        "medianQuality": 0.0641525640155857
+      },
+      "styleKinds": [
+        "collapsed",
+        "grouping",
+        "primary",
+        "secondary"
+      ],
+      "styles_survive_selection": true,
+      "distinct_style_patterns": true
+    },
+    {
+      "triangles": 140,
+      "vertices": 91,
+      "slivers": 0,
+      "medianQuality": 0.5084497418638075,
+      "decorativeLines": 0,
+      "routeSegments": 50,
+      "graph_sha256": "4a1760b824ffd6cb4ac115605a61043e89fe8a02d707ac50ce82b1405853b11a",
+      "project": "chef",
+      "before": {
+        "triangles": 1864,
+        "slivers": 1325,
+        "routeSegments": 912,
+        "medianQuality": 0.056039482464933045
+      },
+      "styleKinds": [
+        "grouping",
+        "primary",
+        "secondary"
+      ],
+      "styles_survive_selection": true,
+      "distinct_style_patterns": true
+    },
+    {
+      "triangles": 92,
+      "vertices": 67,
+      "slivers": 0,
+      "medianQuality": 0.39642125843608256,
+      "decorativeLines": 0,
+      "routeSegments": 26,
+      "graph_sha256": "12807e6bdb9332b5a119daf0814a38869056c5a4e9df631008a17d56f4b7f861",
+      "project": "fieldhouse",
+      "before": {
+        "triangles": 1000,
+        "slivers": 621,
+        "routeSegments": 480,
+        "medianQuality": 0.0732465977557168
+      },
+      "styleKinds": [
+        "grouping",
+        "primary",
+        "secondary"
+      ],
+      "styles_survive_selection": true,
+      "distinct_style_patterns": true
+    },
+    {
+      "triangles": 416,
+      "vertices": 229,
+      "slivers": 6,
+      "medianQuality": 0.5751677064719122,
+      "decorativeLines": 0,
+      "routeSegments": 188,
+      "graph_sha256": "46559a8caa2589261acc9f9a7238872a14d5299a3edd4623d4ae1bc100da2ca8",
+      "project": "redblack",
+      "before": {
+        "triangles": 3688,
+        "slivers": 1984,
+        "routeSegments": 1824,
+        "medianQuality": 0.08675531093330903
+      },
+      "styleKinds": [
+        "grouping",
+        "primary",
+        "secondary"
+      ],
+      "styles_survive_selection": true,
+      "distinct_style_patterns": true
+    },
+    {
+      "triangles": 404,
+      "vertices": 223,
+      "slivers": 33,
+      "medianQuality": 0.4820623508119102,
+      "decorativeLines": 0,
+      "routeSegments": 182,
+      "graph_sha256": "0dbf977344e09ddac5efb35b875cb565dfed4bb28f760c5d35285ede04933ae4",
+      "project": "flowcode",
+      "before": {
+        "triangles": 3880,
+        "slivers": 2573,
+        "routeSegments": 1920,
+        "medianQuality": 0.05830691261912502
+      },
+      "styleKinds": [
+        "grouping",
+        "primary",
+        "secondary"
+      ],
+      "styles_survive_selection": true,
+      "distinct_style_patterns": true
+    }
+  ],
+  "errors": [],
+  "terrain-rules-prototype.html_sha256": "a0d328c8fec7bad7f37e0ef2910c08653aa59a7dbb5f1d07b36b7c4a8bb12a3d",
+  "prototype-fixtures.json_sha256": "0db44357b5d356fdd7405624405b68575dc77e1f6d5498ffe4eeb14227548101",
+  "dist/prototype-3d.js_sha256": "793a911b2a1e13a8d29bf7afbed2f0ec5ac275f46b6aa420ad21044a59d7ebba"
+}

@@ -18,3 +18,18 @@ test('circular sibling spines use common radial bands and descending samples',()
   const result=layoutSpines(m);assert.equal(result.positions.get('a').radius,result.positions.get('b').radius);
   for(const path of result.routes.values())for(let i=1;i<path.length;i++)assert.ok(path[i].height<=path[i-1].height);
 });
+
+test('straight routes avoid filler vertices while curved siblings retain shared samples',()=>{
+  const ids=['__project__','entry','left','right'];
+  const nodes=ids.map(id=>({id}));
+  const m={nodes,primaryEdges:[],byId:new Map(nodes.map(n=>[n.id,n])),roots:['__project__'],children:new Map([['__project__',['entry']],['entry',['left','right']],['left',[]],['right',[]]]),scores:new Map(ids.map(id=>[id,.5])),heights:new Map([['__project__',100],['entry',90],['left',80],['right',70]]),orphans:[]};
+  const result=layoutSpines(m);
+  assert.equal(result.routes.get('__project__|entry').length,2);
+  const a=result.routes.get('entry|left'),b=result.routes.get('entry|right');
+  assert.equal(a.length,b.length);assert.ok(a.length>2&&a.length<49);
+  for(const route of [a,b])for(let i=1;i<route.length;i++){
+    const p=route[i-1],q=route[i];
+    // Positive tangent dot radius guarantees the full chord goes outward.
+    assert.ok(p.x*(q.x-p.x)+p.z*(q.z-p.z)>=-1e-8);
+  }
+});
