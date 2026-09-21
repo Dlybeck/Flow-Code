@@ -777,8 +777,11 @@ function rebuild() {
   const sphereGeo = new THREE.SphereGeometry(0.38, 14, 10);
   for (const n of nodes) {
     const isPeak = peakSet.has(n.id);
+    const isProject = n.language === 'project';
     const isOrphan = !!n.is_orphan;
-    const base = isOrphan ? new THREE.Color(0x809889) : fileColor(n.file).clone();
+    const base = isOrphan
+      ? new THREE.Color(0x809889)
+      : isProject ? new THREE.Color(0xfff7df) : fileColor(n.file).clone();
     // Small paper-coloured markers retain the original file grouping and size cues.
     const emissiveStrength = 0.04;
     const mat = new THREE.MeshStandardMaterial({
@@ -793,7 +796,7 @@ function rebuild() {
     const mesh = new THREE.Mesh(sphereGeo, mat);
     const [x, y, z] = currentPositions.get(n.id);
     mesh.position.set(x, y + LIFT, z);
-    const s = isOrphan ? 0.7 : (isPeak ? 1.6 : 1 + Math.min(1.2, (n.n_callees || 0) * 0.1));
+    const s = isOrphan ? 0.7 : (isProject ? 2.25 : isPeak ? 1.6 : 1 + Math.min(1.2, (n.n_callees || 0) * 0.1));
     mesh.scale.setScalar(s);
     mesh.userData = {
       node: n,
@@ -1083,7 +1086,11 @@ picker.addEventListener('change', () => selectFunction(picker.value));
 document.getElementById('start-exploring').addEventListener('click', () => selectFunction(snapshot.entries?.find(id => nodeById.has(id)) || peakList[0]));
 document.getElementById('clear-selection').addEventListener('click', () => selectFunction(null));
 document.getElementById('reset-view').addEventListener('click', () => { updateFraming(); selectFunction(null); });
-document.getElementById('graph-count').textContent = `${nodes.length} functions · ${edges.length} connections · ${saved ? 'saved example' : 'partial static map'}`;
+const projectNodes = nodes.filter(n => n.language === 'project').length;
+const branchSummits = graph.prototype?.branch_summits;
+document.getElementById('graph-count').textContent = branchSummits
+  ? `${nodes.length - projectNodes} functions · ${branchSummits} branch summits · ${edges.length} connections`
+  : `${nodes.length} functions · ${edges.length} connections · ${saved ? 'saved example' : 'partial static map'}`;
 
 const showEvidence = setupSnapshotUI(selectFunction);
 
@@ -1117,8 +1124,11 @@ window.addEventListener('resize', () => {
 });
 
 // A few named landmarks make the first view readable before selection.
-const landmarks = saved ? [] : [...nodes].sort((a, b) => b.importance - a.importance)
-  .filter(n => !n.label.startsWith('$')).slice(0, 8).map(node => {
+const landmarkNodes = saved
+  ? peakList.map(id => nodes.find(n => n.id === id)).filter(Boolean)
+  : [...nodes].sort((a, b) => b.importance - a.importance)
+    .filter(n => !n.label.startsWith('$')).slice(0, 8);
+const landmarks = landmarkNodes.map(node => {
     const label = document.createElement('div');
     label.className = 'map-landmark paper';
     label.textContent = node.label.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');

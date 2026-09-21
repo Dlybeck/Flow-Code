@@ -61,6 +61,8 @@ export function setupSnapshotUI(selectFunction) {
     if (a.purpose) summary.textContent = `Project purpose: ${a.purpose.text} ${summary.textContent}`;
     const failed = a.files.filter(f => !f.analysis?.parse_ok).map(f => f.path);
     summary.textContent += failed.length ? ` Files that did not parse: ${failed.join(', ')}.` : ' All selected files parsed.';
+  } else if (graph.prototype) {
+    summary.textContent = `The project marker is the one true summit. ${graph.prototype.branch_summits} connected entry flows begin as branch summits beneath it; ${graph.prototype.detached_foothills} disconnected functions remain at the foothills. Every primary call descends relative to its parent, with the drop determined by project-wide vector relevance. Root-to-branch links are conceptual terrain structure rather than runtime calls.`;
   } else summary.textContent = 'The preserved 46-function Flow-Code example.';
   const returnLink = document.querySelector('.home-link');
   function setReturn() {
