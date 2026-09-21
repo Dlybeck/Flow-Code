@@ -5,6 +5,8 @@ Emits function nodes and `calls` edges for `Name(...)` callees that resolve via
 import-from map or same-module qualified names. Unresolved `Name` calls (with
 optional ``import_ref``) and `Attribute` / method calls emit ``confidence: unknown``
 edges to a boundary node, one edge per callsite with a ``callsite`` payload for labeling.
+A bounded may-call pass adds heuristic object/factory/dispatch candidates while
+retaining those boundary records. It does not import or execute project code.
 """
 
 from __future__ import annotations
@@ -278,6 +280,7 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
     files = {str(f.get("id")): f for f in raw_doc.get("files", []) if isinstance(f, dict)}
 
     visited_file_ids: set[str] = set()
+    candidate_modules = {}
     for s in symbols:
         fid = str(s.get("file_id", ""))
         if fid in visited_file_ids:
@@ -300,6 +303,8 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         visited_file_ids.add(fid)
         mq = module_qualname_from_path(Path(rel))
         imp = _import_name_to_qual(tree, mq)
+        definitions = {int(item['line']): item['qualified_name'] for item in symbols if item['file_id'] == fid}
+        candidate_modules[mq] = (tree, imp, definitions)
         vis = _CallGraphVisitor(
             module_q=mq,
             sym_by_qual=sym_by_qual,
@@ -307,7 +312,7 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             resolved_edges=resolved_edges,
             unknown_records=unknown_records,
             source=text,
-            definition_names={int(item['line']): item['qualified_name'] for item in symbols if item['file_id'] == fid},
+            definition_names=definitions,
         )
         vis.visit(tree)
 
@@ -359,14 +364,38 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             edge["callsite"] = callsite
         edges.append(edge)
 
+    from flowcode.execution_ir.python_candidates import CandidateAnalysis
+
+    candidates = CandidateAnalysis(candidate_modules, set(sym_by_qual))
+    existing = {(fr, to, line) for fr, to, line in resolved_edges}
+    for caller, target, line in candidates.run():
+        fr, to = flow_fn_id(caller), flow_fn_id(target)
+        if (fr, to, line) in existing:
+            continue
+        edges.append({
+            "id": f"e:{len(edges)}", "from": fr, "to": to,
+            "kind": "calls", "confidence": "heuristic",
+            "evidence": "python_static_candidate",
+            "callsite": {"line": line},
+        })
+
     # Use generalized entrypoint detection
     config = load_flowcode_config(root)
     entrypoints = detect_entrypoints(nodes, edges, config=config)
+    entry_config = config.get('entrypoints', {})
+    configured = entry_config.get('ids', []) if isinstance(entry_config, dict) else []
+    if not any(n['id'] in configured for n in nodes):
+        startup = {flow_fn_id(name) for name, _ in candidates.startup_calls}
+        for node in nodes:
+            if node['id'] in startup:
+                node.setdefault('entry_evidence', []).append('module_initialization_candidate')
+        entrypoints = sorted(set(entrypoints) | startup)
 
     doc: dict[str, Any] = {
         "schema_version": EXECUTION_IR_SCHEMA_VERSION,
         "repo_root": str(root),
         "languages": ["python"],
+        "candidate_analysis": {"python": {"rounds": candidates.rounds, "converged": candidates.converged, "round_limit": 24}},
         "entrypoints": entrypoints,
         "producers": [{"name": "flowcode.execution_ir.python_from_raw", "version": "0"}],
         "nodes": nodes,

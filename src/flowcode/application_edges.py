@@ -217,9 +217,187 @@ def _python_routes(functions, trees):
     return routes
 
 
+def _browser_routes(functions, browser_sources):
+    """Find literal Express-style routes and attach them to callback nodes."""
+    from flowcode.execution_ir.typescript_from_raw import _get_parser
+
+    def is_module_declaration(node):
+        return (
+            node.parent is not None
+            and node.parent.parent is not None
+            and node.parent.parent.type == "program"
+        )
+
+    def is_module_expression(node):
+        return (
+            node.parent is not None
+            and node.parent.type == "expression_statement"
+            and node.parent.parent is not None
+            and node.parent.parent.type == "program"
+        )
+
+    def is_express_require(call, source):
+        if call is None or call.type != "call_expression":
+            return False
+        callee = call.child_by_field_name("function")
+        arguments = call.child_by_field_name("arguments")
+        args = arguments.named_children if arguments is not None else []
+        return (
+            callee is not None
+            and _text(callee, source) == "require"
+            and len(args) == 1
+            and _string(args[0], source) == "express"
+        )
+
+    def express_receivers(root, source):
+        namespaces = set()
+        router_factories = set()
+        declarations = []
+        for node in _walk(root):
+            if node.type == "import_statement":
+                imported = node.child_by_field_name("source")
+                if _string(imported, source) != "express":
+                    continue
+                clause = next(
+                    (child for child in node.named_children if child.type == "import_clause"),
+                    None,
+                )
+                if clause is None:
+                    continue
+                direct = [
+                    child
+                    for child in clause.named_children
+                    if child.type == "identifier"
+                ]
+                namespaces.update(_text(child, source) for child in direct)
+                for specifier in _walk(clause):
+                    if specifier.type != "import_specifier":
+                        continue
+                    names = [
+                        child
+                        for child in specifier.named_children
+                        if child.type == "identifier"
+                    ]
+                    if names and _text(names[0], source) == "Router":
+                        router_factories.add(_text(names[-1], source))
+            elif node.type == "variable_declarator" and is_module_declaration(node):
+                declarations.append(node)
+
+        for declaration in declarations:
+            name = declaration.child_by_field_name("name")
+            value = declaration.child_by_field_name("value")
+            if (
+                name is not None
+                and name.type == "identifier"
+                and is_express_require(value, source)
+            ):
+                namespaces.add(_text(name, source))
+
+        receivers = {}
+        for declaration in declarations:
+            name = declaration.child_by_field_name("name")
+            value = declaration.child_by_field_name("value")
+            if name is None or name.type != "identifier" or value is None:
+                continue
+            callee = (
+                value.child_by_field_name("function")
+                if value.type == "call_expression"
+                else None
+            )
+            callee_text = _text(callee, source) if callee is not None else ""
+            from_namespace = callee_text in namespaces
+            from_router = callee_text in router_factories or any(
+                callee_text == f"{namespace}.Router" for namespace in namespaces
+            )
+            direct_require = is_express_require(callee, source)
+            if from_namespace or from_router or direct_require:
+                receivers[_text(name, source)] = declaration.end_byte
+        return receivers
+
+    def receiver_is_valid(root, call, receiver, receivers, source):
+        binding_end = receivers.get(receiver)
+        if (
+            binding_end is None
+            or binding_end >= call.start_byte
+            or not is_module_expression(call)
+        ):
+            return False
+        for node in _walk(root):
+            if not (binding_end < node.start_byte < call.start_byte):
+                continue
+            if node.type == "variable_declarator" and is_module_declaration(node):
+                name = node.child_by_field_name("name")
+                if name is not None and _text(name, source) == receiver:
+                    return False
+            if node.type == "assignment_expression" and is_module_expression(node):
+                left = node.child_by_field_name("left")
+                if left is not None and _text(left, source) == receiver:
+                    return False
+        return True
+
+    methods = {"get", "post", "put", "delete", "patch", "head", "options"}
+    routes = []
+    for path, source in browser_sources:
+        tree = _get_parser(tsx=Path(path).suffix in {".jsx", ".tsx"}).parse(source)
+        receivers = express_receivers(tree.root_node, source)
+        for call in _walk(tree.root_node):
+            if call.type != "call_expression":
+                continue
+            callee = call.child_by_field_name("function")
+            arguments = call.child_by_field_name("arguments")
+            if callee is None or arguments is None:
+                continue
+            callee_text = _text(callee, source)
+            receiver, _, method = callee_text.rpartition(".")
+            args = [child for child in arguments.named_children if child.type != "comment"]
+            if (
+                method not in methods
+                or len(args) < 2
+                or not receiver_is_valid(
+                    tree.root_node, call, receiver, receivers, source
+                )
+            ):
+                continue
+            route_path = _string(args[0], source)
+            if route_path is None or not route_path.startswith("/"):
+                continue
+            callback = args[-1]
+            if callback.type == "identifier":
+                name = _text(callback, source)
+                candidates = [
+                    function
+                    for function in functions
+                    if function["location"]["path"] == path
+                    and function["label"].rsplit(".", 1)[-1] == name
+                ]
+                target = candidates[0] if len(candidates) == 1 else None
+            else:
+                target = _owner(
+                    functions,
+                    path,
+                    (callback.start_point[0] + 1, callback.start_point[1] + 1),
+                    (callback.end_point[0] + 1, callback.end_point[1] + 1),
+                )
+            if target is None:
+                continue
+            route = {
+                "method": method.upper(),
+                "path": route_path,
+                "node": target["id"],
+                "source": path,
+                "line": call.start_point[0] + 1,
+            }
+            routes.append(route)
+            target.setdefault("routes", []).append(
+                {key: value for key, value in route.items() if key != "node"}
+            )
+    return routes
+
+
 def _route_matches(route, path):
     pattern = re.sub(r"\{[^}]+:path\}", "\x01", route)
     pattern = re.sub(r"\{[^}]+\}", "\x00", pattern)
+    pattern = re.sub(r":[A-Za-z_][A-Za-z0-9_]*", "\x00", pattern)
     pattern = re.escape(pattern).replace("\x00", "[^/]+").replace("\x01", ".+")
     return re.fullmatch(pattern, path) is not None
 
@@ -321,7 +499,9 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
         except (OSError, SyntaxError):
             continue
     routes = _python_routes(functions, trees)
+    routes.extend(_browser_routes(functions, browser_sources))
     additions = []
+    framework_entries = set()
 
     def add(owner, target, kind, relation, evidence, path, line, **details):
         identity = json.dumps(
@@ -361,12 +541,12 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
                 (call.start_point[0] + 1, call.start_point[1] + 1),
                 (call.end_point[0] + 1, call.end_point[1] + 1),
             )
-            if owner is None:
-                continue
             name = _text(callee, source)
             args = [a for a in arguments.named_children if a.type != "comment"]
             line = call.start_point[0] + 1
             if name in {"fetch", "window.fetch"} and args:
+                if owner is None:
+                    continue
                 url = _string(args[0], source)
                 if url is None or not url.startswith("/") or url.startswith("//"):
                     continue
@@ -417,9 +597,20 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
             if name.endswith(".addEventListener") and len(args) >= 2:
                 callback = args[1]
                 if callback.type == "identifier":
-                    target = _resolve_callback(
-                        _text(callback, source), owner, functions
-                    )
+                    callback_name = _text(callback, source)
+                    if owner is not None:
+                        target = _resolve_callback(
+                            callback_name, owner, functions
+                        )
+                    else:
+                        matches = [
+                            function
+                            for function in functions
+                            if function["location"]["path"] == path
+                            and function["label"].rsplit(".", 1)[-1]
+                            == callback_name
+                        ]
+                        target = matches[0] if len(matches) == 1 else None
                 else:
                     target = _owner(
                         functions,
@@ -427,7 +618,13 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
                         (callback.start_point[0] + 1, callback.start_point[1] + 1),
                         (callback.end_point[0] + 1, callback.end_point[1] + 1),
                     )
-                if target is not None and target["id"] != owner["id"]:
+                if target is not None:
+                    framework_entries.add(target["id"])
+                if (
+                    owner is not None
+                    and target is not None
+                    and target["id"] != owner["id"]
+                ):
                     add(
                         owner,
                         target,
@@ -442,8 +639,15 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
         sorted({e["id"]: e for e in additions}.values(), key=lambda e: e["id"])
     )
     graph["entrypoints"] = sorted(
-        set(graph["entrypoints"]) | {r["node"] for r in routes}
+        set(graph["entrypoints"])
+        | {r["node"] for r in routes}
+        | framework_entries
     )
+    for function in functions:
+        if function.get("routes"):
+            function.setdefault("entry_evidence", []).append("declared_route")
+        if function['id'] in framework_entries:
+            function.setdefault("entry_evidence", []).append("event_listener_callback")
     from flowcode.execution_ir.python_from_raw import _import_name_to_qual
     from flowcode.index import module_qualname_from_path
 
@@ -494,6 +698,7 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
         dict.fromkeys(
             [
                 "Static analysis is not a runtime trace.",
+                "Python candidate calls union possible source-defined receivers across callsites; they are not path-sensitive. Multiple inheritance, runtime mutation and external dispatch may remain unresolved. Module initialization candidates do not prove a module is imported.",
                 "Dynamic imports, values, framework mounting and runtime dispatch can remain unresolved.",
                 "HTTP and event links are inferred from syntax and must not be treated as resolved calls.",
                 "External marks an imported target outside selected source modules or a recognized browser API; other dynamic dispatch remains unresolved.",
@@ -501,8 +706,12 @@ def attach_application_edges(graph: dict, raw: dict) -> None:
             ]
         )
     )
+    for language, receipt in graph.get('candidate_analysis', {}).items():
+        if not receipt.get('converged', True):
+            known_limits.append(f"{language} candidate propagation reached its {receipt['round_limit']}-round limit before convergence; additional relationships may be missing.")
     graph["analysis"] = {
         "completeness": "partial",
+        "candidate_analysis": graph.get("candidate_analysis", {}),
         "files": [
             {
                 "path": f["path"],

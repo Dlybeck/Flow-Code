@@ -181,12 +181,55 @@ def _containers(node: Any, source: bytes, spec: LanguageSpec) -> list[str]:
     return result
 
 
+def _java_arity(node: Any, *, call: bool) -> int | None:
+    container = node.child_by_field_name('arguments' if call else 'parameters')
+    if container is None:
+        return None
+    parameters = [child for child in container.named_children if child.type != 'comment']
+    if any(child.type == 'spread_parameter' for child in parameters):
+        return None
+    return len(parameters)
+
+
+def _java_receiver_type(call: Any, function: Any, source: bytes) -> str | None:
+    """Use a unique explicit local/parameter type, never a method-name match.
+
+    This deliberately excludes fields, chained expressions, implicit imports and
+    shadowed locals. A declared type is a candidate, not proof of runtime dispatch.
+    """
+    receiver = call.child_by_field_name('object')
+    if receiver is None or receiver.type != 'identifier':
+        return None
+    name = _text(receiver, source)
+    bindings = []
+    pending = list(function.named_children)
+    while pending:
+        node = pending.pop()
+        if node.type in {'class_declaration', 'method_declaration', 'lambda_expression'}:
+            continue
+        variable = node.child_by_field_name('name')
+        if variable is not None and _text(variable, source) == name:
+            type_node = node.child_by_field_name('type')
+            if node.type == 'variable_declarator':
+                type_node = node.parent.child_by_field_name('type')
+            if node.type in {'formal_parameter', 'variable_declarator', 'catch_formal_parameter'}:
+                scope = function if node.type == 'formal_parameter' else node.parent.parent if node.type == 'variable_declarator' else node.parent
+                visible = scope.start_byte <= call.start_byte and call.end_byte <= scope.end_byte
+                if visible and node.end_byte < call.start_byte:
+                    bindings.append(_text(type_node, source) if type_node is not None else None)
+        pending.extend(node.named_children)
+    if len(bindings) == 1 and bindings[0]:
+        return bindings[0].split('<', 1)[0].strip()
+    return None
+
+
 def _direct_callee(node: Any, source: bytes, language: str) -> tuple[str, bool] | None:
     if language == "java":
         name = node.child_by_field_name("name")
         if name is None:
             return None
-        return _text(name, source), node.child_by_field_name("object") is None
+        receiver = node.child_by_field_name("object")
+        return _text(name, source), receiver is None or _text(receiver, source) == "this"
     if language == "c":
         function = node.child_by_field_name("function")
         if function is None:
@@ -222,6 +265,7 @@ def _calls(function: Any, source: bytes, spec: LanguageSpec) -> list[dict[str, A
                     {
                         "callee": name,
                         "direct": direct,
+                        **({"arity": _java_arity(node, call=True), "receiver_type": _java_receiver_type(node, function, source)} if spec.name == "java" else {}),
                         "line": node.start_point[0] + 1,
                     }
                 )
@@ -323,6 +367,7 @@ def index_treesitter_repo(
                     "column": node.start_point[1] + 1,
                     "end_column": node.end_point[1] + 1,
                     "calls": calls,
+                    **({"arity": _java_arity(node, call=False)} if language == "java" else {}),
                 }
             )
 

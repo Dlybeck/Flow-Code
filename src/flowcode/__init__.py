@@ -48,6 +48,26 @@ def generate_graph(
     raw_doc = index_repo_auto(root, src_roots=src_roots)
     ir_doc = build_execution_ir(raw_doc)
 
+    # Source identity alone cannot identify which analyzer produced a map.
+    # Record this separately so refreshed relationships remain auditable across
+    # feature branches, including an uncommitted development checkout.
+    import hashlib
+    import importlib.metadata
+    import json
+    package_root = Path(__file__).parent
+    source_identity = [(path.relative_to(package_root).as_posix(), hashlib.sha256(path.read_bytes()).hexdigest())
+                       for path in sorted(package_root.rglob('*.py'))]
+    parser_packages = {}
+    for package in ('tree-sitter', 'tree-sitter-typescript', 'tree-sitter-java', 'tree-sitter-c', 'tree-sitter-c-sharp', 'tree-sitter-haskell'):
+        try:
+            parser_packages[package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            pass
+    ir_doc.setdefault('analysis', {})['analyzer'] = {
+        'source_sha256': hashlib.sha256(json.dumps(source_identity).encode()).hexdigest(),
+        'parser_packages': parser_packages,
+    }
+
     result: dict[str, Any] = {
         "schema_version": ir_doc["schema_version"],
         "repo_root": ir_doc["repo_root"],

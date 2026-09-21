@@ -53,7 +53,7 @@ def build_execution_ir_from_treesitter_raw(raw: dict[str, Any]) -> dict[str, Any
             }
         )
 
-    resolved: set[tuple[str, str, int]] = set()
+    linked: set[tuple[str, str, int, str]] = set()
     unknown: list[tuple[str, dict[str, Any]]] = []
     for caller, symbol in sorted(by_qualified.items()):
         caller_id = _fn_id(language, caller)
@@ -70,9 +70,20 @@ def build_execution_ir_from_treesitter_raw(raw: dict[str, Any]) -> dict[str, Any
                     if qualified == local
                     or qualified.startswith(f"{local}$overload_")
                 ]
-                candidates = local_candidates or by_leaf.get(callee, [])
+                # Java methods are owner-scoped: a missing inherited target
+                # must not resolve to an unrelated class with the same name.
+                candidates = local_candidates if language == 'java' else local_candidates or by_leaf.get(callee, [])
+            elif language == 'java' and call.get('receiver_type'):
+                receiver_type = call['receiver_type']
+                candidates = [qualified for qualified in by_leaf.get(callee, [])
+                              if qualified.rpartition('.')[0] == receiver_type
+                              or qualified.rpartition('.')[0].endswith('.' + receiver_type)]
+            if language == 'java' and isinstance(call.get('arity'), int):
+                candidates = [qualified for qualified in candidates
+                              if by_qualified[qualified].get('arity') in {None, call['arity']}]
             if len(candidates) == 1:
-                resolved.add((caller_id, _fn_id(language, candidates[0]), line))
+                confidence = 'resolved' if call.get('direct') else 'heuristic'
+                linked.add((caller_id, _fn_id(language, candidates[0]), line, confidence))
             else:
                 unknown.append(
                     (
@@ -97,8 +108,8 @@ def build_execution_ir_from_treesitter_raw(raw: dict[str, Any]) -> dict[str, Any
         )
 
     rows: list[tuple[str, str, str, dict[str, Any]]] = []
-    for source, target, line in sorted(resolved):
-        rows.append((source, target, "resolved", {"line": line}))
+    for source, target, line, confidence in sorted(linked):
+        rows.append((source, target, confidence, {"line": line}))
     for source, callsite in sorted(
         unknown, key=lambda item: (item[0], item[1]["line"], item[1]["callee"])
     ):
@@ -113,6 +124,8 @@ def build_execution_ir_from_treesitter_raw(raw: dict[str, Any]) -> dict[str, Any
             "confidence": confidence,
             "callsite": callsite,
         }
+        if confidence == "heuristic":
+            edge["evidence"] = "declared_receiver_type_and_arity"
         if confidence == "unknown":
             edge["evidence"] = "unresolved_or_ambiguous_direct_call"
         edges.append(edge)

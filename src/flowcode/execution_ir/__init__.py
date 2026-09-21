@@ -24,6 +24,7 @@ def _build_execution_ir(raw_doc: dict[str, Any]) -> dict[str, Any]:
             "entrypoints": sorted({entry for doc in documents for entry in doc["entrypoints"]}),
             "nodes": [n for doc in documents for n in doc["nodes"]],
             "edges": [dict(e, id=f"producer:{i}:{e['id']}") for i, doc in enumerate(documents) for e in doc["edges"]],
+            "candidate_analysis": {k: v for doc in documents for k, v in doc.get("candidate_analysis", {}).items()},
             "producers": [p for doc in documents for p in doc.get("producers", [])],
         }
         errors = validate_execution_ir(merged)

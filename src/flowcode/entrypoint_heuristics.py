@@ -76,6 +76,9 @@ def detect_entrypoints(
             if isinstance(ep, str) and ep in node_ids_set
         ]
         if explicit_ids:
+            for node in nodes:
+                if node["id"] in explicit_ids:
+                    node["entry_evidence"] = ["configured_entry"]
             return explicit_ids
 
     # Build helper sets
@@ -100,8 +103,10 @@ def detect_entrypoints(
     collected: list[str] = []
     seen: set[str] = set()
 
-    def _add(ids: list[str]) -> None:
+    def _add(ids: list[str], reason: str) -> None:
         for nid in ids:
+            node = next(n for n in nodes if n["id"] == nid)
+            node.setdefault("entry_evidence", []).append(reason)
             if nid not in seen:
                 seen.add(nid)
                 collected.append(nid)
@@ -111,14 +116,14 @@ def detect_entrypoints(
     _add([
         n["id"] for n in real_nodes
         if str(n["label"]).rsplit(".", 1)[-1].lower() == "main"
-    ])
+    ], "conventional_main")
 
     # Tier 3: app factory pattern
     factory_suffixes = (".create_app", ".create_application", ".make_app", ".build_app", ".init_app")
     _add([
         n["id"] for n in real_nodes
         if any(str(n["label"]).endswith(s) for s in factory_suffixes)
-    ])
+    ], "application_factory")
 
     # Tier 4: route handler heuristic — top-level nodes that call app.* / router.*
     route_prefixes = ("app.", "router.", "blueprint.", "api.")
@@ -129,17 +134,20 @@ def detect_entrypoints(
             any(expr.startswith(p) for p in route_prefixes)
             for expr in unknown_callee_exprs.get(n["id"], [])
         )
-    ])
+    ], "route_registration_candidate")
 
     # Tier 5: public package API — top-level functions in __init__.py files
     _add([
         n["id"] for n in real_nodes
         if n["id"] not in has_contains_parent
         and _node_in_init_module(n)
-    ])
+    ], "package_api_candidate")
 
     if collected:
         return collected
 
     # Tier 6: fallback — first real node
+    if not real_nodes:
+        return []
+    real_nodes[0]["entry_evidence"] = ["fallback_first_symbol"]
     return [real_nodes[0]["id"]]

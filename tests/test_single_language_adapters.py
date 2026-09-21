@@ -206,3 +206,54 @@ main = print (choose 2)
     }
     assert ("haskell:fn:Main.main", choose_id) in resolved
     assert (choose_id, choose_id) in resolved
+
+
+def test_java_explicit_receiver_and_overload_arity(tmp_path):
+    (tmp_path / 'App.java').write_text('''
+class Worker {
+    void work() { work(1); }
+    void work(int value) { }
+}
+class App {
+    static void main(String[] args) {
+        Worker item = new Worker();
+        item.work();
+    }
+    void unknown(External item) { item.work(); }
+}
+''')
+    graph = generate_graph(tmp_path, include_overlay=False)
+    edges = [e for e in graph['edges'] if e['confidence'] != 'unknown']
+    call = next(e for e in edges if e['from'].endswith('App.main'))
+    assert call['to'].endswith('Worker.work')
+    assert call['confidence'] == 'heuristic'
+    assert call['evidence'] == 'declared_receiver_type_and_arity'
+    assert any(e['from'].endswith('Worker.work') and e['to'].endswith('Worker.work$overload_2') for e in edges)
+    assert not any(e['from'].endswith('App.unknown') for e in edges)
+
+
+def test_java_missing_this_or_implicit_member_is_not_unrelated_method(tmp_path):
+    (tmp_path / 'App.java').write_text('''
+class App extends External {
+    void main() { this.save(); save(); }
+}
+class Unrelated { void save() {} }
+''')
+    graph = generate_graph(tmp_path, include_overlay=False)
+    assert not [e for e in graph['edges'] if e['to'].endswith('Unrelated.save')]
+    assert len([e for e in graph['edges'] if e['confidence'] == 'unknown']) == 2
+
+
+def test_java_local_type_from_another_block_does_not_bind_a_field(tmp_path):
+    (tmp_path / 'App.java').write_text('''
+class Worker { void run() {} }
+class App {
+    External item;
+    void main() {
+        { Worker item = new Worker(); }
+        item.run();
+    }
+}
+''')
+    graph = generate_graph(tmp_path, include_overlay=False)
+    assert not [e for e in graph['edges'] if e['to'].endswith('Worker.run')]
