@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Delaunay } from 'd3-delaunay';
 
-export {classifyEntryBasins} from './prototype-entrypoints.js';
+export {chooseEntrypointForest, classifyEntryBasins} from './prototype-entrypoints.js';
 
 const LOW = new THREE.Color(0x64877b);
 const MID = new THREE.Color(0xa7c7b1);
@@ -213,6 +213,8 @@ export function createTerrainView(canvas, onSelect) {
     const b = currentPositions.get(to);
     if (!a || !b) return;
     let geometry;
+    let arrowDirection = null;
+    let arrowTip = null;
     if (secondary) {
       const distance = Math.hypot(b.x - a.x, b.z - a.z);
       const mid = a.clone().lerp(b, .5);
@@ -222,7 +224,10 @@ export function createTerrainView(canvas, onSelect) {
         mid,
         b.clone().add(new THREE.Vector3(0, .45, 0)),
       );
-      geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(24));
+      const points = curve.getPoints(24);
+      geometry = new THREE.BufferGeometry().setFromPoints(points);
+      arrowTip = points.at(-1);
+      arrowDirection = arrowTip.clone().sub(points.at(-2)).normalize();
     } else {
       geometry = new THREE.BufferGeometry().setFromPoints([
         a.clone().add(new THREE.Vector3(0, .42, 0)),
@@ -237,6 +242,15 @@ export function createTerrainView(canvas, onSelect) {
     line.userData = {from, to, secondary};
     world.add(line);
     edgeLines.push(line);
+    if (secondary && arrowDirection && arrowTip) {
+      const arrow = new THREE.Mesh(
+        new THREE.ConeGeometry(.13, .38, 8),
+        new THREE.MeshBasicMaterial({color: 0xd5e5dc, transparent: true, opacity: .72, depthWrite: false}),
+      );
+      arrow.position.copy(arrowTip).addScaledVector(arrowDirection, -.19);
+      arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), arrowDirection);
+      world.add(arrow);
+    }
   }
 
   function addNodes(model) {
