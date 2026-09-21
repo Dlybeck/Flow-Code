@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Delaunay } from 'd3-delaunay';
+import {circularRoute} from './prototype-routing.js';
 
-export {chooseEntrypointForest, classifyEntryBasins} from './prototype-entrypoints.js';
+export {chooseEntrypointForest, classifyEntryBasins, validateFixture} from './prototype-entrypoints.js';
 
 const LOW = new THREE.Color(0x64877b);
 const MID = new THREE.Color(0xa7c7b1);
@@ -10,7 +11,6 @@ const ROCK = new THREE.Color(0xdfca91);
 const SNOW = new THREE.Color(0xfff4cb);
 const GOLD = new THREE.Color(0xf4d06f);
 const INK = new THREE.Color(0x163b35);
-const MUTED = new THREE.Color(0x8ba49a);
 
 function terrainColor(t) {
   if (t < .38) return LOW.clone().lerp(MID, t / .38);
@@ -59,16 +59,20 @@ export function createTerrainView(canvas, onSelect) {
   scene.add(world);
   const nodeMeshes = [];
   const edgeLines = [];
+  const terrainMeshes = [];
   const labels = [];
   const nodeById = new Map();
   let currentModel = null;
   let currentPositions = new Map();
+  let currentOrigin = {x: 0, z: 0};
   let selectedId = null;
+  let allSecondary = false;
   let hoveredId = null;
   let focusTarget = null;
 
   const labelHost = canvas.parentElement;
   const relevanceKey = document.createElement('div');
+  relevanceKey.dataset.kind = 'relevance-key';
   Object.assign(relevanceKey.style, {
     position: 'absolute', zIndex: '3', top: '12px', right: '12px',
     width: '190px', padding: '8px 10px', borderRadius: '7px',
@@ -84,11 +88,12 @@ export function createTerrainView(canvas, onSelect) {
     background: 'linear-gradient(90deg, #64877b, #f4d06f)',
   });
   const keyCopy = document.createElement('span');
-  keyCopy.textContent = 'small green: low · larger gold: high · high descends gently';
+  keyCopy.textContent = 'small green: low · larger gold: high · white ring: entry path unknown';
   relevanceKey.append(keyTitle, keyGradient, keyCopy);
   labelHost.append(relevanceKey);
 
   const focusLabel = document.createElement('div');
+  focusLabel.dataset.kind = 'focus';
   Object.assign(focusLabel.style, {
     position: 'absolute', zIndex: '4', pointerEvents: 'none',
     transform: 'translate(-50%, -115%)', width: 'max-content', maxWidth: '220px',
@@ -118,7 +123,8 @@ export function createTerrainView(canvas, onSelect) {
     world.clear();
     nodeMeshes.length = 0;
     edgeLines.length = 0;
-    labels.splice(0).forEach(item => item.element.remove());
+    terrainMeshes.length = 0;
+    labels.splice(0).forEach(item => { item.element.remove(); item.leader?.remove(); });
     focusTarget = null;
     focusLabel.hidden = true;
     nodeById.clear();
@@ -127,7 +133,8 @@ export function createTerrainView(canvas, onSelect) {
   }
 
   function scaledPositions(model) {
-    const active = [...model.positions.entries()].filter(([id]) => !model.orphans.includes(id));
+    let active = [...model.positions.entries()].filter(([id]) => !model.orphans.includes(id));
+    if (!active.length) active = [...model.positions.entries()];
     const xs = active.map(([, p]) => p.x);
     const zs = active.map(([, p]) => p.y);
     const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
@@ -150,7 +157,7 @@ export function createTerrainView(canvas, onSelect) {
         (point.y - cz) * scale,
       ));
     }
-    return {positions: result, low, high};
+    return {positions: result, low, high, origin: {x: -cx * scale, z: -cz * scale}};
   }
 
   function clusterRoots(model) {
@@ -199,6 +206,7 @@ export function createTerrainView(canvas, onSelect) {
       geometry.computeVertexNormals();
       const material = new THREE.MeshToonMaterial({vertexColors: true, flatShading: true, side: THREE.DoubleSide});
       const mesh = new THREE.Mesh(geometry, material);
+      terrainMeshes.push(mesh);
       world.add(mesh);
       const creases = new THREE.LineSegments(
         new THREE.EdgesGeometry(geometry, 24),
@@ -208,7 +216,7 @@ export function createTerrainView(canvas, onSelect) {
     }
   }
 
-  function addEdge(from, to, secondary = false) {
+  function addEdge(from, to, secondary = false, confidence = "resolved") {
     const a = currentPositions.get(from);
     const b = currentPositions.get(to);
     if (!a || !b) return;
@@ -216,15 +224,7 @@ export function createTerrainView(canvas, onSelect) {
     let arrowDirection = null;
     let arrowTip = null;
     if (secondary) {
-      const distance = Math.hypot(b.x - a.x, b.z - a.z);
-      const mid = a.clone().lerp(b, .5);
-      mid.y = Math.max(a.y, b.y) + Math.min(5, 1.2 + distance * .12);
-      const curve = new THREE.QuadraticBezierCurve3(
-        a.clone().add(new THREE.Vector3(0, .45, 0)),
-        mid,
-        b.clone().add(new THREE.Vector3(0, .45, 0)),
-      );
-      const points = curve.getPoints(24);
+      const points = circularRoute(a, b, currentOrigin).map(p => new THREE.Vector3(p.x, p.y, p.z));
       geometry = new THREE.BufferGeometry().setFromPoints(points);
       arrowTip = points.at(-1);
       arrowDirection = arrowTip.clone().sub(points.at(-2)).normalize();
@@ -239,7 +239,7 @@ export function createTerrainView(canvas, onSelect) {
       : new THREE.LineBasicMaterial({color: 0x244b45, transparent: true, opacity: .9});
     const line = new THREE.Line(geometry, material);
     if (secondary) line.computeLineDistances();
-    line.userData = {from, to, secondary};
+    line.userData = {from, to, secondary, confidence};
     world.add(line);
     edgeLines.push(line);
     if (secondary && arrowDirection && arrowTip) {
@@ -250,12 +250,15 @@ export function createTerrainView(canvas, onSelect) {
       arrow.position.copy(arrowTip).addScaledVector(arrowDirection, -.19);
       arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), arrowDirection);
       world.add(arrow);
+      line.userData.arrow = arrow;
     }
   }
 
   function addNodes(model) {
     const orphanSet = new Set(model.orphans);
     const branchHeads = new Set(model.children.get('__project__') || model.roots);
+    const landmarks = new Set(model.nodes.filter(n => branchHeads.has(n.id) && !orphanSet.has(n.id))
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)).slice(0, 24).map(n => n.id));
     const geometry = new THREE.SphereGeometry(.34, 14, 10);
     for (const node of model.nodes) {
       const position = currentPositions.get(node.id);
@@ -264,28 +267,35 @@ export function createTerrainView(canvas, onSelect) {
       const orphan = orphanSet.has(node.id);
       const branch = branchHeads.has(node.id);
       const score = model.scores.get(node.id) ?? 0;
-      const base = project ? SNOW.clone() : orphan ? MUTED.clone() : LOW.clone().lerp(GOLD, score);
+      const base = project ? SNOW.clone() : LOW.clone().lerp(GOLD, score);
       const material = new THREE.MeshStandardMaterial({
         color: base,
         roughness: .75,
         emissive: base.clone(),
         emissiveIntensity: .05,
-        transparent: orphan,
-        opacity: orphan ? .45 : 1,
+        transparent: false,
+        opacity: 1,
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.copy(position).add(new THREE.Vector3(0, .48, 0));
-      mesh.scale.setScalar(project ? 2.1 : orphan ? .55 : .72 + score * .72);
+      mesh.scale.setScalar(project ? 2.1 : .72 + score * .72);
       mesh.userData = {id: node.id, base, branch, score};
       nodeById.set(node.id, mesh);
       nodeMeshes.push(mesh);
       world.add(mesh);
-      if (project) {
-        const element = document.createElement('div');
-        element.textContent = node.label;
-        element.dataset.kind = 'project';
+      if (orphan) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(.49, .045, 4, 16), new THREE.MeshBasicMaterial({color: 0xd8e5dd}));
+        ring.rotation.x = Math.PI / 2;
+        mesh.add(ring);
+      }
+      if (project || landmarks.has(node.id)) {
+        const element = document.createElement(project ? 'div' : 'button');
+        element.textContent = project ? node.label : `Entry · ${node.label}`;
+        element.title = node.qname;
+        element.dataset.kind = project ? 'project' : 'entry';
+        if (!project) element.addEventListener('click', () => onSelect?.(node.id));
         Object.assign(element.style, {
-          position: 'absolute', zIndex: '3', pointerEvents: 'none',
+          position: 'absolute', zIndex: '3', pointerEvents: project ? 'none' : 'auto',
           transform: 'translate(-50%, -115%)', maxWidth: '170px',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           padding: '4px 7px', borderRadius: '4px', background: '#fff4cb',
@@ -293,7 +303,13 @@ export function createTerrainView(canvas, onSelect) {
           boxShadow: '0 2px 7px #0005',
         });
         canvas.parentElement.append(element);
-        labels.push({element, mesh});
+        let leader = null;
+        if (!project) {
+          leader = document.createElement('span');
+          Object.assign(leader.style, {position: 'absolute', zIndex: '2', pointerEvents: 'none', height: '1px', background: '#f8f1d980', transformOrigin: 'left center'});
+          canvas.parentElement.append(leader);
+        }
+        labels.push({element, mesh, leader});
       }
     }
   }
@@ -303,9 +319,11 @@ export function createTerrainView(canvas, onSelect) {
     clearWorld();
     const scaled = scaledPositions(model);
     currentPositions = scaled.positions;
+    currentOrigin = scaled.origin;
     buildTerrain(model, scaled.low, scaled.high);
-    for (const [child, parent] of model.parent) addEdge(parent, child, false);
-    for (const edge of model.secondaryEdges) addEdge(edge.from, edge.to, true);
+    const evidence = new Map(model.primaryEdges.map(e => [`${e.from}|${e.to}`, e.confidence]));
+    for (const [child, parent] of model.parent) addEdge(parent, child, false, evidence.get(`${parent}|${child}`) || 'grouping');
+    for (const edge of model.secondaryEdges) addEdge(edge.from, edge.to, true, edge.confidence);
     addNodes(model);
     select(selectedId);
     if (resetView) reset();
@@ -324,7 +342,7 @@ export function createTerrainView(canvas, onSelect) {
     const ownerId = currentModel.parent.get(id);
     const owner = ownerId ? currentModel.byId.get(ownerId) : null;
     focusTitle.textContent = `${id === selectedId ? 'SELECTED · ' : ''}${node.label}`;
-    focusMeta.textContent = `relevance ${(score * 100).toFixed(0)}%${drop == null ? '' : ` · drops ${drop.toFixed(1)} from ${owner?.label || 'parent'}`}`;
+    focusMeta.textContent = currentModel.orphans.includes(id) ? 'Entry path not established · inspect known calls' : `relevance ${(score * 100).toFixed(0)}%${drop == null ? '' : ` · drops ${drop.toFixed(1)} from ${owner?.label || 'parent'}`}`;
     focusTarget = mesh;
     focusLabel.hidden = false;
   }
@@ -349,21 +367,61 @@ export function createTerrainView(canvas, onSelect) {
     }
     for (const line of edgeLines) {
       const active = family.has(`${line.userData.from}|${line.userData.to}`);
-      line.material.color.copy(active ? GOLD : line.userData.secondary ? new THREE.Color(0xb9c8bd) : INK);
-      line.material.opacity = selectedId ? (active ? 1 : .28) : (line.userData.secondary ? .58 : .9);
+      const incident = line.userData.from === selectedId || line.userData.to === selectedId;
+      line.visible = !line.userData.secondary || allSecondary || incident;
+      if (line.userData.arrow) line.userData.arrow.visible = line.visible;
+      const inferred = line.userData.confidence === 'heuristic';
+      const baseColor = inferred ? new THREE.Color(0xe8a766) : line.userData.secondary ? new THREE.Color(0xb9c8bd) : INK;
+      line.material.color.copy(active ? GOLD : baseColor);
+      line.material.opacity = selectedId && selectedId !== '__project__' ? (active || incident ? 1 : .22) : (line.userData.secondary ? .48 : .8);
     }
     showFocus(hoveredId || selectedId);
   }
 
   function reset() {
-    const box = new THREE.Box3().setFromObject(world);
+    // Fit the actual terrain vertices, not invisible secondary arcs. A sphere
+    // around the whole scene wastes most of the canvas on empty space.
+    const points = terrainMeshes.flatMap(mesh => {
+      const vertices = mesh.geometry.getAttribute('position');
+      return Array.from({length: vertices.count}, (_, i) => new THREE.Vector3().fromBufferAttribute(vertices, i));
+    });
+    if (!points.length) points.push(...currentPositions.values());
+    const box = new THREE.Box3().setFromPoints(points);
     const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const radius = Math.max(size.x, size.z, size.y * 1.45, 18);
-    controls.target.copy(center).add(new THREE.Vector3(0, size.y * .06, 0));
-    camera.position.set(center.x - radius * .72, center.y + radius * .62, center.z + radius * .9);
+    const entries = currentModel.children.get('__project__') || currentModel.roots;
+    const prominent = [...entries].sort((a, b) => (currentModel.byId.get(b)?.score || 0) - (currentModel.byId.get(a)?.score || 0))[0];
+    const entryPosition = currentPositions.get(prominent);
+    // Face the highest-scoring entry without changing the terrain or its links.
+    const direction = entryPosition ? new THREE.Vector3(entryPosition.x - currentOrigin.x, 0, entryPosition.z - currentOrigin.z).normalize() : new THREE.Vector3(-.62, 0, .78);
+    direction.y = .62; direction.normalize();
+    const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), direction).normalize();
+    const up = new THREE.Vector3().crossVectors(direction, right);
+    const tanY = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const tanX = tanY * camera.aspect;
+    let distance = 18;
+    for (const point of points) {
+      const offset = point.clone().sub(center);
+      distance = Math.max(distance, offset.dot(direction) + Math.abs(offset.dot(right)) / tanX,
+        offset.dot(direction) + Math.abs(offset.dot(up)) / tanY);
+    }
+    distance *= 1.12;
+    controls.maxDistance = Math.max(90, distance * 1.5);
+    controls.target.copy(center);
+    camera.position.copy(center).addScaledVector(direction, distance);
     camera.lookAt(controls.target);
+    // Center the projected terrain, whose footprint is asymmetric in perspective.
+    for (let iteration = 0; iteration < 2; iteration++) {
+      camera.updateMatrixWorld(true);
+      const projected = points.map(point => point.clone().project(camera));
+      const centerX = (Math.min(...projected.map(p => p.x)) + Math.max(...projected.map(p => p.x))) / 2;
+      const centerY = (Math.min(...projected.map(p => p.y)) + Math.max(...projected.map(p => p.y))) / 2;
+      const pan = right.clone().multiplyScalar(centerX * distance * tanX).addScaledVector(up, centerY * distance * tanY);
+      controls.target.add(pan); camera.position.add(pan);
+    }
+    const damping = controls.enableDamping;
+    controls.enableDamping = false;
     controls.update();
+    controls.enableDamping = damping;
   }
 
   function rotate(delta) {
@@ -393,7 +451,10 @@ export function createTerrainView(canvas, onSelect) {
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    return raycaster.intersectObjects(nodeMeshes, false)[0]?.object.userData.id || null;
+    const hit = raycaster.intersectObjects(nodeMeshes, false)[0];
+    if (!hit) return null;
+    const surface = raycaster.intersectObjects(terrainMeshes, false)[0];
+    return !surface || hit.distance <= surface.distance ? hit.object.userData.id : null;
   }
   canvas.addEventListener('pointerdown', event => { press = {x: event.clientX, y: event.clientY, dragged: false}; });
   canvas.addEventListener('pointermove', event => {
@@ -418,16 +479,45 @@ export function createTerrainView(canvas, onSelect) {
     controls.update();
     const rect = canvas.getBoundingClientRect();
     let projectScreen = null;
-    for (const {element, mesh} of labels) {
+    const keyBox = relevanceKey.getBoundingClientRect();
+    const hostBox = labelHost.getBoundingClientRect();
+    const occupied = [{left: keyBox.left - hostBox.left, right: keyBox.right - hostBox.left,
+      top: keyBox.top - hostBox.top, bottom: keyBox.bottom - hostBox.top}];
+    labels.sort((a, b) => Number(b.element.dataset.kind === 'project') - Number(a.element.dataset.kind === 'project') || b.mesh.userData.score - a.mesh.userData.score);
+    let landmarkCount = 0;
+    for (const {element, mesh, leader} of labels) {
       const point = mesh.position.clone().project(camera);
-      const visible = Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
+      let visible = Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
+      const project = element.dataset.kind === 'project';
+      if (!project && (mesh.userData.id === selectedId || mesh.userData.id === hoveredId)) visible = false;
+      if (visible && !project) {
+        const direction = mesh.position.clone().sub(camera.position);
+        const distance = direction.length();
+        raycaster.set(camera.position, direction.normalize());
+        if (raycaster.intersectObjects(terrainMeshes, false).some(hit => hit.distance < distance - .5)) visible = false;
+      }
+      if (!project && landmarkCount >= (rect.width < 500 ? 3 : 6)) visible = false;
       element.hidden = !visible;
+      if (leader) leader.hidden = !visible;
       if (visible) {
         const x = canvas.offsetLeft + (point.x + 1) * rect.width / 2;
         const y = canvas.offsetTop + (1 - point.y) * rect.height / 2;
-        element.style.left = `${x}px`;
-        element.style.top = `${y}px`;
-        projectScreen = {x, y};
+        const width = element.offsetWidth, height = element.offsetHeight;
+        const candidates = project ? [{x, y}] : [{x: x + 108, y: y - 28}, {x: x - 108, y: y - 28}, {x: x + 108, y: y + 42}, {x: x - 108, y: y + 42}, {x, y: y - 72}, {x, y: y + 85}];
+        const chosen = candidates.map(position => ({...position, left: position.x - width / 2, right: position.x + width / 2, top: position.y - height * 1.15, bottom: position.y}))
+          .find(box => (box.left >= 8 && box.right <= rect.width - 8 && box.top >= 8 && box.bottom < rect.height - 40
+            && !occupied.some(other => box.left < other.right + 6 && box.right > other.left - 6 && box.top < other.bottom + 6 && box.bottom > other.top - 6)));
+        if (!chosen) { element.hidden = true; if (leader) leader.hidden = true; continue; }
+        element.style.left = `${chosen.x}px`; element.style.top = `${chosen.y}px`;
+        occupied.push(chosen);
+        if (project) projectScreen = {x, y};
+        else {
+          landmarkCount++;
+          const targetY = chosen.y - height / 2;
+          leader.style.left = `${x}px`; leader.style.top = `${y}px`;
+          leader.style.width = `${Math.hypot(chosen.x - x, targetY - y)}px`;
+          leader.style.transform = `rotate(${Math.atan2(targetY - y, chosen.x - x)}rad)`;
+        }
       }
     }
     if (focusTarget) {
@@ -442,13 +532,33 @@ export function createTerrainView(canvas, onSelect) {
         if (collides) y += 5;
         focusLabel.style.left = `${x}px`;
         focusLabel.style.top = `${y}px`;
+        let focusBox = focusLabel.getBoundingClientRect();
+        if (focusBox.left < keyBox.right + 6 && focusBox.right > keyBox.left - 6 && focusBox.top < keyBox.bottom + 6 && focusBox.bottom > keyBox.top - 6) {
+          focusLabel.style.transform = 'translate(-50%, 0)';
+          focusLabel.style.top = `${keyBox.bottom - hostBox.top + 8}px`;
+          focusBox = focusLabel.getBoundingClientRect();
+        }
+        for (const {element, leader} of labels) {
+          if (element.hidden) continue;
+          const box = element.getBoundingClientRect();
+          if (box.left < focusBox.right + 6 && box.right > focusBox.left - 6 && box.top < focusBox.bottom + 6 && box.bottom > focusBox.top - 6) { element.hidden = true; if (leader) leader.hidden = true; }
+        }
       }
     }
     renderer.render(scene, camera);
   }
   frame();
 
-  const api = {update, select, reset, rotate, scene, camera, controls, renderer, get model() { return currentModel; }};
+  function focus(id) {
+    const point = currentPositions.get(id);
+    if (!point) return;
+    const offset = camera.position.clone().sub(controls.target);
+    controls.target.copy(point);
+    camera.position.copy(point).add(offset);
+    controls.update();
+  }
+
+  const api = {update, select, reset, rotate, focus, showAllSecondary(value) { allSecondary = Boolean(value); select(selectedId); }, scene, camera, controls, renderer, get model() { return currentModel; }};
   window.__terrain3d = api;
   return api;
 }

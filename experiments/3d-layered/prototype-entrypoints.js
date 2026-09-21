@@ -81,7 +81,6 @@ export function chooseEntrypointForest(nodes, edges, declaredEntrypoints = []) {
 }
 
 export function classifyEntryBasins(nodes, parent, children, declaredEntrypoints = []) {
-  const allRoots = nodes.filter(node => !parent.has(node.id)).map(node => node.id);
   const nodeIds = new Set(nodes.map(node => node.id));
   const declared = declaredEntrypoints.filter(id => nodeIds.has(id));
 
@@ -89,10 +88,7 @@ export function classifyEntryBasins(nodes, parent, children, declaredEntrypoints
   // (route decorator, main method, event boundary). A missing incoming edge does
   // not provide that evidence: it can just as easily identify unused code or an
   // incomplete parse.
-  let roots = declared.length
-    ? declared
-    : allRoots.filter(id => (children.get(id) || []).length > 0);
-  if (!roots.length) roots = [...allRoots];
+  const roots = [...new Set(declared)];
 
   const reachable = new Set();
   const queue = [...roots];
@@ -105,4 +101,38 @@ export function classifyEntryBasins(nodes, parent, children, declaredEntrypoints
 
   const detached = nodes.map(node => node.id).filter(id => !reachable.has(id));
   return {roots, detached};
+}
+
+export function validateFixture(fixture) {
+  if (!fixture || typeof fixture.title !== 'string' || typeof fixture.purpose !== 'string'
+      || !Array.isArray(fixture.nodes) || !fixture.nodes.length
+      || !Array.isArray(fixture.edges) || !Array.isArray(fixture.entrypoints)) {
+    throw new Error('Expected a Flow-Code prototype fixture with nodes, edges and entrypoints.');
+  }
+  const ids = new Set();
+  for (const node of fixture.nodes) {
+    if (!node || typeof node.id !== 'string' || !node.id || node.id === '__project__' || ids.has(node.id)
+        || typeof node.label !== 'string' || typeof node.qname !== 'string'
+        || !Number.isFinite(node.score) || node.score < 0 || node.score > 1) {
+      throw new Error('Each function needs a unique ID, name and finite relevance score from 0 to 1.');
+    }
+    for (const field of ['similar', 'boundaries', 'entry_evidence']) {
+      if (node[field] !== undefined && !Array.isArray(node[field])) throw new Error(`Function ${field} must be a list.`);
+    }
+    if ((node.similar || []).some(match => !match || typeof match.id !== 'string' || !Number.isFinite(match.cosine))) throw new Error('Invalid similarity evidence.');
+    if ((node.boundaries || []).some(boundary => !boundary || typeof boundary !== 'object')) throw new Error('Invalid boundary evidence.');
+    ids.add(node.id);
+  }
+  for (const edge of fixture.edges) {
+    if (!edge || !ids.has(edge.from) || !ids.has(edge.to)
+        || !['resolved', 'heuristic', 'unknown'].includes(edge.confidence)
+        || (edge.count !== undefined && (!Number.isFinite(edge.count) || edge.count < 1))) {
+      throw new Error('A relationship references a missing function or invalid confidence.');
+    }
+  }
+  for (const field of ['source_roots', 'known_limits']) {
+    if (fixture.coverage?.[field] !== undefined && !Array.isArray(fixture.coverage[field])) throw new Error(`Coverage ${field} must be a list.`);
+  }
+  if (fixture.entrypoints.some(id => !ids.has(id))) throw new Error('An entrypoint references a missing function.');
+  return fixture;
 }
