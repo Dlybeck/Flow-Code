@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Delaunay } from 'd3-delaunay';
+import {chooseVisibleMarkers} from './prototype-detail.js';
 import {circularRoute} from './prototype-routing.js';
 
 export {chooseEntrypointForest, classifyEntryBasins, validateFixture} from './prototype-entrypoints.js';
@@ -30,7 +31,7 @@ function descendants(root, children) {
   return found;
 }
 
-export function createTerrainView(canvas, onSelect) {
+export function createTerrainView(canvas, onSelect, onDetailChange) {
   const renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: false});
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
   renderer.setClearColor(0x0a2521, 1);
@@ -66,6 +67,11 @@ export function createTerrainView(canvas, onSelect) {
   let currentPositions = new Map();
   let currentOrigin = {x: 0, z: 0};
   let selectedId = null;
+  let detail = 'overview';
+  let detailSignature = '';
+  let detailStatus = '';
+  let selectedFamily = new Set();
+  let revealedNodes = new Set();
   let allSecondary = false;
   let hoveredId = null;
   let focusTarget = null;
@@ -279,7 +285,7 @@ export function createTerrainView(canvas, onSelect) {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.copy(position).add(new THREE.Vector3(0, .48, 0));
       mesh.scale.setScalar(project ? 2.1 : .72 + score * .72);
-      mesh.userData = {id: node.id, base, branch, score};
+      mesh.userData = {id: node.id, base, branch, score, relevance: node.score};
       nodeById.set(node.id, mesh);
       nodeMeshes.push(mesh);
       world.add(mesh);
@@ -356,18 +362,27 @@ export function createTerrainView(canvas, onSelect) {
       mesh.material.emissive.copy(highlighted ? new THREE.Color(0xff8f70) : mesh.userData.base);
       mesh.material.emissiveIntensity = highlighted ? .4 : .05;
     }
+    detailSignature = '';
+    selectedFamily = new Set(selectedId ? [selectedId] : []);
     const family = new Set();
     if (selectedId && currentModel) {
       let idCursor = selectedId;
       while (currentModel.parent.has(idCursor)) {
         const parent = currentModel.parent.get(idCursor);
         family.add(`${parent}|${idCursor}`);
+        selectedFamily.add(parent);
         idCursor = parent;
       }
     }
+    revealedNodes = new Set(selectedFamily);
     for (const line of edgeLines) {
       const active = family.has(`${line.userData.from}|${line.userData.to}`);
       const incident = line.userData.from === selectedId || line.userData.to === selectedId;
+      if (incident && selectedId !== '__project__' || line.userData.secondary && allSecondary) {
+        revealedNodes.add(line.userData.from); revealedNodes.add(line.userData.to);
+      }
+      line.userData.active = active;
+      line.userData.incident = incident;
       line.visible = !line.userData.secondary || allSecondary || incident;
       if (line.userData.arrow) line.userData.arrow.visible = line.visible;
       const inferred = line.userData.confidence === 'heuristic';
@@ -451,7 +466,7 @@ export function createTerrainView(canvas, onSelect) {
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(nodeMeshes, false)[0];
+    const hit = raycaster.intersectObjects(nodeMeshes.filter(mesh => mesh.visible), false)[0];
     if (!hit) return null;
     const surface = raycaster.intersectObjects(terrainMeshes, false)[0];
     return !surface || hit.distance <= surface.distance ? hit.object.userData.id : null;
@@ -474,10 +489,42 @@ export function createTerrainView(canvas, onSelect) {
     if (hit) onSelect?.(hit);
   });
 
+  function updateDetail(rect) {
+    if (!currentModel) return;
+    camera.updateMatrixWorld(true);
+    const signature = `${camera.matrixWorld.elements.join(',')}|${camera.projectionMatrix.elements.join(',')}|${rect.width}|${rect.height}|${detail}`;
+    if (signature === detailSignature) return;
+    detailSignature = signature;
+    const points = nodeMeshes.map(mesh => {
+      const p = mesh.position.clone().project(camera);
+      return {id: mesh.userData.id, x: (p.x + 1) * rect.width / 2, y: (1 - p.y) * rect.height / 2,
+        priority: mesh.userData.relevance, onScreen: Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && Math.abs(p.z) <= 1};
+    });
+    const pinned = new Set(['__project__', ...revealedNodes]);
+    const visible = detail === 'all' ? new Set(nodeMeshes.map(mesh => mesh.userData.id))
+      : chooseVisibleMarkers(points.filter(p => p.onScreen), {pinned, spacing: 28});
+    // A selected path is never simplified, including its lower-scoring bridges.
+    for (const id of revealedNodes) visible.add(id);
+    for (const mesh of nodeMeshes) mesh.visible = visible.has(mesh.userData.id);
+    if (hoveredId && !visible.has(hoveredId)) { hoveredId = null; showFocus(selectedId); }
+    for (const line of edgeLines) {
+      const {from, to, secondary, active, incident} = line.userData;
+      line.visible = secondary ? (allSecondary || incident)
+        : detail === 'all' || active || (incident && selectedId !== '__project__') || (visible.has(from) && visible.has(to));
+      if (line.userData.arrow) line.userData.arrow.visible = line.visible;
+    }
+    const shown = points.filter(p => p.id !== '__project__' && p.onScreen && visible.has(p.id)).length;
+    const total = currentModel.nodes.filter(n => n.id !== '__project__').length;
+    const status = detail === 'all' ? `All ${total} function markers enabled.`
+      : `Overview · ${shown} of ${total} function markers in view. Zoom to reveal more; select to trace every step.`;
+    if (status !== detailStatus) { detailStatus = status; onDetailChange?.(status); }
+  }
+
   function frame() {
     requestAnimationFrame(frame);
     controls.update();
     const rect = canvas.getBoundingClientRect();
+    updateDetail(rect);
     let projectScreen = null;
     const keyBox = relevanceKey.getBoundingClientRect();
     const hostBox = labelHost.getBoundingClientRect();
@@ -487,7 +534,7 @@ export function createTerrainView(canvas, onSelect) {
     let landmarkCount = 0;
     for (const {element, mesh, leader} of labels) {
       const point = mesh.position.clone().project(camera);
-      let visible = Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
+      let visible = mesh.visible && Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
       const project = element.dataset.kind === 'project';
       if (!project && (mesh.userData.id === selectedId || mesh.userData.id === hoveredId)) visible = false;
       if (visible && !project) {
@@ -558,7 +605,7 @@ export function createTerrainView(canvas, onSelect) {
     controls.update();
   }
 
-  const api = {update, select, reset, rotate, focus, showAllSecondary(value) { allSecondary = Boolean(value); select(selectedId); }, scene, camera, controls, renderer, get model() { return currentModel; }};
+  const api = {update, select, reset, rotate, focus, setDetail(value) { detail = value === 'all' ? 'all' : 'overview'; detailSignature = ''; }, showAllSecondary(value) { allSecondary = Boolean(value); select(selectedId); }, scene, camera, controls, renderer, get model() { return currentModel; }};
   window.__terrain3d = api;
   return api;
 }

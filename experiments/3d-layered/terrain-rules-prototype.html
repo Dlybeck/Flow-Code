@@ -148,6 +148,7 @@
     <label>Entrypoints<span><select id="summits"><option value="anchor">One project summit</option><option value="forest">Independent summits</option></select></span></label>
     <label>Minimum drop <output id="min-output">1</output><span><input id="min-drop" type="range" min="1" max="18" value="1"></span></label>
     <label>Maximum drop <output id="max-output">50</output><span><input id="max-drop" type="range" min="24" max="80" value="50"></span></label>
+    <label>Visible detail<span><select id="detail"><option value="overview">Overview · reveal on zoom</option><option value="all">All nodes</option></select></span></label>
     <label>Extra connections<span><input type="checkbox" id="all-secondary"> Show all dotted calls</span></label>
     <button id="rotate">Rotate 30°</button>
     <button id="reset">Reset view</button>
@@ -165,6 +166,7 @@
       <details><summary>Project description</summary><p id="project-purpose" class="lede"></p></details>
       <div class="verdict" id="verdict"></div>
       <p id="coverage" class="lede"></p>
+      <p id="detail-status" class="lede"></p>
       <h3>All indexed functions</h3>
       <label for="search">Find a function, file or language</label>
       <input type="search" id="search" placeholder="Search the codebase…">
@@ -191,12 +193,13 @@
       <p><strong>The project summit groups entry points.</strong> Its spokes show membership, not runtime calls. A terrain branch uses one possible caller for placement; other callers remain available when you select a function.</p>
       <p><strong>Among siblings compares the next choices of one caller.</strong> Project-wide uses one relevance scale across the selected source. Neither is a measure of execution time or proof of importance. A sole child receives a neutral drop in sibling mode.</p>
       <p><strong>Unplaced does not mean unimportant.</strong> Points outside the mountain have no established path from an entry in this analysis. Their display height is not a relevance score. They remain searchable, with all known callers and callees.</p>
+      <p><strong>Overview shows spaced markers.</strong> Zoom in to reveal nearby functions, or choose All nodes. The complete terrain, relevance scores and call graph stay the same. Selecting a function reveals every caller along its primary path; search always includes the full inventory.</p>
       <p>Gold paths show the selected branch. Amber connections are inferred possibilities; dotted arrows are additional calls. By default, only extra calls touching the selected function are shown. Static analysis includes alternatives, not a chronological runtime trace.</p>
     </section>
   </main>
 
   <script type="module">
-    import { chooseEntrypointForest, classifyEntryBasins, validateFixture, createTerrainView } from './dist/prototype-3d.js?v=inclusive-v1';
+    import { chooseEntrypointForest, classifyEntryBasins, validateFixture, createTerrainView } from './dist/prototype-3d.js?v=overview-detail-v1';
     const FIXTURES = await fetch(new URL("./prototype-fixtures.json", import.meta.url)).then(response => { if (!response.ok) throw new Error("Could not load project fixtures"); return response.json(); });
 
     const state = {
@@ -721,7 +724,7 @@
       terrain3d.select(id);
       drawProfile();
       renderText();
-    });
+    }, status => { $('#detail-status').textContent = status; });
 
     $('#open-fixture').addEventListener('change', async event => {
       const file = event.target.files[0];
@@ -740,6 +743,7 @@
     });
     $('#search').addEventListener('input', renderInventory);
     $('#inventory-filter').addEventListener('change', renderInventory);
+    $('#detail').addEventListener('change', event => terrain3d.setDetail(event.target.value));
     $('#all-secondary').addEventListener('change', event => terrain3d.showAllSecondary(event.target.checked));
 
     dataset.addEventListener('change', event => { state.dataset = event.target.value; rebuild({preserveSelection: false}); });

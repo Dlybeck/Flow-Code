@@ -11,6 +11,13 @@ From this directory, run `npm install` and `npm run build`, then
 `python3 -m http.server 8766`. Open
 `http://localhost:8766/terrain-rules-prototype.html`.
 
+The default **Overview** spaces markers in screen pixels, revealing more as you
+zoom. It favors embedding relevance when markers compete for space; it does not
+remove functions, change heights or invent replacement calls. Selecting a
+function restores every primary-path caller and its direct call neighbors.
+**All nodes** restores the full marker display for comparison. Explicitly showing
+all secondary calls can also restore dense detail.
+
 Search by function, file, or language. Select a search result to center and label
 it. Caller/callee buttons navigate known relationships, including secondary
 calls. A few entry labels provide landmarks; collision and terrain occlusion
