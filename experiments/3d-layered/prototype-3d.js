@@ -63,7 +63,6 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
   const nodeMeshes = [];
   const edgeLines = [];
   const terrainMeshes = [];
-  const labels = [];
   const nodeById = new Map();
   let currentModel = null;
   let currentPositions = new Map();
@@ -146,7 +145,6 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
     nodeMeshes.length = 0;
     edgeLines.length = 0;
     terrainMeshes.length = 0;
-    labels.splice(0).forEach(item => { item.element.remove(); item.leader?.remove(); });
     focusTarget = null;
     focusLabel.hidden = true;
     nodeById.clear();
@@ -277,7 +275,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
         transparent: false,
         opacity: 1,
       });
-      const mesh = new THREE.Mesh(node.kind === 'supporting-group' ? new THREE.OctahedronGeometry(.44) : geometry, material);
+      const mesh = new THREE.Mesh(geometry, material);
       mesh.position.copy(position).add(new THREE.Vector3(0, .48, 0));
       mesh.scale.setScalar(project ? 2.1 : .72 + score * .72);
       mesh.userData = {id: node.id, base, branch, score, relevance: node.score};
@@ -488,7 +486,8 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
     }
     const shown = points.filter(p => p.id !== '__project__' && p.onScreen && visible.has(p.id)).length;
     const total = currentModel.nodes.filter(n => n.id !== '__project__').length;
-    const status = currentModel.essential ? `Essential · ${total} items, including ${currentModel.groups.size} supporting groups. Expand groups or search to explore more.` : detail === 'all' ? `All ${total} function markers enabled.`
+    const condensed = currentModel.primaryEdges.filter(edge => edge.summarized).length;
+    const status = currentModel.essential ? `Essential · ${total} real functions, with ${condensed} condensed paths. Select an endpoint to inspect hidden steps.` : detail === 'all' ? `All ${total} function markers enabled.`
       : `Overview · ${shown} of ${total} function markers in view. Zoom to reveal more; select to trace every step.`;
     if (status !== detailStatus) { detailStatus = status; onDetailChange?.(status); }
   }
@@ -498,52 +497,8 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
     controls.update();
     const rect = canvas.getBoundingClientRect();
     updateDetail(rect);
-    let projectScreen = null;
     const keyBox = relevanceKey.getBoundingClientRect();
     const hostBox = labelHost.getBoundingClientRect();
-    const occupied = [{left: keyBox.left - hostBox.left, right: keyBox.right - hostBox.left,
-      top: keyBox.top - hostBox.top, bottom: keyBox.bottom - hostBox.top}];
-    labels.sort((a, b) => Number(b.element.dataset.kind === 'project') - Number(a.element.dataset.kind === 'project') || b.mesh.userData.score - a.mesh.userData.score);
-    let landmarkCount = 0;
-    for (const {element, mesh, leader} of labels) {
-      const point = mesh.position.clone().project(camera);
-      let visible = mesh.visible && Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
-      const project = element.dataset.kind === 'project';
-      // Phone screens keep one stable landmark plus the selected-node label.
-      // Entry and supporting-group names remain available through selection and
-      // the lists below the terrain instead of covering the mountain by default.
-      if (!project && rect.width < 500) visible = false;
-      if (!project && (mesh.userData.id === selectedId || mesh.userData.id === hoveredId)) visible = false;
-      if (visible && !project) {
-        const direction = mesh.position.clone().sub(camera.position);
-        const distance = direction.length();
-        raycaster.set(camera.position, direction.normalize());
-        if (raycaster.intersectObjects(terrainMeshes, false).some(hit => hit.distance < distance - .5)) visible = false;
-      }
-      if (!project && landmarkCount >= 6) visible = false;
-      element.hidden = !visible;
-      if (leader) leader.hidden = !visible;
-      if (visible) {
-        const x = canvas.offsetLeft + (point.x + 1) * rect.width / 2;
-        const y = canvas.offsetTop + (1 - point.y) * rect.height / 2;
-        const width = element.offsetWidth, height = element.offsetHeight;
-        const candidates = project ? [{x, y}] : [{x: x + 108, y: y - 28}, {x: x - 108, y: y - 28}, {x: x + 108, y: y + 42}, {x: x - 108, y: y + 42}, {x, y: y - 72}, {x, y: y + 85}];
-        const chosen = candidates.map(position => ({...position, left: position.x - width / 2, right: position.x + width / 2, top: position.y - height * 1.15, bottom: position.y}))
-          .find(box => (box.left >= 8 && box.right <= rect.width - 8 && box.top >= 8 && box.bottom < rect.height - 40
-            && !occupied.some(other => box.left < other.right + 6 && box.right > other.left - 6 && box.top < other.bottom + 6 && box.bottom > other.top - 6)));
-        if (!chosen) { element.hidden = true; if (leader) leader.hidden = true; continue; }
-        element.style.left = `${chosen.x}px`; element.style.top = `${chosen.y}px`;
-        occupied.push(chosen);
-        if (project) projectScreen = {x, y};
-        else {
-          landmarkCount++;
-          const targetY = chosen.y - height / 2;
-          leader.style.left = `${x}px`; leader.style.top = `${y}px`;
-          leader.style.width = `${Math.hypot(chosen.x - x, targetY - y)}px`;
-          leader.style.transform = `rotate(${Math.atan2(targetY - y, chosen.x - x)}rad)`;
-        }
-      }
-    }
     if (focusTarget) {
       const point = focusTarget.position.clone().project(camera);
       const visible = Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
@@ -551,9 +506,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
       if (visible) {
         const x = canvas.offsetLeft + (point.x + 1) * rect.width / 2;
         let y = canvas.offsetTop + (1 - point.y) * rect.height / 2;
-        const collides = projectScreen && Math.abs(x - projectScreen.x) < 120 && Math.abs(y - projectScreen.y) < 52;
-        focusLabel.style.transform = collides ? 'translate(-50%, 12px)' : 'translate(-50%, -115%)';
-        if (collides) y += 5;
+        focusLabel.style.transform = 'translate(-50%, -115%)';
         focusLabel.style.left = `${x}px`;
         focusLabel.style.top = `${y}px`;
         let focusBox = focusLabel.getBoundingClientRect();
@@ -561,11 +514,6 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
           focusLabel.style.transform = 'translate(-50%, 0)';
           focusLabel.style.top = `${keyBox.bottom - hostBox.top + 8}px`;
           focusBox = focusLabel.getBoundingClientRect();
-        }
-        for (const {element, leader} of labels) {
-          if (element.hidden) continue;
-          const box = element.getBoundingClientRect();
-          if (box.left < focusBox.right + 6 && box.right > focusBox.left - 6 && box.top < focusBox.bottom + 6 && box.bottom > focusBox.top - 6) { element.hidden = true; if (leader) leader.hidden = true; }
         }
       }
     }

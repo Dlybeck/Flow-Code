@@ -79,12 +79,14 @@ to the caller: relevant children lose less altitude; less-relevant children lose
 more. It is not an absolute project-wide importance ranking or a fixed depth
 band. A positive affine display transform preserves these relative descents.
 
-The circular viewer defaults to an Essential view: up to 40 displayed items
-across six entry branches, with supporting chains collapsed into expandable
-multi-step groups. All source functions remain searchable, and Complete mode
+The circular viewer defaults to an Essential view: up to 40 displayed source
+functions across six entry branches. Less-important intermediate functions can
+be condensed into an edge between two displayed real functions; selecting the
+endpoint reveals the complete ordered path. The project summit is the only
+synthetic node. All source functions remain searchable, and Complete mode
 restores the full terrain. Selection uses existing scores without renormalizing
 the selected subset; surviving function heights and cumulative drops remain
-unchanged. Explicit expansion and searched paths can exceed the overview budget.
+unchanged. Revealed and searched paths can exceed the overview budget.
 
 Primary call paths constrain the actual terrain mesh and must stay downhill
 along their entire surfaces. Neighbouring branches can stand at different

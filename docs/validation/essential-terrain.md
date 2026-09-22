@@ -4,18 +4,20 @@ Baseline: `8aac9959bae6b1345e0bc98c357ec3cfd73861f9`.
 
 ## Approved contract
 
-Default Essential content: at most 40 visible items (functions plus expandable
-supporting groups, excluding project summit), at most six entry branches. Rank
+Default Essential content: at most 40 visible source functions (excluding the
+project summit), at most six entry branches. Rank
 reachable candidates by existing raw relevance with stable ID ties; admit their
 full entry paths only when the simplified result fits. Suppress additional
 near-duplicate highlights at exported cosine >= 0.9; retain connecting steps.
-Keep entry functions and retained branching junctions. Collapse maximal
-non-highlight connecting sequences, retaining ordered IDs and original call
-evidence. Distinguish collapsed paths from direct calls. Do not recompute scores
+Keep entry functions and retained branching junctions. Condense maximal
+non-highlight connecting sequences into edges between real source functions,
+retaining ordered IDs and original call evidence. The project summit is the
+only synthetic node. Distinguish condensed paths from direct calls. Do not recompute scores
 or original cumulative heights from the selected subset.
 
-Expand groups beyond the initial budget, reveal searched functions and entry
-paths, expose omitted supporting branches, and list five high-scoring functions
+Selecting a condensed edge's endpoint reveals its complete function path beyond
+the initial budget. Reveal searched functions and entry paths, expose omitted
+branch functions, and list five high-scoring functions
 with unknown entry paths. Unknown functions cannot receive invented entry links.
 Complete content preserves the whole graph and its marker-density controls.
 Essential shows all retained markers. Reset overview clears expansions/reveals.
@@ -43,13 +45,13 @@ Unplaced-to-unplaced links are dotted relationships outside the terrain guarante
 The first simplified layout still put seven of ten summit markers within ten
 screen pixels. Square-root subtree sector weights and a doubled first radial
 band in Essential mode removed those collisions in the same default view,
-without changing relevance, heights, or parent relationships. Supporting-group
-markers are diamonds, with a separate clickable list when terrain occludes them.
+without changing relevance, heights, or parent relationships. Essential now
+draws only real source functions; condensed edges carry any omitted call steps.
 
 ### Source-backed selection review
 
 - ScribbleScan retains image processing, transcription orchestration, conversion,
-  digitization and related UI callbacks. Its collapsed three-step provider
+  digitization and related UI callbacks. Its condensed three-step provider
   setup chain is `get_ai_handler → AIHandler.__init__ → get_provider_instance`,
   corroborated by `app/api/services/ai_handler.py:115–152`. Bounding-box/provider
   code with unknown entry paths remains in the separate relevant-function list.
@@ -65,21 +67,21 @@ markers are diamonds, with a separate clickable list when terrain occludes them.
   application-edge attachment and scoring. Its unplaced CLI is still accessible.
   This is the same recorded source snapshot, not a newly embedded checkout.
 
-The automatic view contains 40, 19, 10, 38 and 40 items respectively. Only
-ScribbleScan needs a collapsed chain in these initial sibling-scored examples;
-smaller graphs are not padded to meet the budget.
+The automatic sibling-scored views contain 40, 19, 10, 38 and 40 real functions
+respectively. ScribbleScan condenses three paths and Flow-Code condenses two;
+the smaller graphs are not padded to meet the budget.
 
 ### Checks and review
 
-Python: 149 tests passed. JavaScript: 21 tests passed and bundled build passed.
+Python: 149 tests passed. JavaScript: 22 tests passed and bundled build passed.
 Actual browser mesh tests cover all five projects, both content modes, both
-normalization modes and both summit modes, plus expansion, reset, search,
+normalization modes and both summit modes, plus condensed-path reveal, reset, search,
 unknown-function navigation and no-entry fixtures. Sampling checks the surface
 at every route vertex and segment midpoint against the line height (tolerance
 0.0002 world units), rather than only comparing function endpoints.
 
-- [Surface and interaction receipt](essential-browser/receipt.json): 50 cases,
-  204,282 surface samples, zero rises or missing samples. Maximum route/surface
+- [Surface and interaction receipt](essential-browser/receipt.json): 49 cases,
+  12,578 surface samples, zero rises or missing samples. Maximum route/surface
   mismatch was 0.00000184 world units, below the 0.0002 threshold. The verifier
   uses tight barycentric containment so nearby thin triangles are not sampled
   through extrapolation.
@@ -89,7 +91,7 @@ at every route vertex and segment midpoint against the line height (tolerance
   projects passed; zoom reveals hidden functions, selected paths remain visible,
   and marker filtering leaves geometry and call evidence unchanged.
 - New navigation regressions cover selecting an already-visible endpoint below
-  a collapsed chain and retaining known dotted calls between revealed unplaced
+  a condensed path and retaining known dotted calls between revealed unplaced
   functions, without assigning them entry paths.
 - [Source hashes](essential-browser/source-hashes.json) identify the tested HTML,
   renderer sources, bundle and verifier. All three browser receipts match the
@@ -115,6 +117,12 @@ Independent Spec review verified the frozen source hashes, three browser receipt
 six screenshots, test results and persistent preview. It closed with no actionable
 findings. Both review axes cover the complete change from the stated baseline.
 
+The real-function-marker follow-up received a second two-axis review. Standards
+identified ambiguous projection-map names, and Spec identified stale diamond-group
+copy in the linework note. Both were corrected; both closure reviews passed with
+no remaining actionable findings.
+
 The local preview is served by the persistent user service
 `flowcode-terrain-preview` at `http://127.0.0.1:8766/terrain-rules-prototype.html`.
-Public Pages remains unchanged; this delivery is an unmerged feature branch.
+The same reviewed build is published to the separate public prototype Pages site;
+the Flow-Code feature branch remains unmerged.

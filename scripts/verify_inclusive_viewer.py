@@ -57,11 +57,15 @@ with sync_playwright() as p:
         page.request.get(urljoin(args.url, "dist/prototype-3d.js")).body()
     ).hexdigest()
     print("loaded", page.locator("#verdict").inner_text(), flush=True)
-    landmarks = page.locator("[data-kind=entry]:visible")
-    assert 1 <= landmarks.count() <= 6
-    landmark_title = landmarks.first.inner_text()
-    landmarks.first.click()
-    assert page.locator("#node-detail strong").inner_text() in landmark_title
+    assert page.locator("[data-kind=entry]:visible").count() == 0
+    entry = page.evaluate(
+        """()=>{const m=window.__terrain3d.model,id=(m.children.get('__project__')||m.roots)[0],n=m.byId.get(id);return {id,qname:n.qname,label:n.label};}"""
+    )
+    page.fill("#search", entry["qname"])
+    page.locator(f'#inventory button[data-node-id="{entry["id"]}"]').click()
+    assert page.locator("[data-kind=focus]:visible").count() == 1
+    assert page.locator("#node-detail strong").inner_text() == entry["label"]
+    page.fill("#search", "")
     records = []
     for dataset in ["scribblescan", "flowcode", "redblack", "fieldhouse", "chef"]:
         page.select_option("#dataset", dataset)

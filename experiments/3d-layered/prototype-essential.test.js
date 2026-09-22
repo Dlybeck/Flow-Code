@@ -7,15 +7,17 @@ function chain() {
   const children=new Map(nodes.map(n=>[n.id,[]]));for(const [c,p] of parent)children.get(p).push(c);
   return {nodes,byId:new Map(nodes.map(n=>[n.id,n])),parent,children,roots:['__project__'],orphans:['unknown'],heights:new Map(nodes.map((n,i)=>[n.id,100-i*10])),scores:new Map(nodes.map(n=>[n.id,n.score])),primaryEdges:[...parent].map(([to,from])=>({from,to,confidence:'resolved'})),secondaryEdges:[],fixture:{edges:[]}};
 }
-test('budgeted overview folds connecting steps with original heights and evidence',()=>{
+test('budgeted overview condenses paths between real function nodes',()=>{
   const full=chain(), view=essentialView(full,{budget:3});
-  assert.equal(view.nodes.length,4);assert.equal(view.groups.size,1);
-  const [group,members]=[...view.groups][0];assert.deepEqual(members,['a','b']);
+  assert.equal(view.nodes.length,4);
+  assert.ok(view.nodes.every(node=>full.byId.has(node.id)));
+  assert.ok(view.byId.has('a'));assert.ok(!view.byId.has('b'));
   assert.equal(view.heights.get('core'),full.heights.get('core'));
-  assert.deepEqual(view.representedPaths.get(`${group}|core`),['a','b','core']);
+  assert.deepEqual(view.representedPaths.get('a|core'),['a','b','core']);
+  assert.equal(view.primaryEdges.find(edge=>edge.from==='a'&&edge.to==='core').summarized,true);
   assert.equal(view.unknownHighlights[0].id,'unknown');assert.ok(!view.byId.has('unknown'));
-  const expanded=essentialView(full,{budget:3,expanded:new Set(members)});
-  assert.equal(expanded.groups.size,0);assert.equal(expanded.nodes.length,5);
+  const expanded=essentialView(full,{budget:3,revealed:new Set(['core'])});
+  assert.equal(expanded.nodes.length,5);assert.ok(expanded.byId.has('b'));
   assert.equal(expanded.heights.get('core'),view.heights.get('core'));
 });
 test('search can reveal an unplaced function without creating an entry',()=>{
@@ -28,7 +30,6 @@ test('branch limit and order are deterministic',()=>{
 });
 test('a searched path restores every original caller even beyond the initial budget',()=>{
   const full=chain(),view=essentialView(full,{budget:3,revealed:new Set(['core'])});
-  assert.equal(view.groups.size,0);
   for(const id of ['entry','a','b','core'])assert.ok(view.byId.has(id));
 });
 test('six-branch cap, budget and omitted side branches are independently enforced',()=>{
@@ -47,7 +48,8 @@ test('near-duplicate highlights are skipped but do not break required paths',()=
   full.byId.get('a').similar=[{id:'core',cosine:.95}];full.byId.get('b').similar=[{id:'core',cosine:.95}];
   const view=essentialView(full);
   assert.ok(!view.anchors.has('a'));assert.ok(!view.anchors.has('b'));
-  assert.deepEqual([...view.groups.values()][0],['a','b']);
+  assert.ok(!view.byId.has('a'));assert.ok(!view.byId.has('b'));
+  assert.deepEqual(view.representedPaths.get('entry|core'),['entry','a','b','core']);
 });
 test('secondary returns and shared calls remain original relationships',()=>{
   const full=chain();full.secondaryEdges=[{from:'core',to:'entry',confidence:'resolved'},{from:'entry',to:'core',confidence:'heuristic'}];

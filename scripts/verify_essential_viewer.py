@@ -42,9 +42,10 @@ AUDIT = r"""() => {
  const rect=v.renderer.domElement.getBoundingClientRect(),topCut=Math.max(...m.heights.values())-(Math.max(...m.heights.values())-Math.min(...m.heights.values()))*.2,markers=[];
  v.scene.traverse(o=>{const id=o.userData?.id;if(!id||id==='__project__'||!o.visible||m.orphans.includes(id)||m.heights.get(id)<topCut)return;const p=o.position.clone().project(v.camera);if(Math.abs(p.x)<=1&&Math.abs(p.y)<=1)markers.push({x:p.x*rect.width/2,y:p.y*rect.height/2});});
  const crowded=markers.filter((a,i)=>markers.some((b,j)=>i!==j&&Math.hypot(a.x-b.x,a.y-b.y)<10)).length;
- const full=m.full||m, originals=m.nodes.filter(n=>n.id!=='__project__'&&n.kind!=='supporting-group');
+ const full=m.full||m, originals=m.nodes.filter(n=>n.id!=='__project__');
  const unchanged=originals.every(n=>m.heights.get(n.id)===full.heights.get(n.id)&&m.scores.get(n.id)===full.scores.get(n.id));
- return {summitMarkers:markers.length,crowdedSummitMarkers:crowded,items:m.nodes.length-Number(m.byId.has('__project__')),branches:(m.children.get('__project__')||m.roots).length,groups:m.groups?.size||0,lines:lines.length,samples,maxRise,maxMismatch,missing,unchanged,
+ const realMarkers=m.nodes.every(n=>n.id==='__project__'||full.byId.has(n.id));
+ return {summitMarkers:markers.length,crowdedSummitMarkers:crowded,items:m.nodes.length-Number(m.byId.has('__project__')),branches:(m.children.get('__project__')||m.roots).length,condensed:m.primaryEdges.filter(e=>e.summarized).length,realMarkers,lines:lines.length,samples,maxRise,maxMismatch,missing,unchanged,
   inventory:full.nodes.length-Number(full.byId.has('__project__')),anchors:[...(m.anchors||[])].map(id=>m.byId.get(id)?.qname),unknown:(m.unknownHighlights||[]).map(n=>n.qname)};
 }"""
 with sync_playwright() as p:
@@ -75,6 +76,7 @@ with sync_playwright() as p:
             and d["maxRise"] < 0.0002
             and d["maxMismatch"] < 0.0002
             and d["unchanged"]
+            and d["realMarkers"]
         ), d
         records.append(d)
         return d
@@ -95,7 +97,7 @@ with sync_playwright() as p:
                         and summits == "anchor"
                     ):
                         assert (
-                            d["crowdedSummitMarkers"] / max(1, d["summitMarkers"]) < 0.2
+                            d["crowdedSummitMarkers"] / max(1, d["summitMarkers"]) <= 0.2
                         ), d
                     if content == "essential":
                         assert d["items"] <= 40 and d["branches"] <= 6, d
@@ -110,31 +112,23 @@ with sync_playwright() as p:
     page.select_option("#content", "essential")
     page.select_option("#normalization", "siblings")
     page.select_option("#summits", "anchor")
-    group = page.evaluate("[...window.__terrain3d.model.groups.keys()][0]")
-    assert group
-    page.locator("#supporting-groups summary").click()
-    page.locator("#group-list button").first.click()
-    members = page.evaluate("[...window.__terrain3d.model.groups.values()][0]")
-    page.locator("#expand-group").click()
-    audit("expanded")
+    condensed = page.evaluate(
+        """()=>{const m=window.__terrain3d.model;const e=m.primaryEdges.find(e=>e.summarized&&e.representedPath?.length>2);return e&&{target:e.to,path:e.representedPath,qname:m.byId.get(e.to).qname};}"""
+    )
+    assert condensed
     assert page.evaluate(
-        "ids=>ids.every(id=>window.__terrain3d.model.byId.has(id))", members
+        "ids=>ids.slice(1,-1).some(id=>!window.__terrain3d.model.byId.has(id))",
+        condensed["path"],
+    )
+    page.fill("#search", condensed["qname"])
+    page.locator(f'#inventory button[data-node-id="{condensed["target"]}"]').click()
+    audit("condensed path reveal")
+    assert page.evaluate(
+        "ids=>ids.every(id=>window.__terrain3d.model.byId.has(id))", condensed["path"]
     )
     page.locator("#reset-overview").click()
     audit("reset")
     assert page.evaluate("window.__terrain3d.model.nodes.length-1") <= 40
-    retained = page.evaluate(
-        """()=>{const m=window.__terrain3d.model;return m.nodes.find(n=>m.groups.has(m.parent.get(n.id)) && n.kind!=='supporting-group');}"""
-    )
-    assert retained
-    page.fill("#search", retained["qname"])
-    page.locator(f'#inventory button[data-node-id="{retained["id"]}"]').click()
-    audit("visible endpoint search")
-    assert page.evaluate(
-        """id=>{const m=window.__terrain3d.model;while(id){if(!m.byId.has(id))return false;id=m.full.parent.get(id);}return true;}""",
-        retained["id"],
-    )
-    page.locator("#reset-overview").click()
     hidden = page.evaluate(
         """()=>{const m=window.__terrain3d.model;return m.full.nodes.find(n=>!m.byId.has(n.id)&&!m.full.orphans.includes(n.id)&&n.id!=='__project__');}"""
     )
@@ -190,7 +184,7 @@ with sync_playwright() as p:
     receipt = {
         "cases": records,
         "errors": errors,
-        "expansion": True,
+        "condensed_path_reveal": True,
         "search_reveal": True,
         "unknown_reveal": True,
         "mobile": True,

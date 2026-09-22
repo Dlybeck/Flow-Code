@@ -11,12 +11,13 @@ From this directory, run `npm install` and `npm run build`, then
 `python3 -m http.server 8766`. Open
 `http://localhost:8766/terrain-rules-prototype.html`.
 
-The default **Essential** mountain retains up to 40 items across six entry
-branches, selected from existing relevance scores with their primary paths.
-Supporting chains become diamond markers labelled **N supporting steps**.
-Expand them from the marker or the **Expandable supporting steps** list. Search
-reveals an omitted function and its caller path; **Reset overview** clears these
-expansions. Original scores and cumulative heights do not change when pruning.
+The default **Essential** mountain retains up to 40 real functions across six
+entry branches, selected from existing relevance scores with their primary
+paths. Less-important functions between two retained functions are condensed
+into the connecting edge rather than replaced by a synthetic marker. Select the
+real endpoint to reveal the complete ordered path; search can reveal any omitted
+function and its caller path. **Reset overview** clears these reveals. Original
+scores and cumulative heights do not change when pruning.
 
 **Complete** restores the full terrain. Its **Visible detail** control can space
 markers in screen pixels or show all markers. The function inventory always
@@ -28,12 +29,11 @@ Primary routes use curvature-based sampling rather than a fixed number of mesh
 vertices per call. Facet shading supplies depth without drawing polygon outlines
 that could be mistaken for connections. There are two line styles: solid branch
 paths and dotted extra calls. Gold highlights the selected path. Selecting a node
-explains whether a branch segment is a call, collapsed supporting steps or
-project membership, including the available call evidence.
+explains its calls or project membership, including the available call evidence.
 
 Primary routes are explicit terrain-mesh constraints, so the surface descends
-along the same path as the call line. Collapsed-path strokes represent multiple
-original steps and can be expanded. Neighbouring branches can have different
+along the same path as the call line. A condensed edge retains multiple original
+steps and selecting its endpoint reveals their real function markers. Neighbouring branches can have different
 altitudes; the guarantee does not apply when walking sideways between branches.
 Unplaced-to-unplaced relationships use dotted lines, like other calls outside
 the anchored terrain. Invalid geometry reports an error, not a free-mesh fallback.

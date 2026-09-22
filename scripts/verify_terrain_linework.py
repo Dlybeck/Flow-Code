@@ -90,40 +90,41 @@ with sync_playwright() as p:
                 if kind == "secondary":
                     assert edge["dash"] < edge["gap"], edge
             data["styleKinds"] = sorted({e["kind"] for e in styles})
-        if before:
-            patterns = {
-                e["kind"]: tuple(e.get(k) for k in ["dashed", "dash", "gap", "arrow"])
-                for e in styles
+        styles = page.evaluate(STYLES)
+        assert all(e.get("kind") for e in styles)
+        patterns = {
+            e["kind"]: tuple(e.get(k) for k in ["dashed", "dash", "gap", "arrow"])
+            for e in styles
+        }
+        assert len(set(patterns.values())) == 2, patterns
+        assert all(
+            value == patterns["primary"]
+            for kind, value in patterns.items()
+            if kind != "secondary"
+        ), patterns
+        if project == "scribblescan":
+            assert set(patterns) == {
+                "primary",
+                "collapsed",
+                "secondary",
+                "grouping",
             }
-            assert len(set(patterns.values())) == 2, patterns
-            assert all(
-                value == patterns["primary"]
-                for kind, value in patterns.items()
-                if kind != "secondary"
-            ), patterns
-            if project == "scribblescan":
-                assert set(patterns) == {
-                    "primary",
-                    "collapsed",
-                    "secondary",
-                    "grouping",
-                }
-            # Exercise both group and real-function selection styling without
-            # changing Essential membership (UI expansion is checked separately).
-            selection_ids = page.evaluate(
-                """()=>{const m=window.__terrain3d.model;return [[...m.groups.keys()][0],m.nodes.find(n=>n.id!=='__project__'&&n.kind!=='supporting-group').id].filter(Boolean);}"""
-            )
+        # Selection changes visibility/highlighting, not line semantics.
+        selection_ids = page.evaluate(
+            """()=>window.__terrain3d.model.nodes.filter(n=>n.id!=='__project__').slice(0,2).map(n=>n.id);"""
+        )
 
-            def without_visibility(edges):
-                return [{k: v for k, v in e.items() if k != "visible"} for e in edges]
+        def without_visibility(edges):
+            return [{k: v for k, v in e.items() if k != "visible"} for e in edges]
 
-            for selected_id in selection_ids:
-                page.evaluate("id=>window.__terrain3d.select(id)", selected_id)
-                selected_styles = page.evaluate(STYLES)
-                assert without_visibility(selected_styles) == without_visibility(styles)
-            data["styles_survive_selection"] = True
-            data["two_style_patterns"] = True
-            page.evaluate("window.__terrain3d.select('__project__')")
+        for selected_id in selection_ids:
+            page.evaluate("id=>window.__terrain3d.select(id)", selected_id)
+            selected_styles = page.evaluate(STYLES)
+            assert without_visibility(selected_styles) == without_visibility(styles)
+        data["styleKinds"] = sorted(patterns)
+        data["styles_survive_selection"] = True
+        data["two_style_patterns"] = True
+        page.evaluate("window.__terrain3d.select('__project__')")
         records.append(data)
         page.locator(".stage").first.screenshot(path=str(args.out / f"{project}.png"))
     assert not errors, errors
