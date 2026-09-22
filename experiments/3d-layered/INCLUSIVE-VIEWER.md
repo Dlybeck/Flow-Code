@@ -40,10 +40,8 @@ the anchored terrain. Invalid geometry reports an error, not a free-mesh fallbac
 
 Search by function, file, or language. Select a search result to center and label
 it. Caller/callee buttons navigate known relationships, including secondary
-calls. A few entry labels provide landmarks; collision and terrain occlusion
-checks prevent them covering each other or appearing through the mountain.
-On phone-width screens, automatic entry and supporting-group labels are hidden;
-only a selected node receives a floating label, keeping the terrain readable.
+calls. The terrain has no automatic floating titles: a title appears only for
+the selected or hovered node, keeping the nodes and branch shapes readable.
 
 All indexed functions remain in the inventory. Displayed unplaced functions sit outside the terrain;
 white rings mark unknown entry paths while size/color retain relevance. The
