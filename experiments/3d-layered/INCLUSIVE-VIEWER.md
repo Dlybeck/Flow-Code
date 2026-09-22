@@ -42,6 +42,8 @@ Search by function, file, or language. Select a search result to center and labe
 it. Caller/callee buttons navigate known relationships, including secondary
 calls. A few entry labels provide landmarks; collision and terrain occlusion
 checks prevent them covering each other or appearing through the mountain.
+On phone-width screens, automatic entry and supporting-group labels are hidden;
+only a selected node receives a floating label, keeping the terrain readable.
 
 All indexed functions remain in the inventory. Displayed unplaced functions sit outside the terrain;
 white rings mark unknown entry paths while size/color retain relevance. The

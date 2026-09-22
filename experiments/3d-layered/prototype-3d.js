@@ -534,6 +534,10 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
       const point = mesh.position.clone().project(camera);
       let visible = mesh.visible && Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
       const project = element.dataset.kind === 'project';
+      // Phone screens keep one stable landmark plus the selected-node label.
+      // Entry and supporting-group names remain available through selection and
+      // the lists below the terrain instead of covering the mountain by default.
+      if (!project && rect.width < 500) visible = false;
       if (!project && (mesh.userData.id === selectedId || mesh.userData.id === hoveredId)) visible = false;
       if (visible && !project) {
         const direction = mesh.position.clone().sub(camera.position);
@@ -541,7 +545,7 @@ export function createTerrainView(canvas, onSelect, onDetailChange) {
         raycaster.set(camera.position, direction.normalize());
         if (raycaster.intersectObjects(terrainMeshes, false).some(hit => hit.distance < distance - .5)) visible = false;
       }
-      if (!project && landmarkCount >= (rect.width < 500 ? 3 : 6)) visible = false;
+      if (!project && landmarkCount >= 6) visible = false;
       element.hidden = !visible;
       if (leader) leader.hidden = !visible;
       if (visible) {
