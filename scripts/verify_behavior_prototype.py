@@ -111,13 +111,49 @@ def main() -> None:
             page.screenshot(path=str(args.out / f"{project}.png"), full_page=True)
             records.append(overview)
         page.set_viewport_size({"width": 390, "height": 844})
-        page.select_option("#project", projects[0])
-        if page.locator(".behavior-card").count():
-            page.locator(".behavior-card").first.click()
-        page.screenshot(path=str(args.out / "mobile.png"), full_page=True)
-        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        mobile_projects = []
+        for project in projects:
+            page.select_option("#project", project)
+            if page.locator(".behavior-card").count():
+                page.locator(".behavior-card").first.click()
+            if page.locator(".map-node.seed").count():
+                page.locator(".map-node.seed").first.click()
+            mobile_layout = page.evaluate(
+                """() => {
+                  const map = document.querySelector('#flow-map');
+                  const nodes = [...document.querySelectorAll('.map-node')]
+                    .map(node => ({id: node.dataset.nodeId, rect: node.getBoundingClientRect()}));
+                  const overlaps = [];
+                  for (let i = 0; i < nodes.length; i += 1) {
+                    for (let j = i + 1; j < nodes.length; j += 1) {
+                      const a = nodes[i].rect; const b = nodes[j].rect;
+                      if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top) {
+                        overlaps.push([nodes[i].id, nodes[j].id]);
+                      }
+                    }
+                  }
+                  const mapRect = map.getBoundingClientRect();
+                  const clipped = nodes.filter(({rect}) =>
+                    rect.left < mapRect.left || rect.right > mapRect.right
+                    || rect.top < mapRect.top || rect.bottom > mapRect.bottom
+                  ).map(node => node.id);
+                  return {overlaps, clipped, scrollWidth: map.scrollWidth, clientWidth: map.clientWidth};
+                }"""
+            )
+            assert mobile_layout["overlaps"] == []
+            assert mobile_layout["clipped"] == []
+            assert mobile_layout["scrollWidth"] <= mobile_layout["clientWidth"]
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            page.screenshot(
+                path=str(args.out / f"{project}-mobile.png"), full_page=True
+            )
+            mobile_projects.append(project)
         assert not errors, errors
-        receipt = {"projects": records, "mobile": True, "errors": errors}
+        receipt = {
+            "projects": records,
+            "mobile_projects": mobile_projects,
+            "errors": errors,
+        }
         (args.out / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
         browser.close()
 
