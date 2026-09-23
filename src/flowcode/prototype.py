@@ -129,6 +129,7 @@ def terrain_fixture(document, *, graph=None, title=None):
                 else functions[i].get(
                     "entry_evidence", ["export_entry"] if i in entries else []
                 ),
+                "exits": deepcopy(node.get("exits", [])),
             }
         )
     # Common names such as main, run and __init__ need source context. This is
@@ -150,6 +151,7 @@ def terrain_fixture(document, *, graph=None, title=None):
             "text", "Code-only embedding relevance; no project description supplied."
         ),
         "entrypoints": sorted(set(entries)),
+        "behaviors": deepcopy(document.get("behaviors", {})),
         "nodes": nodes,
         "edges": [edge_map[k] for k in sorted(edge_map)],
         "coverage": {

@@ -10,3 +10,4 @@ dist/
 *.egg-info/
 .aider*
 /experiments/3d-layered/maps/
+/evidence/outcome-first/

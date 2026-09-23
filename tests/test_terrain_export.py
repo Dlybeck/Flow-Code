@@ -71,6 +71,17 @@ def shared(): entry()
     assert str(tmp_path) not in first.decode()
     assert data["analysis"]["embedding"]["dimensions"] == 768
     assert all("semantic_height" in n and "importance" in n for n in overview["nodes"])
+    assert data["behaviors"]["behaviors"][0]["root_node_id"] == "py:fn:server.entry"
+    assert data["behaviors"]["coverage"]["functions_with_layers"] == 3
+    entry_layer = data["behaviors"]["layers"][
+        data["behaviors"]["behaviors"][0]["root_layer_id"]
+    ]
+    assert entry_layer["leaf_ids"]
+    assert all(
+        row["source_refs"]
+        for row in entry_layer["nodes"]
+        if row["kind"] in {"root", "node", "seed", "leaf"}
+    )
 
 
 def test_export_refuses_missing_embeddings(tmp_path, monkeypatch):
@@ -301,8 +312,9 @@ def test_feature_keeps_project_wide_semantic_scores(tmp_path, deterministic_embe
 
 def test_export_keeps_all_detected_entries(tmp_path, deterministic_embeddings):
     from flowcode.terrain import export_terrain
+
     for i in range(5):
-        (tmp_path / f'entry{i}.py').write_text('def main(): pass\n')
-    document = export_terrain(tmp_path, project='multiple-entrypoints')
-    assert len(document['entries']) == 5
-    assert document['analysis']['entry_selection'] == 'detected'
+        (tmp_path / f"entry{i}.py").write_text("def main(): pass\n")
+    document = export_terrain(tmp_path, project="multiple-entrypoints")
+    assert len(document["entries"]) == 5
+    assert document["analysis"]["entry_selection"] == "detected"

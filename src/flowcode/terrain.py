@@ -59,16 +59,13 @@ def _semantic_signals(functions, vectors, purpose_vector=None, call_edges=None):
 
     raw_centrality = {
         node: math.sqrt(
-            (1 + len(reachable(node, reverse)))
-            * (1 + len(reachable(node, adjacency)))
+            (1 + len(reachable(node, reverse))) * (1 + len(reachable(node, adjacency)))
         )
         - 1
         for node in ids
     }
     centrality_peak = max(raw_centrality.values(), default=0) or 1
-    centrality = {
-        node: raw_centrality[node] / centrality_peak for node in ids
-    }
+    centrality = {node: raw_centrality[node] / centrality_peak for node in ids}
     code_raw = {
         node: novelty_importance[node] * (0.75 + 0.25 * centrality[node])
         for node in ids
@@ -197,9 +194,7 @@ def export_terrain(
 ):
     """Bake source embeddings and both views locally; export only static data."""
     purpose = purpose.strip() if purpose and purpose.strip() else None
-    graph = generate_graph(
-        repo_path, src_roots=src_roots, include_overlay=False
-    )
+    graph = generate_graph(repo_path, src_roots=src_roots, include_overlay=False)
     by_id = {n["id"]: n for n in graph["nodes"]}
     source_files = {}
     for file in graph["analysis"]["files"]:
@@ -233,20 +228,53 @@ def export_terrain(
         }
     if not functions:
         raise ValueError("No supported functions found in the selected source roots")
+    from flowcode.behaviors import extract_exit_sites
+
+    exit_embedding_inputs = {}
+    for node_id, function in functions.items():
+        function["exits"] = extract_exit_sites(
+            function["_source"],
+            language=function["language"],
+            source_node_id=node_id,
+            location=function["location"],
+        )
+        source_lines = function["_source"].splitlines()
+        start_line = function["location"]["start_line"]
+        for exit_site in function["exits"]:
+            offset = exit_site["location"]["start_line"] - start_line
+            evidence_line = (
+                source_lines[offset]
+                if 0 <= offset < len(source_lines)
+                else function["_source"]
+            )
+            # Exit source is embedded locally but never exported.  The portable
+            # receipt proves which bytes were ranked without publishing them.
+            exit_embedding_inputs[exit_site["id"]] = evidence_line
     from flowcode.embeddings import RECIPE, CodeEmbedder
 
-    embedding_inputs = {n: f["_source"] for n, f in functions.items()}
+    embedding_inputs = {
+        **{n: f["_source"] for n, f in functions.items()},
+        **exit_embedding_inputs,
+    }
     if purpose:
         embedding_inputs["__project_purpose__"] = purpose
-    vectors, receipts = (embedder or CodeEmbedder()).encode(embedding_inputs)
-    purpose_vector = vectors.pop("__project_purpose__", None)
-    purpose_receipt = receipts.pop("__project_purpose__", None)
+    all_vectors, all_receipts = (embedder or CodeEmbedder()).encode(embedding_inputs)
+    purpose_vector = all_vectors.pop("__project_purpose__", None)
+    purpose_receipt = all_receipts.pop("__project_purpose__", None)
     if purpose and (purpose_vector is None or purpose_receipt is None):
         raise ValueError("Missing project purpose embedding")
-    if set(vectors) != set(functions) or set(receipts) != set(functions):
+    expected_embeddings = set(functions) | set(exit_embedding_inputs)
+    if (
+        set(all_vectors) != expected_embeddings
+        or set(all_receipts) != expected_embeddings
+    ):
         raise ValueError(
             "Missing code embeddings; no geometry-only fallback is allowed"
         )
+    vectors = {node: all_vectors[node] for node in functions}
+    receipts = {node: all_receipts[node] for node in functions}
+    exit_vectors = {node: all_vectors[node] for node in exit_embedding_inputs}
+    exit_receipts = {node: all_receipts[node] for node in exit_embedding_inputs}
     internal = []
     for e in graph["edges"]:
         if e["from"] not in functions:
@@ -272,8 +300,26 @@ def export_terrain(
                 )
             )
     _semantic_signals(functions, vectors, purpose_vector, internal)
+    import numpy as np
+
     for node, function in functions.items():
         function["embedding"] = receipts[node]
+        root_vector = np.asarray(vectors[node], dtype=float)
+        root_vector /= np.linalg.norm(root_vector)
+        project_vector = None
+        if purpose_vector is not None:
+            project_vector = np.asarray(purpose_vector, dtype=float)
+            project_vector /= np.linalg.norm(project_vector)
+        for exit_site in function["exits"]:
+            exit_vector = np.asarray(exit_vectors[exit_site["id"]], dtype=float)
+            exit_vector /= np.linalg.norm(exit_vector)
+            exit_site["embedding"] = exit_receipts[exit_site["id"]]
+            exit_site["local_similarity"] = max(0.0, float(exit_vector @ root_vector))
+            exit_site["project_similarity"] = (
+                max(0.0, float(exit_vector @ project_vector))
+                if project_vector is not None
+                else 0.0
+            )
     seeds = []
     for entry in entries or []:
         matches = [
@@ -284,6 +330,16 @@ def export_terrain(
         seeds.extend(matches)
     if not seeds:
         seeds = [n for n in graph["entrypoints"] if n in functions]
+    from flowcode.behaviors import build_behavior_map
+
+    behavior_map = build_behavior_map(
+        [
+            {key: value for key, value in function.items() if key != "_source"}
+            for function in functions.values()
+        ],
+        internal,
+        seeds,
+    )
     neighbors = defaultdict(set)
     for e in internal:
         neighbors[e["from"]].add(e["to"])
@@ -318,8 +374,7 @@ def export_terrain(
                 "normalize((positive manual-purpose cosine / max cosine)^2 * "
                 "(0.75 + 0.25 * code_importance))"
                 if purpose
-                else "normalize(novelty_x_substance * "
-                "(0.75 + 0.25 * graph_centrality))"
+                else "normalize(novelty_x_substance * (0.75 + 0.25 * graph_centrality))"
             ),
             "projection": "UMAP cosine, seed 42; exact SVD for <=3 functions",
             "semantic_height": "2 + 18 * sqrt(importance); monotonic visual contrast",
@@ -340,6 +395,7 @@ def export_terrain(
         "project": project,
         "analysis": analysis,
         "entries": seeds,
+        "behaviors": behavior_map,
         "views": {
             "feature": _layout(
                 {k: v for k, v in functions.items() if k in focus},

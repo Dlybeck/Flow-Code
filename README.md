@@ -1,14 +1,21 @@
 # Flow-Code
 
-Flow-Code turns a codebase into an explorable 3D terrain for someone who has
-never seen the source before. Each point is a function. Nearby points contain
-similar code, call edges show how work connects, and higher ground highlights
-code that is distinctive, substantive, and central to the selected project.
+Flow-Code turns an unfamiliar codebase into a small set of explorable behaviors.
+It detects where execution can begin, shows a concise path to the function's
+real exits, and folds called functions into seed nodes. Opening a seed enters a
+focused child view, so readers can move from a project overview toward source
+detail without seeing the complete call graph at once.
 
-The map is a familiarization surface rather than a literal explanation or a
-runtime trace. Readers can start at an entry point, follow connections, switch
-between call-path and code-similarity layouts, or browse any function. Static
-analysis limits remain visible in the map.
+Every visible root, node, seed, and leaf retains its backing file, symbol, and
+line range. The opening view ranks a manageable set of likely project behaviors;
+all detected starts and every analyzed function remain available. Flow-Code is a
+familiarization surface rather than a runtime trace, so static-analysis limits
+remain visible.
+
+The current prototype offers two presentations over the same evidence. The
+simple flow is the default because branching and alternate exits are easier to
+read. The mountain remains available as a spatial view: execution moves only
+downhill, and the same source-backed edges are drawn in both presentations.
 
 ## Core boundary
 
@@ -25,6 +32,24 @@ may add their own prose without changing the map generator.
 A future release may support an optional, one-time generative summary artifact.
 That would be a separate enrichment pass over a completed map. It must remain
 optional, reviewable, persisted for reuse, and outside normal re-indexing.
+
+## Outcome-first prototype
+
+Build source-current validation fixtures from Flow-Code, Portfolio, and
+ScribbleScan, then serve the prototype:
+
+```bash
+PYTHONPATH=src python scripts/build_behavior_validation.py \
+  --portfolio /path/to/Portfolio \
+  --scribblescan /path/to/ScribbleScan \
+  --out evidence/outcome-first
+
+python -m http.server --directory experiments/3d-layered 8000
+```
+
+Open `http://127.0.0.1:8000/behavior-prototype.html`. No outcome declaration is
+required. A short project purpose remains optional and influences semantic
+ranking through local embeddings.
 
 ## Current language phase
 

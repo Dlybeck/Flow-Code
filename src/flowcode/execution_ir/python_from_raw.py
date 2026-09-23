@@ -265,7 +265,7 @@ def build_execution_ir_from_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
                 "id": flow_fn_id(qn),
                 "kind": "function",
                 "language": "python",
-                "label": qn,
+                "label": str(s.get("lexical_name") or qn),
                 "location": {
                     "path": rel,
                     "start_line": int(s.get("line") or 0),

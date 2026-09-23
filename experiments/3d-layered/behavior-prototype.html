@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flow-Code · behavior prototype</title>
+  <link rel="stylesheet" href="assets/fonts.css">
+  <style>
+    :root { color-scheme: dark; --ink:#09221e; --panel:#102f2a; --line:#8ba89b; --gold:#f4d06f; --paper:#fff5d1; --mint:#b8d5c5; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at 50% -20%,#244c43,var(--ink) 56%); color:#e8f1e8; font:15px/1.4 "Patrick Hand",system-ui,sans-serif; }
+    button,select { font:inherit; }
+    button { cursor:pointer; }
+    header { display:flex; align-items:center; gap:12px; min-height:62px; padding:10px 18px; border-bottom:1px solid #ffffff1e; background:#071c19cc; backdrop-filter:blur(12px); }
+    .brand { color:var(--gold); font:bold 20px "Architects Daughter",system-ui; letter-spacing:.02em; }
+    select,.toggle button { border:1px solid #ffffff26; border-radius:8px; background:#173d36; color:#eef5ec; padding:7px 10px; }
+    .toggle { display:flex; gap:4px; margin-left:auto; }
+    .toggle button.active { background:var(--gold); color:#17352f; border-color:var(--gold); }
+    #ranking { margin-left:4px; }
+    main { min-height:calc(100vh - 62px); padding:clamp(16px,3vw,34px); }
+    #crumbs { min-height:32px; display:flex; align-items:center; gap:8px; color:#b8cabf; }
+    #crumbs button { border:0; background:transparent; color:var(--paper); padding:2px; }
+    #crumbs button:disabled { color:var(--gold); cursor:default; }
+    .intro { max-width:1050px; margin:5vh auto 0; text-align:center; }
+    h1,h2 { margin:0; font-family:"Architects Daughter",system-ui; color:var(--paper); }
+    h1 { font-size:clamp(30px,6vw,58px); }
+    .quiet { color:#aec4b9; margin:.25rem 0 2.2rem; }
+    #behavior-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
+    .behavior-card { min-height:100px; display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:10px; border:1px solid #ffffff23; border-radius:16px; padding:17px; background:linear-gradient(145deg,#173d36,#0d2b26); color:#f6f0d6; box-shadow:0 14px 35px #0003; }
+    .behavior-card:hover { border-color:var(--gold); transform:translateY(-2px); }
+    .behavior-start,.behavior-end { min-width:0; overflow-wrap:anywhere; line-height:1.2; }
+    .behavior-start { text-align:right; }
+    .behavior-end { text-align:left; color:var(--gold); }
+    .behavior-arrow { color:#82a797; font-size:22px; }
+    .overview-actions { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin:24px auto; }
+    .overview-actions button { border:1px solid #ffffff2e; border-radius:999px; padding:8px 18px; background:transparent; color:#d6e3da; }
+    .layer-head { display:flex; align-items:end; justify-content:space-between; gap:16px; margin:6px 0 15px; }
+    .layer-head p { margin:0; color:#abc0b5; }
+    .map { min-height:58vh; border:1px solid #ffffff1c; border-radius:20px; background:#081f1c; overflow:auto; box-shadow:inset 0 0 60px #0004; }
+    .flow-scene { position:relative; min-width:900px; min-height:520px; height:58vh; }
+    .flow-links { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+    .graph-edge { stroke:#82aa9a; stroke-width:1.2; vector-effect:non-scaling-stroke; opacity:.75; }
+    .flow-scene .map-node { position:absolute; transform:translate(-50%,-50%); }
+    .map-node { position:relative; width:150px; min-height:78px; display:flex; flex-direction:column; justify-content:center; gap:3px; border:1px solid #ffffff30; border-radius:13px; padding:12px; background:#173b34; color:#edf3e8; text-align:left; box-shadow:0 9px 25px #0005; }
+    .map-node.root { background:var(--paper); color:#16352f; border-color:var(--paper); }
+    .map-node.seed { border-color:var(--gold); }
+    .map-node.leaf { background:#294a3f; border-color:#9dc1ae; }
+    .map-node.leaf:first-of-type { border-color:var(--gold); }
+    .node-role { font:10px/1 system-ui,sans-serif; letter-spacing:.12em; opacity:.65; }
+    .dive { margin-top:5px; color:var(--gold); font-size:12px; }
+    .mountain-map { overflow:hidden; perspective:900px; }
+    .mountain-scene { position:relative; width:min(100%,1000px); height:64vh; min-height:520px; margin:auto; transform:rotateX(4deg); transform-origin:50% 80%; }
+    .mountain { position:absolute; inset:2% 4% 0; width:92%; height:96%; filter:drop-shadow(0 24px 25px #0008); }
+    .mountain .graph-edge { stroke:#174940; stroke-width:1.15; opacity:.9; }
+    .mountain-scene .map-node { position:absolute; width:132px; min-height:58px; transform:translate(-50%,-50%); padding:8px 10px; }
+    aside { position:fixed; right:18px; bottom:18px; z-index:8; width:min(360px,calc(100vw - 36px)); border:1px solid #ffffff2b; border-radius:15px; padding:16px; background:#071c19f2; box-shadow:0 18px 50px #0008; }
+    aside header { min-height:0; padding:0; border:0; background:transparent; }
+    aside header button { margin-left:auto; border:0; background:transparent; color:#fff; }
+    aside p { margin:.5rem 0; color:#b8cbbf; }
+    aside code { display:block; max-height:80px; overflow:auto; color:#f3d980; font:11px/1.35 ui-monospace,monospace; white-space:pre-wrap; }
+    .modal { position:fixed; inset:0; z-index:12; display:grid; place-items:center; padding:20px; background:#03100ed9; }
+    .code-panel { width:min(720px,100%); max-height:min(780px,90vh); display:flex; flex-direction:column; border:1px solid #ffffff2b; border-radius:18px; padding:18px; background:#0b2924; box-shadow:0 24px 80px #000a; }
+    .code-panel header { min-height:0; padding:0 0 12px; border:0; background:transparent; }
+    .code-panel header button { margin-left:auto; border:0; background:transparent; color:#fff; }
+    #code-search { width:100%; border:1px solid #ffffff2b; border-radius:9px; padding:10px; background:#143b34; color:#fff; font:inherit; }
+    #code-count { margin:8px 0; color:#a9c0b4; }
+    #code-list { overflow:auto; display:grid; gap:6px; }
+    .code-row { display:flex; justify-content:space-between; gap:12px; border:1px solid #ffffff18; border-radius:9px; padding:9px 11px; background:#102f2a; color:#fff; text-align:left; }
+    .code-row span { color:#9eb6aa; font-size:12px; }
+    [hidden] { display:none!important; }
+    #load-error { margin:20px; color:#ffb3a3; }
+    @media(max-width:650px) {
+      header { flex-wrap:wrap; padding:9px 12px; }
+      .brand { width:100%; }
+      .toggle { margin-left:0; }
+      main { padding:12px; }
+      .intro { margin-top:2vh; }
+      #behavior-grid { grid-template-columns:1fr; }
+      .behavior-card { min-height:78px; }
+      .map { min-height:62vh; }
+      .flow-scene { width:100%; min-height:540px; }
+      .map-node { width:min(280px,80vw); }
+      .mountain-scene { min-width:680px; transform-origin:20% 80%; }
+      .mountain-map { overflow:auto; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">Flow-Code</span>
+    <select id="project" aria-label="Project"></select>
+    <div id="view-controls" class="toggle" hidden>
+      <button data-view="flow" class="active">Flow</button>
+      <button data-view="mountain">Mountain</button>
+    </div>
+    <select id="ranking" aria-label="Leaf relevance">
+      <option value="hybrid">Relative relevance</option>
+      <option value="project">Project-wide relevance</option>
+      <option value="local">Local relevance</option>
+    </select>
+  </header>
+  <div id="load-error" hidden></div>
+  <main>
+    <nav id="crumbs" aria-label="Focused path"></nav>
+    <section id="overview" class="intro">
+      <h1 id="overview-title"></h1>
+      <p id="overview-count" class="quiet"></p>
+      <div id="behavior-grid"></div>
+      <div class="overview-actions"><button id="all-behaviors"></button><button id="all-code"></button></div>
+    </section>
+    <section id="layer-view" hidden>
+      <div class="layer-head"><div><h2 id="layer-title"></h2><p id="layer-meta"></p></div></div>
+      <div id="flow-map" class="map"></div>
+    </section>
+  </main>
+  <aside id="evidence" hidden>
+    <header><span id="evidence-role"></span><button id="close-evidence" aria-label="Close">×</button></header>
+    <h2 id="evidence-title"></h2>
+    <p id="evidence-source"></p>
+    <code id="evidence-id"></code>
+  </aside>
+  <section id="code-inventory" class="modal" hidden>
+    <div class="code-panel">
+      <header><h2>All analyzed code</h2><button id="close-code" aria-label="Close">×</button></header>
+      <input id="code-search" type="search" placeholder="Find a function" autocomplete="off">
+      <p id="code-count"></p>
+      <div id="code-list"></div>
+    </div>
+  </section>
+  <script type="module" src="behavior-prototype.js"></script>
+</body>
+</html>

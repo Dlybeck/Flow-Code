@@ -1,0 +1,48 @@
+{
+  "projects": [
+    {
+      "project": "chef",
+      "total": 7,
+      "primary": 6,
+      "accounted": 32,
+      "layers": 32
+    },
+    {
+      "project": "fieldhouse",
+      "total": 22,
+      "primary": 6,
+      "accounted": 41,
+      "layers": 41
+    },
+    {
+      "project": "flowcode",
+      "total": 34,
+      "primary": 5,
+      "accounted": 307,
+      "layers": 307
+    },
+    {
+      "project": "portfolio",
+      "total": 46,
+      "primary": 6,
+      "accounted": 138,
+      "layers": 138
+    },
+    {
+      "project": "redblack",
+      "total": 2,
+      "primary": 2,
+      "accounted": 46,
+      "layers": 46
+    },
+    {
+      "project": "scribblescan",
+      "total": 151,
+      "primary": 6,
+      "accounted": 599,
+      "layers": 599
+    }
+  ],
+  "mobile": true,
+  "errors": []
+}

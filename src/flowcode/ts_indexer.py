@@ -11,6 +11,7 @@ File IDs:   file:{relpath}
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 from pathlib import Path
 from typing import Any
 from flowcode.sources import BROWSER_EXTENSIONS, source_files
@@ -276,6 +277,17 @@ def index_ts_repo(
             e["id"] = f"imp:{rel_posix}:{i}"
         edge_rows.extend(import_edges)
 
+    counts = Counter(s["qualified_name"] for s in symbol_rows)
+    symbols: list[dict[str, Any]] = []
+    for original in symbol_rows:
+        symbol = dict(original)
+        if counts[symbol["qualified_name"]] > 1:
+            symbol["lexical_name"] = symbol["qualified_name"]
+            suffix = f"@{symbol['file_id'][5:]}:{symbol['line']}"
+            symbol["qualified_name"] += suffix
+            symbol["id"] += suffix
+        symbols.append(symbol)
+
     return {
         "schema_version": 0,
         "indexer": "flowcode.ts_v0",
@@ -290,6 +302,6 @@ def index_ts_repo(
         },
         "root": str(repo_root),
         "files": file_rows,
-        "symbols": symbol_rows,
+        "symbols": symbols,
         "edges": edge_rows,
     }

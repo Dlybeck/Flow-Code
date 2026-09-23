@@ -78,17 +78,21 @@ class _CallVisitor:
         self,
         module_q: str,
         sym_by_qual: dict[str, Any],
+        sym_by_lexical: dict[str, list[dict[str, Any]]],
         import_map: dict[str, str],
         source: bytes,
         resolved_edges: set[tuple[str, str, int]],
         unknown_records: list[tuple[str, dict[str, Any]]],
+        definition_names: dict[int, str] | None = None,
     ) -> None:
         self.module_q = module_q
         self.sym_by_qual = sym_by_qual
+        self.sym_by_lexical = sym_by_lexical
         self.import_map = import_map
         self.source = source
         self.resolved_edges = resolved_edges
         self.unknown_records = unknown_records
+        self.definition_names = definition_names or {}
         self._scope: list[str] = []
         self._current_fn_qual: str | None = None
 
@@ -96,7 +100,7 @@ class _CallVisitor:
         parts = ([self.module_q] if self.module_q else []) + self._scope + [name]
         return ".".join(parts)
 
-    def _resolve_name(self, name: str) -> str | None:
+    def _resolve_name(self, name: str, line: int) -> str | None:
         # Check import map
         if name in self.import_map:
             imp = self.import_map[name]
@@ -111,6 +115,19 @@ class _CallVisitor:
             cand = ".".join(prefix + [name]) if prefix else name
             if cand in self.sym_by_qual:
                 return cand
+            candidates = self.sym_by_lexical.get(cand, [])
+            if len(candidates) == 1:
+                return str(candidates[0]["qualified_name"])
+            if candidates:
+                preceding = [
+                    item for item in candidates if int(item.get("line") or 0) <= line
+                ]
+                if preceding:
+                    return str(
+                        max(preceding, key=lambda item: int(item.get("line") or 0))[
+                            "qualified_name"
+                        ]
+                    )
         return None
 
     def _current_id(self) -> str | None:
@@ -129,7 +146,7 @@ class _CallVisitor:
 
         if func_node.type == "identifier":
             name = _node_text(func_node, self.source)
-            resolved = self._resolve_name(name)
+            resolved = self._resolve_name(name, line)
             if resolved:
                 self.resolved_edges.add((fr, ts_fn_id(resolved), line))
             else:
@@ -157,7 +174,10 @@ class _CallVisitor:
                 name = _node_text(name_node, self.source)
                 self._scope.append(name)
                 prev = self._current_fn_qual
-                cq = ".".join(([self.module_q] if self.module_q else []) + self._scope)
+                lexical = ".".join(
+                    ([self.module_q] if self.module_q else []) + self._scope
+                )
+                cq = self.definition_names.get(node.start_point[0] + 1, lexical)
                 self._current_fn_qual = cq if cq in self.sym_by_qual else prev
                 for child in node.children:
                     self.visit(child)
@@ -169,7 +189,8 @@ class _CallVisitor:
             name = expression_name(node, self.source)
             self._scope.append(name)
             prev = self._current_fn_qual
-            cq = '.'.join(([self.module_q] if self.module_q else []) + self._scope)
+            lexical = '.'.join(([self.module_q] if self.module_q else []) + self._scope)
+            cq = self.definition_names.get(node.start_point[0] + 1, lexical)
             self._current_fn_qual = cq if cq in self.sym_by_qual else None
             body = node.child_by_field_name('body')
             if body is not None:
@@ -187,7 +208,12 @@ class _CallVisitor:
                         name = _node_text(name_node, self.source)
                         self._scope.append(name)
                         prev = self._current_fn_qual
-                        cq = ".".join(([self.module_q] if self.module_q else []) + self._scope)
+                        lexical = ".".join(
+                            ([self.module_q] if self.module_q else []) + self._scope
+                        )
+                        cq = self.definition_names.get(
+                            val_node.start_point[0] + 1, lexical
+                        )
                         self._current_fn_qual = cq if cq in self.sym_by_qual else prev
                         body = val_node.child_by_field_name('body')
                         if body is not None:
@@ -213,7 +239,12 @@ class _CallVisitor:
                                 mname = _node_text(mname_node, self.source)
                                 self._scope.append(mname)
                                 prev = self._current_fn_qual
-                                cq = ".".join(([self.module_q] if self.module_q else []) + self._scope)
+                                lexical = ".".join(
+                                    ([self.module_q] if self.module_q else []) + self._scope
+                                )
+                                cq = self.definition_names.get(
+                                    child.start_point[0] + 1, lexical
+                                )
                                 self._current_fn_qual = cq if cq in self.sym_by_qual else prev
                                 mbody = child.child_by_field_name("body")
                                 if mbody:
@@ -244,10 +275,13 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         if isinstance(s, dict) and s.get("kind") == "function"
     ]
     sym_by_qual: dict[str, dict[str, Any]] = {}
+    sym_by_lexical: dict[str, list[dict[str, Any]]] = {}
     for s in symbols:
         qn = str(s.get("qualified_name", ""))
         if qn:
             sym_by_qual[qn] = s
+            lexical = str(s.get("lexical_name") or qn)
+            sym_by_lexical.setdefault(lexical, []).append(s)
 
     nodes: list[dict[str, Any]] = []
     for s in symbols:
@@ -260,7 +294,7 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
             "id": ts_fn_id(qn),
             "kind": "function",
             "language": "javascript" if Path(rel).suffix in {".js", ".jsx", ".mjs", ".cjs"} else "typescript",
-            "label": qn,
+            "label": str(s.get("lexical_name") or qn),
             "location": {
                 "path": rel,
                 "start_line": int(s.get("line") or 0),
@@ -310,10 +344,15 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         vis = _CallVisitor(
             module_q=module_q,
             sym_by_qual=sym_by_qual,
+            sym_by_lexical=sym_by_lexical,
             import_map=imp_map,
             source=source,
             resolved_edges=resolved_edges,
             unknown_records=unknown_records,
+            definition_names={
+                int(item["line"]): str(item["qualified_name"])
+                for item in file_syms
+            },
         )
         vis.visit(tree.root_node)
 
@@ -323,9 +362,13 @@ def build_execution_ir_from_ts_raw(raw_doc: dict[str, Any]) -> dict[str, Any]:
         qn = str(s.get("qualified_name", ""))
         if not qn:
             continue
-        parent_qn, _, _leaf = qn.rpartition(".")
-        if parent_qn and parent_qn in sym_by_qual:
-            contains_pairs.add((ts_fn_id(parent_qn), ts_fn_id(qn)))
+        lexical = str(s.get("lexical_name") or qn)
+        parent_lexical, _, _leaf = lexical.rpartition(".")
+        parents = sym_by_lexical.get(parent_lexical, [])
+        if len(parents) == 1:
+            contains_pairs.add(
+                (ts_fn_id(str(parents[0]["qualified_name"])), ts_fn_id(qn))
+            )
 
     if unknown_records:
         nodes.append({

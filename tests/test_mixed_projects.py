@@ -103,6 +103,36 @@ def test_browser_closures_and_callback_bodies_have_their_own_source_context(
     assert len({n["id"] for n in functions}) == len(functions)
 
 
+def test_reused_browser_function_names_remain_distinct_and_resolve_by_block(
+    tmp_path: Path,
+):
+    (tmp_path / "view.js").write_text("""function render(flag) {
+  if (flag) {
+    function finish() { return 'first'; }
+    finish();
+  }
+  if (!flag) {
+    function finish() { return 'second'; }
+    finish();
+  }
+}
+""")
+    graph = generate_graph(tmp_path, include_overlay=False, use_llm=False)
+    finishes = [n for n in graph["nodes"] if n["label"] == "view.render.finish"]
+    assert len(finishes) == 2
+    assert len({n["id"] for n in finishes}) == 2
+    calls = {
+        (e["from"], e["to"], e.get("callsite", {}).get("line"))
+        for e in graph["edges"]
+        if e["confidence"] == "resolved"
+    }
+    render_id = "ts:fn:view.render"
+    first = next(n for n in finishes if n["location"]["start_line"] == 3)
+    second = next(n for n in finishes if n["location"]["start_line"] == 7)
+    assert (render_id, first["id"], 4) in calls
+    assert (render_id, second["id"], 8) in calls
+
+
 def test_reused_python_route_names_remain_distinct_functions(tmp_path: Path):
     (tmp_path / "routes.py").write_text("""def first_result(): pass
 def second_result(): pass
@@ -117,6 +147,7 @@ def page(): return second_result()
     ]
     assert len(pages) == 2
     assert len({n["id"] for n in pages}) == 2
+    assert {n["label"] for n in pages} == {"routes.page"}
     edges = {
         (e["from"], e["to"]) for e in graph["edges"] if e["confidence"] == "resolved"
     }

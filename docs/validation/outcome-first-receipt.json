@@ -1,0 +1,645 @@
+{
+  "fixture_sha256": "297e77d9e64932a681ee5b34395a6bcf65203df6b922db9f7381cbb9a278a0d0",
+  "projects": {
+    "flowcode": {
+      "behaviors": 34,
+      "detected_entries": [
+        "py:fn:flowcode.cli.main",
+        "py:fn:flowcode.execution_ir._build_execution_ir",
+        "py:fn:flowcode.execution_ir.build_execution_ir",
+        "py:fn:flowcode.generate_graph",
+        "ts:fn:experiments.3d-layered.app.$callback_1000_34",
+        "ts:fn:experiments.3d-layered.app.$callback_1015_35",
+        "ts:fn:experiments.3d-layered.app.$callback_1023_32",
+        "ts:fn:experiments.3d-layered.app.$callback_105_37",
+        "ts:fn:experiments.3d-layered.app.$callback_106_72",
+        "ts:fn:experiments.3d-layered.app.$callback_107_72",
+        "ts:fn:experiments.3d-layered.app.$callback_1085_35",
+        "ts:fn:experiments.3d-layered.app.$callback_1086_70",
+        "ts:fn:experiments.3d-layered.app.$callback_1087_70",
+        "ts:fn:experiments.3d-layered.app.$callback_1088_65",
+        "ts:fn:experiments.3d-layered.app.$callback_1122_35",
+        "ts:fn:experiments.3d-layered.app.$callback_121_58",
+        "ts:fn:experiments.3d-layered.app.$callback_126_62",
+        "ts:fn:experiments.3d-layered.app.$callback_17_35",
+        "ts:fn:experiments.3d-layered.app.$callback_981_40",
+        "ts:fn:experiments.3d-layered.app.$callback_997_40",
+        "ts:fn:experiments.3d-layered.app.render2D.$callback_329_40",
+        "ts:fn:experiments.3d-layered.app.render2D.$callback_354_41",
+        "ts:fn:experiments.3d-layered.app.render2D.$callback_355_36",
+        "ts:fn:experiments.3d-layered.app.render2D.$callback_360_37",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.$callback_107_38",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.$callback_108_34",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.$callback_109_37",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.$callback_32_44",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.$callback_43_42",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.$callback_84_45",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.$callback_88_66",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.explainLayout",
+        "ts:fn:experiments.3d-layered.snapshot.setupSnapshotUI.showEvidence.$callback_158_42",
+        "ts:fn:experiments.3d-layered.snapshot.setupThemes.$callback_210_37"
+      ],
+      "entry_selection": "detected",
+      "functions": 307,
+      "map_sha256": "c102eda8055602d33a27d2c8476bc55e162e9527fd58d7b3a2ea5e645f0f52b6",
+      "ranking": {
+        "different_order_layers": 56,
+        "examples": [
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "py:fn:flowcode.application_edges._browser_routes.is_express_require"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "py:fn:flowcode.application_edges._browser_routes.receiver_is_valid"
+          },
+          {
+            "hybrid_first": "Return Value",
+            "local_first": "Return Value",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.application_edges._python_routes.literal_prefix"
+          },
+          {
+            "hybrid_first": "Return Found",
+            "local_first": "Return Found",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.application_edges._resolve_callback"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.application_edges._string"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return Value",
+            "source_node_id": "py:fn:flowcode.behaviors._display_label"
+          },
+          {
+            "hybrid_first": "Return Python return label",
+            "local_first": "Return Python return label",
+            "project_first": "Return result",
+            "source_node_id": "py:fn:flowcode.behaviors._python_return_label"
+          },
+          {
+            "hybrid_first": "Complete",
+            "local_first": "Complete",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.behaviors._tree_sitter_exit_sites"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return Decode",
+            "source_node_id": "py:fn:flowcode.browser_syntax.expression_name"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Raise Value Error",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:flowcode.bundle._coerce_overlay_fragment"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Raise Value Error",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:flowcode.bundle.merge_overlay_delta"
+          },
+          {
+            "hybrid_first": "Raise Value Error",
+            "local_first": "Raise Value Error",
+            "project_first": "Return Out",
+            "source_node_id": "py:fn:flowcode.bundle.parse_bundle"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "py:fn:flowcode.cli.main"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Return data",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:flowcode.diagnostics_pyright._pyright_argv_attempts"
+          },
+          {
+            "hybrid_first": "Return As posix",
+            "local_first": "Return As posix",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.diagnostics_pyright._rel_key_for_diagnostic_file"
+          },
+          {
+            "hybrid_first": "Return Doc",
+            "local_first": "Return Doc",
+            "project_first": "Return Out",
+            "source_node_id": "py:fn:flowcode.diagnostics_pyright.attach_diagnostics_to_raw"
+          },
+          {
+            "hybrid_first": "Return Cmd",
+            "local_first": "Return Cmd",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.diagnostics_pyright.resolve_typechecker"
+          },
+          {
+            "hybrid_first": "Return Loads",
+            "local_first": "Return Loads",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.diagnostics_pyright.run_pyright_json"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Return data",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:flowcode.embeddings.CodeEmbedder.encode"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Return data",
+            "project_first": "Return Collected",
+            "source_node_id": "py:fn:flowcode.entrypoint_heuristics.detect_entrypoints"
+          },
+          {
+            "hybrid_first": "Return Build execution ir from raw",
+            "local_first": "Return Build execution ir from raw",
+            "project_first": "Return Build execution ir from treesitter raw",
+            "source_node_id": "py:fn:flowcode.execution_ir._build_execution_ir"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "py:fn:flowcode.execution_ir.python_candidates.CandidateAnalysis._expr"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:flowcode.execution_ir.python_candidates.CandidateAnalysis._lookup"
+          },
+          {
+            "hybrid_first": "Return Method",
+            "local_first": "Return Method",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.execution_ir.python_candidates.CandidateAnalysis._method"
+          },
+          {
+            "hybrid_first": "Return Re exported",
+            "local_first": "Return Re exported",
+            "project_first": "Complete",
+            "source_node_id": "py:fn:flowcode.execution_ir.python_from_raw._CallGraphVisitor._resolve_name_callee"
+          }
+        ],
+        "multi_leaf_layers": 84
+      },
+      "source_digest": "bb6e2c04860120eaad08600bdc92ea04784825d2a9440557077b40fa069eecb7",
+      "unplaced": 98
+    },
+    "portfolio": {
+      "behaviors": 46,
+      "detected_entries": [
+        "py:fn:apis.route_education.agile_report",
+        "py:fn:apis.route_education.test@apis/route_education.py:10",
+        "py:fn:apis.route_education.test@apis/route_education.py:14",
+        "py:fn:apis.route_general.favicon",
+        "py:fn:apis.route_general.test",
+        "py:fn:apis.route_hobbies.test@apis/route_hobbies.py:10",
+        "py:fn:apis.route_hobbies.test@apis/route_hobbies.py:14",
+        "py:fn:apis.route_hobbies.test@apis/route_hobbies.py:18",
+        "py:fn:apis.route_hobbies.test@apis/route_hobbies.py:22",
+        "py:fn:apis.route_other.test",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:10",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:14",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:18",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:22",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:26",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:30",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:34",
+        "py:fn:apis.route_projects.test@apis/route_projects.py:38",
+        "py:fn:main.configure_static",
+        "py:fn:main.include_router",
+        "py:fn:main.start_application",
+        "ts:fn:static.scripts.chalkArrows.$callback_13_2",
+        "ts:fn:static.scripts.chalkArrows.$callback_13_2.$callback_454_39",
+        "ts:fn:static.scripts.chalkArrowsTweaks.$callback_15_2.$callback_186_51",
+        "ts:fn:static.scripts.chalkArrowsTweaks.$callback_15_2.makePanel.$callback_177_45",
+        "ts:fn:static.scripts.chalkArrowsTweaks.$callback_15_2.row.$callback_53_45",
+        "ts:fn:static.scripts.chalkArrowsTweaks.$callback_15_2.row.$callback_71_46",
+        "ts:fn:static.scripts.chalkArrowsTweaks.$callback_15_2.row.$callback_82_45",
+        "ts:fn:static.scripts.chalkboardTweaks.$callback_12_2.$callback_258_51",
+        "ts:fn:static.scripts.chalkboardTweaks.$callback_12_2.makePanel.$callback_195_45",
+        "ts:fn:static.scripts.chalkboardTweaks.$callback_12_2.makePanel.$callback_225_43",
+        "ts:fn:static.scripts.chalkboardTweaks.$callback_12_2.makePanel.$callback_249_45",
+        "ts:fn:static.scripts.chalkboardTweaks.$callback_12_2.row.$callback_99_41",
+        "ts:fn:static.scripts.map.$callback_2_47",
+        "ts:fn:static.scripts.map.$callback_2_47.$callback_29_28.$callback_34_47",
+        "ts:fn:static.scripts.map.$callback_2_47.$callback_29_28.$callback_40_53",
+        "ts:fn:static.scripts.mapPan.$callback_14_2.onKey",
+        "ts:fn:static.scripts.mapPan.$callback_14_2.onTouchEnd",
+        "ts:fn:static.scripts.mapPan.$callback_14_2.onTouchMove",
+        "ts:fn:static.scripts.mapPan.$callback_14_2.onTouchStart",
+        "ts:fn:static.scripts.mapPan.$callback_14_2.onWheel",
+        "ts:fn:static.scripts.mini-pages.handleRoutes.$callback_1_36",
+        "ts:fn:static.scripts.mini-pages.openPage.$callback_211_47",
+        "ts:fn:static.scripts.mini-pages.openPage.MiniWindow.open.$callback_46_20",
+        "ts:fn:static.scripts.mini-pages.openPage.MiniWindow.setEvents.$callback_184_56",
+        "ts:fn:static.scripts.tileCreation.$callback_78_21.$callback_259_44"
+      ],
+      "entry_selection": "detected",
+      "functions": 138,
+      "map_sha256": "5599de5baee63ea64e1c121b8daa7ceb9b218432c836413c3d4e9f1811a2ca54",
+      "ranking": {
+        "different_order_layers": 10,
+        "examples": [
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.chalkArrows.$callback_13_2.buildLineD"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.chalkArrows.$callback_13_2.computeEndpoints"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.chalkArrows.$callback_13_2.drawAllArrows"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.chalkArrows.$callback_13_2.ensureSvg"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.chalkArrows.$callback_13_2.updateViewBox"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.mapPan.$callback_14_2.clampY"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.mapPan.$callback_14_2.onWheel"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.mini-pages.openPage.MiniWindow.normalizeUrl"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.mini-pages.openPage.MiniWindow.setEvents.$callback_195_32"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "ts:fn:static.scripts.tileData.$callback_174_23"
+          }
+        ],
+        "multi_leaf_layers": 15
+      },
+      "source_digest": "3ede26f4b046a9de60127e9f0e4c13c79421c0e278a9db8b7cd35a1fdfc3497f",
+      "unplaced": 77
+    },
+    "scribblescan": {
+      "behaviors": 151,
+      "detected_entries": [
+        "py:fn:app.api.routes.route_combined.process_and_digitize",
+        "py:fn:app.api.routes.route_database.create_document",
+        "py:fn:app.api.routes.route_database.get_document_statistics",
+        "py:fn:app.api.routes.route_database.get_profile",
+        "py:fn:app.api.routes.route_database.get_system_health",
+        "py:fn:app.api.routes.route_database.get_user_balance",
+        "py:fn:app.api.routes.route_database.get_user_by_email",
+        "py:fn:app.api.routes.route_database.get_user_documents",
+        "py:fn:app.api.routes.route_database.get_user_metrics",
+        "py:fn:app.api.routes.route_database.test_connection",
+        "py:fn:app.api.routes.route_database.update_profile",
+        "py:fn:app.api.routes.route_demo.demo_digitize",
+        "py:fn:app.api.routes.route_demo.get_demo_files",
+        "py:fn:app.api.routes.route_digitize.digitize_images",
+        "py:fn:app.api.routes.route_digitize.get_status",
+        "py:fn:app.api.routes.route_files.convert_file",
+        "py:fn:app.api.routes.route_files.merge_pdfs",
+        "py:fn:app.api.routes.route_general.about",
+        "py:fn:app.api.routes.route_general.accept_policies",
+        "py:fn:app.api.routes.route_general.account_settings",
+        "py:fn:app.api.routes.route_general.create_test_session",
+        "py:fn:app.api.routes.route_general.delete_account",
+        "py:fn:app.api.routes.route_general.favicon",
+        "py:fn:app.api.routes.route_general.home",
+        "py:fn:app.api.routes.route_general.privacy_policy",
+        "py:fn:app.api.routes.route_general.subscription_management",
+        "py:fn:app.api.routes.route_general.terms_of_service",
+        "py:fn:app.api.routes.route_general.test_login",
+        "py:fn:app.api.routes.route_general.update_account_settings",
+        "py:fn:app.api.routes.route_stripe_v2.apply_coupon_to_subscription",
+        "py:fn:app.api.routes.route_stripe_v2.cancel_subscription",
+        "py:fn:app.api.routes.route_stripe_v2.create_checkout_session",
+        "py:fn:app.api.routes.route_stripe_v2.create_customer_portal_session",
+        "py:fn:app.api.routes.route_stripe_v2.create_setup_intent",
+        "py:fn:app.api.routes.route_stripe_v2.create_subscription_direct",
+        "py:fn:app.api.routes.route_stripe_v2.customer_portal",
+        "py:fn:app.api.routes.route_stripe_v2.detach_payment_method",
+        "py:fn:app.api.routes.route_stripe_v2.get_customer_invoices",
+        "py:fn:app.api.routes.route_stripe_v2.get_payment_methods",
+        "py:fn:app.api.routes.route_stripe_v2.get_prices",
+        "py:fn:app.api.routes.route_stripe_v2.get_subscription_status",
+        "py:fn:app.api.routes.route_stripe_v2.preview_subscription_changes",
+        "py:fn:app.api.routes.route_stripe_v2.preview_upcoming_invoice",
+        "py:fn:app.api.routes.route_stripe_v2.reactivate_subscription",
+        "py:fn:app.api.routes.route_stripe_v2.retry_invoice_payment",
+        "py:fn:app.api.routes.route_stripe_v2.set_default_payment_method",
+        "py:fn:app.api.routes.route_stripe_v2.stripe_webhook",
+        "py:fn:app.api.routes.route_stripe_v2.test_database_connection",
+        "py:fn:app.api.routes.route_stripe_v2.test_email_retrieval",
+        "py:fn:app.api.routes.route_stripe_v2.test_real_user_email",
+        "py:fn:app.api.routes.route_stripe_v2.update_customer",
+        "py:fn:app.api.services.database_service.DatabaseService.__init__",
+        "py:fn:app.api.services.demo_service.DemoService.__init__",
+        "py:fn:app.api.services.processing_status.ProcessingStatus.__init__",
+        "py:fn:app.api.services.stripe_service_v2.StripeServiceV2.__init__",
+        "py:fn:app.api.services.text_ai.TextAIHandler.__init__",
+        "py:fn:app.auth.auth.callback",
+        "py:fn:app.auth.auth.check_verification",
+        "py:fn:app.auth.auth.get_login_page",
+        "py:fn:app.auth.auth.get_session_status",
+        "py:fn:app.auth.auth.get_signup_page",
+        "py:fn:app.auth.auth.handle_reset_redirect",
+        "py:fn:app.auth.auth.login",
+        "py:fn:app.auth.auth.login_with_password",
+        "py:fn:app.auth.auth.logout",
+        "py:fn:app.auth.auth.logout_tab",
+        "py:fn:app.auth.auth.request_reset_password",
+        "py:fn:app.auth.auth.reset_password",
+        "py:fn:app.auth.auth.signup",
+        "py:fn:app.auth.auth.verify_email",
+        "py:fn:app.auth.auth.verify_session",
+        "py:fn:app.main.configure_static",
+        "py:fn:app.main.include_router",
+        "py:fn:app.main.start_application",
+        "ts:fn:static.js.auth.$callback_181_47",
+        "ts:fn:static.js.auth.$callback_2_47",
+        "ts:fn:static.js.auth.$callback_2_47.$callback_155_68.$callback_156_37",
+        "ts:fn:static.js.auth.$callback_2_47.$callback_4_38",
+        "ts:fn:static.js.auth.$callback_328_20.$callback_329_36",
+        "ts:fn:static.js.auth.$callback_361_38",
+        "ts:fn:static.js.auth.$callback_382_45",
+        "ts:fn:static.js.auth.$callback_382_45.$callback_389_40",
+        "ts:fn:static.js.auth.$callback_382_45.$callback_399_46",
+        "ts:fn:static.js.auth.$callback_408_77",
+        "ts:fn:static.js.auth.$callback_421_67",
+        "ts:fn:static.js.auth.$callback_444_65",
+        "ts:fn:static.js.auth.$callback_559_73",
+        "ts:fn:static.js.auth.$callback_615_71",
+        "ts:fn:static.js.auth.checkPasswordMatch",
+        "ts:fn:static.js.dropdown.$callback_1_47",
+        "ts:fn:static.js.dropdown.$callback_1_47.$callback_3_40",
+        "ts:fn:static.js.export.$callback_1_47",
+        "ts:fn:static.js.export.$callback_1_47.$callback_300_53",
+        "ts:fn:static.js.export.$callback_1_47.$callback_306_61.$callback_307_42",
+        "ts:fn:static.js.export.$callback_1_47.$callback_315_50",
+        "ts:fn:static.js.subscription_management_v2.$callback_650_47",
+        "ts:fn:static.js.subscription_management_v2.$callback_650_47.$callback_656_49",
+        "ts:fn:static.js.subscription_management_v2.$callback_650_47.$callback_703_71.$callback_704_39",
+        "ts:fn:static.js.subscription_management_v2.$callback_650_47.$callback_709_62.$callback_710_39",
+        "ts:fn:static.js.subscription_management_v2.updatePageCalculation",
+        "ts:fn:static.js.tooltips.$callback_7_2.$callback_279_39",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips.$callback_118_49",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips.$callback_125_44",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips.$callback_18_35.$callback_28_52",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips.$callback_18_35.$callback_33_52",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips.$callback_18_35.$callback_50_52",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips.$callback_18_35.$callback_97_52",
+        "ts:fn:static.js.tooltips.$callback_7_2.initTooltips.$callback_18_35.handleToggle",
+        "ts:fn:static.js.uploads.banner_test.$callback_2_47",
+        "ts:fn:static.js.uploads.banner_test.$callback_2_47.$callback_10_42",
+        "ts:fn:static.js.uploads.banner_test.$callback_2_47.createTestBanner.$callback_58_77",
+        "ts:fn:static.js.uploads.demo.$callback_446_47",
+        "ts:fn:static.js.uploads.demo.DemoHandler.setupEventListeners.$callback_167_62.$callback_168_44",
+        "ts:fn:static.js.uploads.demo.DemoHandler.setupEventListeners.$callback_177_52",
+        "ts:fn:static.js.uploads.demo.DemoHandler.setupEventListeners.$callback_186_51",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44.$callback_504_36.$callback_554_37.resizeFrame",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44.$callback_504_36.$callback_604_58",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44.$callback_504_36.$callback_622_58",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44.$callback_504_36.$callback_629_57",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44.$callback_636_84",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44.$callback_645_91",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.$callback_59_44.$callback_651_89",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.createDemoBanner.$callback_27_76",
+        "ts:fn:static.js.uploads.digitize.$callback_1_47.createDemoBanner.$callback_43_77",
+        "ts:fn:static.js.uploads.uiHandling.$callback_439_47",
+        "ts:fn:static.js.uploads.uiHandling.$callback_443_65",
+        "ts:fn:static.js.uploads.uiHandling.$callback_468_45",
+        "ts:fn:static.js.uploads.uiHandling.$callback_474_43",
+        "ts:fn:static.js.uploads.uiHandling.$callback_510_47",
+        "ts:fn:static.js.uploads.uiHandling.$callback_510_47.$callback_536_39.$callback_537_51",
+        "ts:fn:static.js.uploads.uiHandling.$callback_510_47.$callback_542_35.$callback_543_51",
+        "ts:fn:static.js.uploads.uiHandling.$callback_510_47.$callback_548_44",
+        "ts:fn:static.js.uploads.uiHandling.$callback_510_47.preventDefaults",
+        "ts:fn:static.js.uploads.uiHandling.$callback_668_41",
+        "ts:fn:static.js.uploads.uiHandling.$callback_675_36",
+        "ts:fn:static.js.uploads.uiHandling.$callback_704_47",
+        "ts:fn:static.js.uploads.uiHandling.$callback_704_47.$callback_721_49",
+        "ts:fn:static.js.uploads.uiHandling.$callback_704_47.$callback_729_47",
+        "ts:fn:static.js.uploads.uiHandling.$callback_704_47.$callback_737_44",
+        "ts:fn:static.js.uploads.uiHandling.$callback_704_47.$callback_748_50",
+        "ts:fn:static.js.uploads.uiHandling.$callback_8_47",
+        "ts:fn:static.js.uploads.uiHandling.createButton.$callback_24_43",
+        "ts:fn:static.js.uploads.uiHandling.createButton.$callback_34_38",
+        "ts:fn:static.js.viewport-fix.$callback_5_2.$callback_41_50",
+        "ts:fn:static.js.viewport-fix.$callback_5_2.$callback_57_55",
+        "ts:fn:static.js.viewport-fix.$callback_5_2.$callback_67_24.$callback_68_45",
+        "ts:fn:static.js.viewport-fix.$callback_5_2.$callback_67_24.$callback_68_45.$callback_76_52",
+        "ts:fn:static.js.viewport-fix.$callback_5_2.updateVH"
+      ],
+      "entry_selection": "detected",
+      "functions": 599,
+      "map_sha256": "16bea1eab5208a5db0d8d6f8e61b202e5e24efb539f5cd56e2cd210ebb9ad1db",
+      "ranking": {
+        "different_order_layers": 114,
+        "examples": [
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_combined.process_and_digitize"
+          },
+          {
+            "hybrid_first": "Return Result",
+            "local_first": "Raise HTTPException",
+            "project_first": "Return Result",
+            "source_node_id": "py:fn:app.api.routes.route_database.create_document"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Raise HTTPException",
+            "project_first": "Return result",
+            "source_node_id": "py:fn:app.api.routes.route_database.get_system_health"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Return data",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:app.api.routes.route_database.get_user_balance"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Return data",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:app.api.routes.route_database.get_user_by_email"
+          },
+          {
+            "hybrid_first": "Return Result",
+            "local_first": "Raise HTTPException",
+            "project_first": "Return Result",
+            "source_node_id": "py:fn:app.api.routes.route_database.update_profile"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_digitize.digitize_images"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_digitize.get_status"
+          },
+          {
+            "hybrid_first": "Return data",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return data",
+            "source_node_id": "py:fn:app.api.routes.route_files.convert_file"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_general.accept_policies"
+          },
+          {
+            "hybrid_first": "Return Redirect Response",
+            "local_first": "Return Redirect Response",
+            "project_first": "Return Redirect Response",
+            "source_node_id": "py:fn:app.api.routes.route_general.delete_account"
+          },
+          {
+            "hybrid_first": "Return result",
+            "local_first": "Return result",
+            "project_first": "Return result",
+            "source_node_id": "py:fn:app.api.routes.route_general.get_tier_display"
+          },
+          {
+            "hybrid_first": "Return Redirect Response",
+            "local_first": "Return Redirect Response",
+            "project_first": "Return Response",
+            "source_node_id": "py:fn:app.api.routes.route_general.subscription_management"
+          },
+          {
+            "hybrid_first": "Return Redirect Response",
+            "local_first": "Return Redirect Response",
+            "project_first": "Return Redirect Response",
+            "source_node_id": "py:fn:app.api.routes.route_general.update_account_settings"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.apply_coupon_to_subscription"
+          },
+          {
+            "hybrid_first": "Raise HTTPException",
+            "local_first": "Raise HTTPException",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.cancel_subscription"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.create_checkout_session"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.create_customer_portal_session"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Raise HTTPException",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.create_setup_intent"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.create_subscription_direct"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.customer_portal"
+          },
+          {
+            "hybrid_first": "Raise HTTPException",
+            "local_first": "Raise HTTPException",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.detach_payment_method"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.get_customer_invoices"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.get_payment_methods"
+          },
+          {
+            "hybrid_first": "Return JSONResponse",
+            "local_first": "Return JSONResponse",
+            "project_first": "Return JSONResponse",
+            "source_node_id": "py:fn:app.api.routes.route_stripe_v2.get_subscription_status"
+          }
+        ],
+        "multi_leaf_layers": 205
+      },
+      "source_digest": "a5e9c10f2d0b25d3e41169ac420f952e9eedee0c80ffc89997b6ccd27961ad39",
+      "unplaced": 319
+    }
+  },
+  "status": "passed"
+}
