@@ -42,6 +42,7 @@ def test_python_exits_are_source_grounded_and_nested_functions_are_ignored():
         ("return", 15),
     ]
     assert exits[1]["label"] == "Return Build result"
+    assert exits[1]["outcome_family"] == "call:build_result"
 
 
 def test_browser_exits_ignore_returns_from_nested_functions():
@@ -266,6 +267,71 @@ def test_leaf_orders_retain_both_project_and_local_strategies():
     assert layer["leaf_orders"]["project"][0] == "exit:project"
     assert layer["leaf_orders"]["local"][0] == "exit:local"
     assert layer["leaf_orders"]["hybrid"][0] == "exit:local"
+
+
+def test_same_outcome_variants_are_one_leaf_with_all_source_lines():
+    exits = [
+        {
+            "id": f"exit:json:{line}",
+            "kind": "return",
+            "label": "Return JSONResponse",
+            "exceptional": False,
+            "location": {"path": "app.py", "start_line": line, "end_line": line},
+            "project_similarity": score,
+            "local_similarity": score,
+        }
+        for line, score in [(10, 0.4), (14, 0.8), (18, 0.6)]
+    ]
+    exits.append(
+        {
+            "id": "exit:raise:20",
+            "kind": "raise",
+            "label": "Raise HTTPException",
+            "exceptional": True,
+            "location": {"path": "app.py", "start_line": 20, "end_line": 20},
+            "project_similarity": 0.2,
+            "local_similarity": 0.2,
+        }
+    )
+
+    document = build_behavior_map([node("main", exits=exits)], [], ["main"])
+    layer = next(iter(document["layers"].values()))
+    leaves = [row for row in layer["nodes"] if row["kind"] == "leaf"]
+    json_leaf = next(row for row in leaves if row["label"] == "Return JSONResponse")
+
+    assert len(leaves) == 2
+    assert json_leaf["exit_count"] == 3
+    assert json_leaf["exit_ids"] == ["exit:json:10", "exit:json:14", "exit:json:18"]
+    assert [ref["location"]["start_line"] for ref in json_leaf["source_refs"]] == [
+        10,
+        14,
+        18,
+    ]
+    assert json_leaf["project_similarity"] == 0.8
+    assert layer["leaf_ids"].count(json_leaf["id"]) == 1
+
+
+def test_generic_outcome_labels_stay_distinct_and_gain_line_context():
+    exits = [
+        {
+            "id": f"exit:result:{line}",
+            "kind": "return",
+            "label": "Return result",
+            "exceptional": False,
+            "location": {"path": "app.js", "start_line": line, "end_line": line},
+        }
+        for line in (10, 20)
+    ]
+
+    document = build_behavior_map([node("main", exits=exits)], [], ["main"])
+    layer = next(iter(document["layers"].values()))
+    leaves = [row for row in layer["nodes"] if row["kind"] == "leaf"]
+
+    assert [row["label"] for row in leaves] == [
+        "Return result · line 10",
+        "Return result · line 20",
+    ]
+    assert all(row["exit_count"] == 1 for row in leaves)
 
 
 def test_every_function_has_a_layer_and_unreachable_functions_are_explicit():

@@ -52,6 +52,28 @@ def main() -> None:
             page.screenshot(
                 path=str(args.out / f"{project}-overview.png"), full_page=True
             )
+            if project == "scribblescan":
+                opened = page.evaluate(
+                    """() => {
+                      const card = [...document.querySelectorAll('.behavior-card')]
+                        .find(row => row.querySelector('.behavior-start')?.textContent.trim() === 'Digitize images');
+                      card?.click();
+                      return Boolean(card);
+                    }"""
+                )
+                assert opened
+                json_outcomes = page.evaluate(
+                    """() => window.__behaviorPrototype.layer.nodes
+                      .filter(node => node.kind === 'leaf' && node.label === 'Return JSONResponse')
+                      .map(node => ({count: node.exit_count, sources: node.source_refs.length}))"""
+                )
+                assert json_outcomes == [{"count": 11, "sources": 11}]
+                assert page.locator(".map-node.leaf", has_text="11 VARIANTS").count() == 1
+                page.screenshot(
+                    path=str(args.out / "scribblescan-digitize-images.png"),
+                    full_page=True,
+                )
+                page.locator("#crumbs button").first.click()
             if overview["primary"]:
                 page.locator(".behavior-card").first.click()
                 page.wait_for_selector(".map-node.root")

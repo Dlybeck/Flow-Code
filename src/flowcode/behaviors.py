@@ -77,6 +77,26 @@ def _python_return_label(value: ast.AST | None) -> str:
     return "Return result"
 
 
+def _python_return_family(value: ast.AST | None) -> str | None:
+    """Identify explicit return families without exporting expression source."""
+
+    if value is None or isinstance(value, ast.Constant) and value.value is None:
+        return "complete"
+    if isinstance(value, ast.Name):
+        return f"name:{value.id}"
+    if isinstance(value, ast.Attribute):
+        return f"attribute:{value.attr}"
+    if isinstance(value, ast.Call):
+        function = value.func
+        if isinstance(function, ast.Name):
+            return f"call:{function.id}"
+        if isinstance(function, ast.Attribute):
+            return f"call:{function.attr}"
+    if isinstance(value, ast.Await):
+        return _python_return_family(value.value)
+    return None
+
+
 class _PythonExitVisitor(ast.NodeVisitor):
     """Collect exits in one function without descending into nested functions."""
 
@@ -96,14 +116,16 @@ class _PythonExitVisitor(ast.NodeVisitor):
     visit_Lambda = _visit_function
 
     def visit_Return(self, node: ast.Return) -> None:
-        self.exits.append(
-            {
-                "kind": "return",
-                "line_offset": int(node.lineno) - 1,
-                "label": _python_return_label(node.value),
-                "exceptional": False,
-            }
-        )
+        row = {
+            "kind": "return",
+            "line_offset": int(node.lineno) - 1,
+            "label": _python_return_label(node.value),
+            "exceptional": False,
+        }
+        family = _python_return_family(node.value)
+        if family:
+            row["outcome_family"] = family
+        self.exits.append(row)
 
     def visit_Raise(self, node: ast.Raise) -> None:
         label = "Raise error"
@@ -267,6 +289,11 @@ def extract_exit_sites(
                     "start_line": line,
                     "end_line": line,
                 },
+                **(
+                    {"outcome_family": item["outcome_family"]}
+                    if item.get("outcome_family")
+                    else {}
+                ),
             }
         )
     return rows
@@ -491,30 +518,114 @@ def build_behavior_map(
                 source_node_id=source_id,
                 location=source.get("location", {}),
             )
+        generic_outcome_labels = {
+            "complete",
+            "may complete",
+            "outcome",
+            "raise error",
+            "return data",
+            "return result",
+            "throw error",
+        }
+        exit_groups: dict[tuple[str, str, bool, bool], list[dict[str, Any]]] = (
+            defaultdict(list)
+        )
+        for exit_site in sorted(
+            exits,
+            key=lambda row: (
+                int(row.get("location", {}).get("start_line") or 0),
+                row["id"],
+            ),
+        ):
+            label_key = str(exit_site.get("label", "Outcome")).casefold()
+            family = exit_site.get("outcome_family")
+            if not family and label_key not in generic_outcome_labels:
+                family = f"label:{label_key}"
+            if not family:
+                family = f"exit:{exit_site['id']}"
+            key = (
+                str(exit_site.get("kind", "return")),
+                str(family),
+                bool(exit_site.get("exceptional")),
+                bool(exit_site.get("inferred")),
+            )
+            exit_groups[key].append(exit_site)
+
+        grouped_exits: list[dict[str, Any]] = []
+        for key, variants in exit_groups.items():
+            first = variants[0]
+            grouped_exits.append(
+                {
+                    "id": (
+                        first["id"]
+                        if len(variants) == 1
+                        else f"exit-group:{_stable_id(source_id, *key)}"
+                    ),
+                    "kind": first.get("kind", "return"),
+                    "label": first.get("label", "Outcome"),
+                    "exceptional": bool(first.get("exceptional")),
+                    "inferred": bool(first.get("inferred")),
+                    "location": dict(first["location"]),
+                    "variants": variants,
+                    "exit_ids": [variant["id"] for variant in variants],
+                    "project_similarity": max(
+                        float(variant.get("project_similarity", 0))
+                        for variant in variants
+                    ),
+                    "local_similarity": max(
+                        float(variant.get("local_similarity", 0))
+                        for variant in variants
+                    ),
+                    "rank_scores": {
+                        strategy: max(
+                            _exit_rank(variant, strategy)[0] for variant in variants
+                        )
+                        for strategy in ("project", "local", "hybrid")
+                    },
+                }
+            )
+        duplicate_exit_labels = Counter(row["label"] for row in grouped_exits)
+        for grouped_exit in grouped_exits:
+            if duplicate_exit_labels[grouped_exit["label"]] > 1:
+                grouped_exit["label"] += (
+                    f" · line {grouped_exit['location']['start_line']}"
+                )
         ordered_exits: dict[str, list[str]] = {}
         for strategy in ("project", "local", "hybrid"):
             ordered_exits[strategy] = [
                 row["id"]
                 for row in sorted(
-                    exits, key=lambda row: _exit_rank(row, strategy), reverse=True
+                    grouped_exits,
+                    key=lambda row: (row["rank_scores"][strategy], row["id"]),
+                    reverse=True,
                 )
             ]
-        for exit_site in exits:
+        for exit_site in grouped_exits:
             leaf = {
                 "id": exit_site["id"],
                 "kind": "leaf",
                 "label": exit_site["label"],
                 "exceptional": bool(exit_site.get("exceptional")),
                 "inferred": bool(exit_site.get("inferred")),
+                "exit_count": len(exit_site["variants"]),
+                "exit_ids": exit_site["exit_ids"],
                 "source_refs": [
-                    {"node_id": source_id, "location": dict(exit_site["location"])}
+                    {
+                        "node_id": source_id,
+                        "location": dict(variant["location"]),
+                    }
+                    for variant in exit_site["variants"]
                 ],
                 "project_similarity": float(exit_site.get("project_similarity", 0)),
                 "local_similarity": float(exit_site.get("local_similarity", 0)),
             }
             view_nodes.append(leaf)
-            events.append(
-                {"line": int(exit_site["location"]["start_line"]), "node": leaf}
+            events.extend(
+                {
+                    "line": int(variant["location"]["start_line"]),
+                    "node": leaf,
+                }
+                for variant in exit_site["variants"]
             )
 
         calls = sorted(
@@ -534,11 +645,16 @@ def build_behavior_map(
                 }
             )
             previous = event["node"]["id"]
+        seen_leaf_edges: set[tuple[str, str]] = set()
         for event in leaves:
             predecessor = root_id
             preceding = [call for call in calls if call["line"] <= event["line"]]
             if preceding:
                 predecessor = preceding[-1]["node"]["id"]
+            pair = (predecessor, event["node"]["id"])
+            if pair in seen_leaf_edges:
+                continue
+            seen_leaf_edges.add(pair)
             view_edges.append(
                 {
                     "from": predecessor,
