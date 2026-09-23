@@ -141,6 +141,105 @@ def test_recursive_call_is_visible_without_an_infinite_seed_dive():
     assert "child_layer_id" not in recursive
 
 
+def test_duplicate_edge_evidence_at_one_callsite_is_one_visible_call():
+    first = call("main", "helper", 4)
+    duplicate_evidence = {
+        **call("main", "helper", 4),
+        "confidence": "heuristic",
+        "evidence": "second_analyzer",
+    }
+
+    document = build_behavior_map(
+        [node("main"), node("helper")],
+        [first, duplicate_evidence],
+        ["main"],
+    )
+    layer = document["layers"][document["behaviors"][0]["root_layer_id"]]
+    calls = [row for row in layer["nodes"] if row["kind"] in {"node", "seed"}]
+
+    assert len(calls) == 1
+    assert calls[0]["label"] == "Helper"
+    assert calls[0]["call_count"] == 1
+    assert calls[0]["callsites"] == [
+        {"path": "app.py", "line": 4, "confidence": "resolved"}
+    ]
+
+
+def test_same_named_candidate_targets_are_one_honest_call_event():
+    left = node("module.Left.save")
+    right = node("module.Right.save")
+
+    document = build_behavior_map(
+        [node("main"), left, right],
+        [call("main", left["id"], 7), call("main", right["id"], 7)],
+        ["main"],
+    )
+    layer = document["layers"][document["behaviors"][0]["root_layer_id"]]
+    calls = [row for row in layer["nodes"] if row["kind"] in {"node", "seed"}]
+
+    assert len(calls) == 1
+    assert calls[0]["label"] == "Save"
+    assert calls[0]["candidate_count"] == 2
+    assert calls[0]["target_candidates"] == sorted([left["id"], right["id"]])
+    assert len(calls[0]["source_refs"]) == 2
+    assert "child_layer_id" not in calls[0]
+
+
+def test_repeated_calls_are_compacted_without_hiding_the_count():
+    document = build_behavior_map(
+        [node("main"), node("helper"), node("between")],
+        [
+            call("main", "helper", 4),
+            call("main", "between", 5),
+            call("main", "helper", 6),
+        ],
+        ["main"],
+    )
+    layer = document["layers"][document["behaviors"][0]["root_layer_id"]]
+    calls = [row for row in layer["nodes"] if row["kind"] in {"node", "seed"}]
+
+    assert len(calls) == 2
+    helper = next(row for row in calls if row["label"] == "Helper")
+    assert helper["call_count"] == 2
+    assert [site["line"] for site in helper["callsites"]] == [4, 6]
+
+
+def test_distinct_same_named_functions_get_source_context():
+    left = node("module.Left.save")
+    right = node("module.Right.save")
+
+    document = build_behavior_map(
+        [node("main"), left, right],
+        [call("main", left["id"], 4), call("main", right["id"], 5)],
+        ["main"],
+    )
+    layer = document["layers"][document["behaviors"][0]["root_layer_id"]]
+    labels = {row["label"] for row in layer["nodes"] if row["kind"] in {"node", "seed"}}
+
+    assert labels == {"Left · Save", "Right · Save"}
+
+
+def test_duplicate_qualified_names_use_their_source_line():
+    first = node("first")
+    first["qname"] = "scope.rehash"
+    first["label"] = "rehash"
+    first["location"]["start_line"] = 10
+    second = node("second")
+    second["qname"] = "scope.rehash"
+    second["label"] = "rehash"
+    second["location"]["start_line"] = 20
+
+    document = build_behavior_map(
+        [node("main"), first, second],
+        [call("main", "first", 4), call("main", "second", 5)],
+        ["main"],
+    )
+    layer = document["layers"][document["behaviors"][0]["root_layer_id"]]
+    labels = {row["label"] for row in layer["nodes"] if row["kind"] in {"node", "seed"}}
+
+    assert labels == {"Scope · Rehash · line 10", "Scope · Rehash · line 20"}
+
+
 def test_leaf_orders_retain_both_project_and_local_strategies():
     exits = [
         {

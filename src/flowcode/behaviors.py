@@ -13,7 +13,7 @@ import ast
 import hashlib
 import re
 import textwrap
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from typing import Any
 
 
@@ -45,6 +45,16 @@ def _display_label(node: dict[str, Any]) -> str:
     if re.match(r"^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/", value):
         return value
     return _humanize(value)
+
+
+def _qualified_display_label(node: dict[str, Any]) -> str:
+    """Add just enough source identity to distinguish same-named functions."""
+
+    value = str(node.get("qname") or node.get("label") or node.get("id") or "")
+    parts = [part for part in value.split(".") if part]
+    if len(parts) < 2:
+        return _display_label(node)
+    return f"{_humanize(parts[-2])} · {_humanize(parts[-1])}"
 
 
 def _python_return_label(value: ast.AST | None) -> str:
@@ -386,24 +396,89 @@ def build_behavior_map(
         }
         view_nodes = [root]
         events: list[dict[str, Any]] = []
-        for ordinal, edge in enumerate(outgoing.get(source_id, [])):
+        confidence_rank = {"resolved": 2, "heuristic": 1, "unknown": 0}
+        callsites: dict[tuple[int, str], list[dict[str, Any]]] = defaultdict(list)
+        for edge in outgoing.get(source_id, []):
             target = by_id[edge["to"]]
             line = int(edge.get("callsite", {}).get("line") or 0)
-            occurrence_id = f"call:{_stable_id(source_id, edge['to'], line, ordinal)}"
-            recursive = edge["to"] == source_id
-            seed = bool(outgoing.get(edge["to"])) and not recursive
+            # Multiple analyzers can support the same call, and conservative
+            # resolution can produce several same-named candidate targets. Both
+            # describe one source invocation rather than sequential execution.
+            callsites[(line, _display_label(target).casefold())].append(edge)
+
+        logical_calls: list[dict[str, Any]] = []
+        for (line, _), candidate_edges in sorted(callsites.items()):
+            target_ids = sorted({edge["to"] for edge in candidate_edges})
+            targets = [by_id[target_id] for target_id in target_ids]
+            strongest = max(
+                candidate_edges,
+                key=lambda edge: confidence_rank.get(
+                    edge.get("confidence", "unknown"), 0
+                ),
+            )
+            site = {
+                "path": strongest.get("callsite", {}).get("path")
+                or source.get("location", {}).get("path", ""),
+                "line": line,
+                "confidence": strongest.get("confidence", "unknown"),
+            }
+            logical_calls.append(
+                {
+                    "line": line,
+                    "label": _display_label(targets[0]),
+                    "target_candidates": target_ids,
+                    "source_refs": [_source_reference(target) for target in targets],
+                    "callsites": [site],
+                }
+            )
+
+        compacted_calls: list[dict[str, Any]] = []
+        compacted_by_target: dict[tuple[str, ...], dict[str, Any]] = {}
+        for logical_call in logical_calls:
+            signature = tuple(logical_call["target_candidates"])
+            existing = compacted_by_target.get(signature)
+            if existing:
+                existing["callsites"].extend(logical_call["callsites"])
+                continue
+            compacted_calls.append(logical_call)
+            compacted_by_target[signature] = logical_call
+
+        duplicate_labels = Counter(call["label"] for call in compacted_calls)
+        for logical_call in compacted_calls:
+            if duplicate_labels[logical_call["label"]] <= 1:
+                continue
+            if len(logical_call["target_candidates"]) == 1:
+                logical_call["label"] = _qualified_display_label(
+                    by_id[logical_call["target_candidates"][0]]
+                )
+        qualified_duplicates = Counter(call["label"] for call in compacted_calls)
+        for logical_call in compacted_calls:
+            if qualified_duplicates[logical_call["label"]] <= 1:
+                continue
+            if len(logical_call["target_candidates"]) == 1:
+                target = by_id[logical_call["target_candidates"][0]]
+                start_line = int(target.get("location", {}).get("start_line") or 0)
+                logical_call["label"] += f" · line {start_line}"
+
+        for ordinal, logical_call in enumerate(compacted_calls):
+            target_ids = logical_call["target_candidates"]
+            line = logical_call["line"]
+            occurrence_id = f"call:{_stable_id(source_id, *target_ids, line, ordinal)}"
+            unambiguous = len(target_ids) == 1
+            recursive = unambiguous and target_ids[0] == source_id
+            seed = unambiguous and bool(outgoing.get(target_ids[0])) and not recursive
             occurrence = {
                 "id": occurrence_id,
                 "kind": "seed" if seed else "node",
-                "label": _display_label(target),
-                "source_refs": [_source_reference(target)],
-                "callsite": {
-                    "path": source.get("location", {}).get("path", ""),
-                    "line": line,
-                    "confidence": edge.get("confidence", "unknown"),
-                },
+                "label": logical_call["label"],
+                "source_refs": logical_call["source_refs"],
+                "callsite": logical_call["callsites"][0],
+                "callsites": logical_call["callsites"],
+                "call_count": len(logical_call["callsites"]),
+                "candidate_count": len(target_ids),
+                "target_candidates": target_ids,
                 **({"recursive": True} if recursive else {}),
-                **({"child_layer_id": layer_ids[edge["to"]]} if seed else {}),
+                **({"child_layer_id": layer_ids[target_ids[0]]} if seed else {}),
             }
             view_nodes.append(occurrence)
             events.append({"line": line, "node": occurrence})
